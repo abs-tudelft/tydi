@@ -1,0 +1,11 @@
+[book]
+title = "Tydi"
+description = "An open specification for complex data structures over hardware streams"
+authors = ["Johan Peltenburg", "Jeroen van Straten", "Matthijs Brobbel"]
+language = "en"
+multilingual = false
+src = "src"
+
+[output.html]
+mathjax-support = true
+git-repository-url = "https://github.com/abs-tudelft/tydi"
