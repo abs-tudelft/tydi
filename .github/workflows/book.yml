@@ -19,10 +19,11 @@ jobs:
         echo "::add-path::${HOME}/mdbook/"
     - name: Build
       run: mdbook build
+      working-directory: book
     - uses: actions/upload-artifact@v1
       with:
         name: book
-        path: book
+        path: book/book
 
   deploy:
     name: Deploy
@@ -36,5 +37,5 @@ jobs:
     - uses: alex-page/blazing-fast-gh-pages-deploy@v1.1.0
       with:
         repo-token: ${{ secrets.GH_PAT }}
-        site-directory: ./book
+        site-directory: ./book/book
         commit-message: Deploy to GitHub Pages
