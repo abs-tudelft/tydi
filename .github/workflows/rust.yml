@@ -1,0 +1,68 @@
+name: Rust
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    paths:
+    - 'src/**'
+    - 'Cargo.toml'
+    - 'Cargo.lock'
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        default: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: check
+        args: --all-features --all-targets
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        default: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --all-features --all-targets
+
+  rustfmt:
+    name: Rustfmt
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt
+    - uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: clippy
+    - uses: actions-rs/clippy-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        args: --all-features --all-targets -- -Dwarnings
