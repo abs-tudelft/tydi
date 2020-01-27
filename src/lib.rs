@@ -25,12 +25,12 @@ pub enum Data {
     /// Struct<T, U, ...>
     Struct {
         identifier: Option<String>,
-        childs: Vec<Data>,
+        children: Vec<Data>,
     },
     /// Variant<T, U, ...>
     Variant {
         identifier: Option<String>,
-        childs: Vec<Data>,
+        children: Vec<Data>,
     },
 }
 
@@ -69,12 +69,12 @@ pub enum River {
     /// Group<T, U, ...>
     Group {
         identifier: Option<String>,
-        childs: Vec<River>,
+        children: Vec<River>,
     },
     /// Union<T, U, ...>
     Union {
         identifier: Option<String>,
-        childs: Vec<River>,
+        children: Vec<River>,
     },
 }
 
@@ -98,10 +98,12 @@ impl River {
             } => {
                 parameters.elements.unwrap_or(1) * child.width() + parameters.userbits.unwrap_or(0)
             }
-            River::Group { childs, .. } => childs.iter().map(|child| child.width()).sum(),
-            River::Union { childs, .. } => {
-                childs.iter().map(|child| child.width()).max().unwrap_or(0)
-            }
+            River::Group { children, .. } => children.iter().map(|child| child.width()).sum(),
+            River::Union { children, .. } => children
+                .iter()
+                .map(|child| child.width())
+                .max()
+                .unwrap_or(0),
         }
     }
 }
@@ -185,7 +187,7 @@ mod tests {
         assert_eq!(
             River::Group {
                 identifier: None,
-                childs: vec![
+                children: vec![
                     River::Bits {
                         identifier: None,
                         width: 3
@@ -202,7 +204,7 @@ mod tests {
         assert_eq!(
             River::Union {
                 identifier: None,
-                childs: vec![
+                children: vec![
                     River::Bits {
                         identifier: None,
                         width: 3

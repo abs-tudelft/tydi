@@ -30,7 +30,7 @@ macro_rules! river_group_type_parse_fn {
             map(r#type($name, nonempty_comma_list(river_type)), |x| {
                 $variant {
                     identifier: x.0,
-                    childs: x.1,
+                    children: x.1,
                 }
             })(input)
         }
@@ -210,7 +210,7 @@ mod tests {
                 "",
                 River::Group {
                     identifier: None,
-                    childs: vec![
+                    children: vec![
                         River::Bits {
                             identifier: None,
                             width: 4
@@ -299,7 +299,7 @@ mod tests {
                 "",
                 River::Union {
                     identifier: None,
-                    childs: vec![
+                    children: vec![
                         River::Bits {
                             identifier: None,
                             width: 8

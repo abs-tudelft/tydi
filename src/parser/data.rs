@@ -24,7 +24,10 @@ pub fn prim(input: &str) -> IResult<&str, Data> {
 pub fn r#struct(input: &str) -> IResult<&str, Data> {
     map(
         r#type("Struct", nonempty_comma_list(data_type)),
-        |(identifier, childs)| Data::Struct { identifier, childs },
+        |(identifier, children)| Data::Struct {
+            identifier,
+            children,
+        },
     )(input)
 }
 
@@ -57,7 +60,10 @@ pub fn seq(input: &str) -> IResult<&str, Data> {
 pub fn variant(input: &str) -> IResult<&str, Data> {
     map(
         r#type("Variant", nonempty_comma_list(data_type)),
-        |(identifier, childs)| Data::Variant { identifier, childs },
+        |(identifier, children)| Data::Variant {
+            identifier,
+            children,
+        },
     )(input)
 }
 
@@ -109,7 +115,7 @@ mod tests {
                 "",
                 Data::Struct {
                     identifier: None,
-                    childs: vec![Data::Prim {
+                    children: vec![Data::Prim {
                         identifier: None,
                         width: 3
                     }]
@@ -122,9 +128,9 @@ mod tests {
                 "",
                 Data::Struct {
                     identifier: None,
-                    childs: vec![Data::Struct {
+                    children: vec![Data::Struct {
                         identifier: None,
-                        childs: vec![Data::Prim {
+                        children: vec![Data::Prim {
                             identifier: None,
                             width: 3
                         }]
@@ -138,9 +144,9 @@ mod tests {
                 "",
                 Data::Struct {
                     identifier: None,
-                    childs: vec![Data::Struct {
+                    children: vec![Data::Struct {
                         identifier: None,
-                        childs: vec![
+                        children: vec![
                             Data::Prim {
                                 identifier: None,
                                 width: 3
@@ -164,7 +170,7 @@ mod tests {
                 "",
                 Data::Struct {
                     identifier: Some("a".to_string()),
-                    childs: vec![Data::Prim {
+                    children: vec![Data::Prim {
                         identifier: Some("b".to_string()),
                         width: 3
                     }]
@@ -238,7 +244,7 @@ mod tests {
                 "",
                 Data::Variant {
                     identifier: None,
-                    childs: vec![
+                    children: vec![
                         Data::Prim {
                             identifier: None,
                             width: 8
@@ -278,7 +284,7 @@ mod tests {
                 "",
                 Data::Struct {
                     identifier: None,
-                    childs: vec![
+                    children: vec![
                         Data::Prim {
                             identifier: None,
                             width: 4
@@ -324,7 +330,7 @@ mod tests {
                 "",
                 Data::Variant {
                     identifier: None,
-                    childs: vec![
+                    children: vec![
                         Data::Prim {
                             identifier: None,
                             width: 4
