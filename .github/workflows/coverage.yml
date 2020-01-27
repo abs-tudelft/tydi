@@ -1,0 +1,44 @@
+name: Coverage
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    paths:
+    - 'src/**'
+    - 'Cargo.toml'
+    - 'Cargo.lock'
+
+jobs:
+  rust:
+    name: Rust
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -C link-dead-code
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        default: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-run --all-features --all-targets
+    - uses: docker://kcov/kcov:v37
+      with:
+        entrypoint: true
+    - name: Kcov
+      run: |
+        docker run --rm --security-opt seccomp=unconfined \
+          --workdir /home/runner/work/tydi/tydi \
+          -v "/var/run/docker.sock":"/var/run/docker.sock" \
+          -v "/home/runner/work/tydi/tydi":"/home/runner/work/tydi/tydi" \
+          --entrypoint "/bin/bash" \
+          kcov/kcov:v37 \
+          -c "mkdir -p target/cov/rust && find target/debug/tydi-* -type f -executable | xargs -l kcov --include-path=src/ --exclude-region='#[cfg(test)]' target/cov/rust"
+    - uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
