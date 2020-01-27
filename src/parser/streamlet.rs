@@ -52,8 +52,35 @@ Bits<4>"#
             (
                 "",
                 Streamlet {
-                    input: vec![Bits(1), Bits(2)],
-                    output: vec![Group(vec![Bits(3), Bits(4)]), Bits(4)]
+                    input: vec![
+                        Bits {
+                            identifier: None,
+                            width: 1
+                        },
+                        Bits {
+                            identifier: None,
+                            width: 2
+                        }
+                    ],
+                    output: vec![
+                        Group {
+                            identifier: None,
+                            childs: vec![
+                                Bits {
+                                    identifier: None,
+                                    width: 3
+                                },
+                                Bits {
+                                    identifier: None,
+                                    width: 4
+                                }
+                            ]
+                        },
+                        Bits {
+                            identifier: None,
+                            width: 4
+                        }
+                    ]
                 }
             )
         );

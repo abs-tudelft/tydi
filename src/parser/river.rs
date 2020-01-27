@@ -11,19 +11,28 @@ use nom::{
 };
 
 macro_rules! river_type_parse_fn {
-    ($ident:ident, $name:expr, $variant:expr) => {
+    ($ident:ident, $name:expr, $variant:path) => {
         pub fn $ident(input: &str) -> IResult<&str, River> {
-            river_type_parser($name, |(river_type, river_parameters)| {
-                $variant(Box::new(river_type), river_parameters.unwrap_or_default())
+            river_type_parser($name, |(identifier, (river_type, river_parameters))| {
+                $variant {
+                    identifier,
+                    child: Box::new(river_type),
+                    parameters: river_parameters.unwrap_or_default(),
+                }
             })(input)
         }
     };
 }
 
 macro_rules! river_group_type_parse_fn {
-    ($ident:ident, $name:expr, $variant:expr) => {
+    ($ident:ident, $name:expr, $variant:path) => {
         pub fn $ident(input: &str) -> IResult<&str, River> {
-            map(r#type($name, nonempty_comma_list(river_type)), $variant)(input)
+            map(r#type($name, nonempty_comma_list(river_type)), |x| {
+                $variant {
+                    identifier: x.0,
+                    childs: x.1,
+                }
+            })(input)
         }
     };
 }
@@ -32,7 +41,7 @@ macro_rules! river_group_type_parse_fn {
 #[allow(clippy::needless_lifetimes)] // rust-lang/rust-clippy/issues/2944
 fn river_type_parser<'a, F>(name: &'a str, inner: F) -> impl Fn(&'a str) -> IResult<&'a str, River>
 where
-    F: Fn((River, Option<RiverParameters>)) -> River,
+    F: Fn((Option<String>, (River, Option<RiverParameters>))) -> River,
 {
     map(
         r#type(
@@ -68,7 +77,10 @@ pub fn river_parameters(input: &str) -> IResult<&str, RiverParameters> {
 
 /// Parses a Bits<b>.
 pub fn bits(input: &str) -> IResult<&str, River> {
-    map(r#type("Bits", usize), River::Bits)(input)
+    map(r#type("Bits", usize), |(identifier, width)| River::Bits {
+        identifier,
+        width,
+    })(input)
 }
 
 river_type_parse_fn!(root, "Root", River::Root);
@@ -140,7 +152,16 @@ mod tests {
 
     #[test]
     fn parse_bits() {
-        assert_eq!(bits("Bits<8>"), Ok(("", River::Bits(8))));
+        assert_eq!(
+            bits("Bits<8>"),
+            Ok((
+                "",
+                River::Bits {
+                    identifier: None,
+                    width: 8
+                }
+            ))
+        );
         assert!(bits("Bits<>").is_err());
         assert!(bits("bits<8>").is_err());
     }
@@ -151,21 +172,32 @@ mod tests {
             root("Root<Bits<8>, 1, 2, 3>"),
             Ok((
                 "",
-                River::Root(
-                    Box::new(River::Bits(8)),
-                    RiverParameters {
+                River::Root {
+                    identifier: None,
+                    child: Box::new(River::Bits {
+                        identifier: None,
+                        width: 8
+                    }),
+                    parameters: RiverParameters {
                         elements: Some(1),
                         complexity: Some(2),
                         userbits: Some(3)
                     }
-                )
+                }
             ))
         );
         assert_eq!(
             root("Root<Bits<8>>"),
             Ok((
                 "",
-                River::Root(Box::new(River::Bits(8)), RiverParameters::default())
+                River::Root {
+                    identifier: None,
+                    child: Box::new(River::Bits {
+                        identifier: None,
+                        width: 8
+                    }),
+                    parameters: RiverParameters::default()
+                }
             ))
         );
     }
@@ -174,7 +206,22 @@ mod tests {
     fn parse_group() {
         assert_eq!(
             group("Group<Bits<4>, Bits<8>>"),
-            Ok(("", River::Group(vec![River::Bits(4), River::Bits(8)])))
+            Ok((
+                "",
+                River::Group {
+                    identifier: None,
+                    childs: vec![
+                        River::Bits {
+                            identifier: None,
+                            width: 4
+                        },
+                        River::Bits {
+                            identifier: None,
+                            width: 8
+                        }
+                    ]
+                }
+            ))
         );
     }
 
@@ -184,14 +231,18 @@ mod tests {
             dim("Dim<Bits<8>, 1, 2, 3>"),
             Ok((
                 "",
-                River::Dim(
-                    Box::new(River::Bits(8)),
-                    RiverParameters {
+                River::Dim {
+                    identifier: None,
+                    child: Box::new(River::Bits {
+                        identifier: None,
+                        width: 8
+                    }),
+                    parameters: RiverParameters {
                         elements: Some(1),
                         complexity: Some(2),
                         userbits: Some(3)
                     }
-                )
+                }
             ))
         );
     }
@@ -202,14 +253,18 @@ mod tests {
             new("New<Bits<7>, 3, 2, 1>"),
             Ok((
                 "",
-                River::New(
-                    Box::new(River::Bits(7)),
-                    RiverParameters {
+                River::New {
+                    identifier: None,
+                    child: Box::new(River::Bits {
+                        identifier: None,
+                        width: 7
+                    }),
+                    parameters: RiverParameters {
                         elements: Some(3),
                         complexity: Some(2),
                         userbits: Some(1)
                     }
-                )
+                }
             ))
         );
     }
@@ -220,14 +275,18 @@ mod tests {
             rev("Rev<Bits<8>, 11, 22, 33>"),
             Ok((
                 "",
-                River::Rev(
-                    Box::new(River::Bits(8)),
-                    RiverParameters {
+                River::Rev {
+                    identifier: None,
+                    child: Box::new(River::Bits {
+                        identifier: None,
+                        width: 8
+                    }),
+                    parameters: RiverParameters {
                         elements: Some(11),
                         complexity: Some(22),
                         userbits: Some(33)
                     }
-                )
+                }
             ))
         );
     }
@@ -236,12 +295,36 @@ mod tests {
     fn parse_union() {
         assert_eq!(
             union("Union<Bits<8>, Bits<4>>"),
-            Ok(("", River::Union(vec![River::Bits(8), River::Bits(4)])))
+            Ok((
+                "",
+                River::Union {
+                    identifier: None,
+                    childs: vec![
+                        River::Bits {
+                            identifier: None,
+                            width: 8
+                        },
+                        River::Bits {
+                            identifier: None,
+                            width: 4
+                        }
+                    ]
+                }
+            ))
         );
     }
 
     #[test]
     fn parse_river_type() {
-        assert_eq!(river_type("Bits<8>"), Ok(("", River::Bits(8))));
+        assert_eq!(
+            river_type("Bits<8>"),
+            Ok((
+                "",
+                River::Bits {
+                    identifier: None,
+                    width: 8
+                }
+            ))
+        );
     }
 }
