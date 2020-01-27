@@ -42,11 +42,11 @@ mod tests {
     fn parse_streamlet_interface_definition() {
         assert_eq!(
             streamlet_interface_definition(
-                r#"Bits<1>
-Bits<2>
+                r#"a: Bits<1>
+b: Bits<2>
 
-Group<Bits<3>, Bits<4>>
-Bits<4>"#
+c: Group<Bits<3>, Bits<4>>
+d: Bits<4>"#
             )
             .unwrap(),
             (
@@ -54,17 +54,17 @@ Bits<4>"#
                 Streamlet {
                     input: vec![
                         Bits {
-                            identifier: None,
+                            identifier: Some("a".to_string()),
                             width: 1
                         },
                         Bits {
-                            identifier: None,
+                            identifier: Some("b".to_string()),
                             width: 2
                         }
                     ],
                     output: vec![
                         Group {
-                            identifier: None,
+                            identifier: Some("c".to_string()),
                             childs: vec![
                                 Bits {
                                     identifier: None,
@@ -77,7 +77,7 @@ Bits<4>"#
                             ]
                         },
                         Bits {
-                            identifier: None,
+                            identifier: Some("d".to_string()),
                             width: 4
                         }
                     ]
