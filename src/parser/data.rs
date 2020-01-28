@@ -24,10 +24,7 @@ pub fn prim(input: &str) -> IResult<&str, Data> {
 pub fn r#struct(input: &str) -> IResult<&str, Data> {
     map(
         r#type("Struct", nonempty_comma_list(data_type)),
-        |(identifier, children)| Data::Struct {
-            identifier,
-            children,
-        },
+        |(identifier, inner)| Data::Struct { identifier, inner },
     )(input)
 }
 
@@ -40,7 +37,7 @@ pub fn tuple(input: &str) -> IResult<&str, Data> {
         ),
         |(identifier, (data_type, width))| Data::Tuple {
             identifier,
-            child: Box::new(data_type),
+            inner: Box::new(data_type),
             width,
         },
     )(input)
@@ -51,7 +48,7 @@ pub fn seq(input: &str) -> IResult<&str, Data> {
     map(r#type("Seq", data_type), |(identifier, data_type)| {
         Data::Seq {
             identifier,
-            child: Box::new(data_type),
+            inner: Box::new(data_type),
         }
     })(input)
 }
@@ -60,10 +57,7 @@ pub fn seq(input: &str) -> IResult<&str, Data> {
 pub fn variant(input: &str) -> IResult<&str, Data> {
     map(
         r#type("Variant", nonempty_comma_list(data_type)),
-        |(identifier, children)| Data::Variant {
-            identifier,
-            children,
-        },
+        |(identifier, inner)| Data::Variant { identifier, inner },
     )(input)
 }
 
@@ -115,7 +109,7 @@ mod tests {
                 "",
                 Data::Struct {
                     identifier: None,
-                    children: vec![Data::Prim {
+                    inner: vec![Data::Prim {
                         identifier: None,
                         width: 3
                     }]
@@ -128,9 +122,9 @@ mod tests {
                 "",
                 Data::Struct {
                     identifier: None,
-                    children: vec![Data::Struct {
+                    inner: vec![Data::Struct {
                         identifier: None,
-                        children: vec![Data::Prim {
+                        inner: vec![Data::Prim {
                             identifier: None,
                             width: 3
                         }]
@@ -144,9 +138,9 @@ mod tests {
                 "",
                 Data::Struct {
                     identifier: None,
-                    children: vec![Data::Struct {
+                    inner: vec![Data::Struct {
                         identifier: None,
-                        children: vec![
+                        inner: vec![
                             Data::Prim {
                                 identifier: None,
                                 width: 3
@@ -170,7 +164,7 @@ mod tests {
                 "",
                 Data::Struct {
                     identifier: Some("a".to_string()),
-                    children: vec![Data::Prim {
+                    inner: vec![Data::Prim {
                         identifier: Some("b".to_string()),
                         width: 3
                     }]
@@ -191,7 +185,7 @@ mod tests {
                 "",
                 Data::Tuple {
                     identifier: None,
-                    child: Box::new(Data::Prim {
+                    inner: Box::new(Data::Prim {
                         identifier: None,
                         width: 8
                     }),
@@ -205,7 +199,7 @@ mod tests {
                 "",
                 Data::Tuple {
                     identifier: Some("c".to_string()),
-                    child: Box::new(Data::Prim {
+                    inner: Box::new(Data::Prim {
                         identifier: Some("c".to_string()),
                         width: 8
                     }),
@@ -223,9 +217,9 @@ mod tests {
                 "",
                 Data::Seq {
                     identifier: None,
-                    child: Box::new(Data::Tuple {
+                    inner: Box::new(Data::Tuple {
                         identifier: None,
-                        child: Box::new(Data::Prim {
+                        inner: Box::new(Data::Prim {
                             identifier: Some("a".to_string()),
                             width: 8
                         }),
@@ -244,16 +238,16 @@ mod tests {
                 "",
                 Data::Variant {
                     identifier: None,
-                    children: vec![
+                    inner: vec![
                         Data::Prim {
                             identifier: None,
                             width: 8
                         },
                         Data::Seq {
                             identifier: None,
-                            child: Box::new(Data::Tuple {
+                            inner: Box::new(Data::Tuple {
                                 identifier: None,
-                                child: Box::new(Data::Prim {
+                                inner: Box::new(Data::Prim {
                                     identifier: Some("byte".to_string()),
                                     width: 8
                                 }),
@@ -284,7 +278,7 @@ mod tests {
                 "",
                 Data::Struct {
                     identifier: None,
-                    children: vec![
+                    inner: vec![
                         Data::Prim {
                             identifier: None,
                             width: 4
@@ -303,7 +297,7 @@ mod tests {
                 "",
                 Data::Tuple {
                     identifier: None,
-                    child: Box::new(Data::Prim {
+                    inner: Box::new(Data::Prim {
                         identifier: None,
                         width: 8
                     }),
@@ -317,7 +311,7 @@ mod tests {
                 "",
                 Data::Seq {
                     identifier: None,
-                    child: Box::new(Data::Prim {
+                    inner: Box::new(Data::Prim {
                         identifier: None,
                         width: 4
                     })
@@ -330,7 +324,7 @@ mod tests {
                 "",
                 Data::Variant {
                     identifier: None,
-                    children: vec![
+                    inner: vec![
                         Data::Prim {
                             identifier: None,
                             width: 4

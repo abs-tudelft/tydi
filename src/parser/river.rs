@@ -16,7 +16,7 @@ macro_rules! river_type_parse_fn {
             river_type_parser($name, |(identifier, (river_type, river_parameters))| {
                 $variant {
                     identifier,
-                    child: Box::new(river_type),
+                    inner: Box::new(river_type),
                     parameters: river_parameters.unwrap_or_default(),
                 }
             })(input)
@@ -30,7 +30,7 @@ macro_rules! river_group_type_parse_fn {
             map(r#type($name, nonempty_comma_list(river_type)), |x| {
                 $variant {
                     identifier: x.0,
-                    children: x.1,
+                    inner: x.1,
                 }
             })(input)
         }
@@ -174,7 +174,7 @@ mod tests {
                 "",
                 River::Root {
                     identifier: None,
-                    child: Box::new(River::Bits {
+                    inner: Box::new(River::Bits {
                         identifier: None,
                         width: 8
                     }),
@@ -192,7 +192,7 @@ mod tests {
                 "",
                 River::Root {
                     identifier: None,
-                    child: Box::new(River::Bits {
+                    inner: Box::new(River::Bits {
                         identifier: None,
                         width: 8
                     }),
@@ -210,7 +210,7 @@ mod tests {
                 "",
                 River::Group {
                     identifier: None,
-                    children: vec![
+                    inner: vec![
                         River::Bits {
                             identifier: None,
                             width: 4
@@ -233,7 +233,7 @@ mod tests {
                 "",
                 River::Dim {
                     identifier: None,
-                    child: Box::new(River::Bits {
+                    inner: Box::new(River::Bits {
                         identifier: None,
                         width: 8
                     }),
@@ -255,7 +255,8 @@ mod tests {
                 "",
                 River::New {
                     identifier: None,
-                    child: Box::new(River::Bits {
+
+                    inner: Box::new(River::Bits {
                         identifier: None,
                         width: 7
                     }),
@@ -277,7 +278,8 @@ mod tests {
                 "",
                 River::Rev {
                     identifier: None,
-                    child: Box::new(River::Bits {
+
+                    inner: Box::new(River::Bits {
                         identifier: None,
                         width: 8
                     }),
@@ -299,7 +301,7 @@ mod tests {
                 "",
                 River::Union {
                     identifier: None,
-                    children: vec![
+                    inner: vec![
                         River::Bits {
                             identifier: None,
                             width: 8

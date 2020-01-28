@@ -1,80 +1,90 @@
 #[cfg(feature = "parser")]
 pub mod parser;
 
-/// High level data types.
+/// High-level data types.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Data {
-    /// Empty
+    /// No value, empty set.
     Empty,
-    /// Prim<B>
+    /// Primitive element containing `width` bits of information.
     Prim {
         identifier: Option<String>,
         width: usize,
     },
-    /// Tuple<T, n>
+    /// A fixed-length aggregate type. An instance is a sequence with `width`
+    /// instances of the inner `Data` type.
     Tuple {
         identifier: Option<String>,
-        child: Box<Data>,
+        inner: Box<Data>,
         width: usize,
     },
-    /// Seq<T>
+    /// A variable-length aggregate type. An instance is a sequence with a
+    /// variable number of instances of the inner `Data` type.
     Seq {
         identifier: Option<String>,
-        child: Box<Data>,
+        inner: Box<Data>,
     },
-    /// Struct<T, U, ...>
+    /// A composite type. An instance is a set with one instance for all inner
+    /// `Data` types.
     Struct {
         identifier: Option<String>,
-        children: Vec<Data>,
+        inner: Vec<Data>,
     },
-    /// Variant<T, U, ...>
+    /// A variant type. An instance is one of the inner `Data` types with a tag
+    /// indicating the variant.
     Variant {
         identifier: Option<String>,
-        children: Vec<Data>,
+        inner: Vec<Data>,
     },
+    // TODO: add map type
 }
 
-/// River types.
+/// Streamspace types.
 #[derive(Clone, Debug, PartialEq)]
 pub enum River {
-    /// Bits<b>
+    /// Bits is a primitive element with `width` bits.
     Bits {
         identifier: Option<String>,
         width: usize,
     },
-    /// Root<T, N, C, U>
-    Root {
-        identifier: Option<String>,
-        child: Box<River>,
-        parameters: RiverParameters,
-    },
-    /// Dim<T, N, C, U>
-    Dim {
-        identifier: Option<String>,
-        child: Box<River>,
-        parameters: RiverParameters,
-    },
-    /// New<T, N, C, U>
-    New {
-        identifier: Option<String>,
-        child: Box<River>,
-        parameters: RiverParameters,
-    },
-    /// Rev<T, N, C, U>
-    Rev {
-        identifier: Option<String>,
-        child: Box<River>,
-        parameters: RiverParameters,
-    },
-    /// Group<T, U, ...>
+    /// Group concatenates all (nested) elements of inner `River` types into a
+    /// single physical stream element.
     Group {
         identifier: Option<String>,
-        children: Vec<River>,
+        inner: Vec<River>,
     },
-    /// Union<T, U, ...>
+    /// Union defines a `B`-bits element, where `B` is the maximum `width`
+    /// value of the `inner` River types.
     Union {
         identifier: Option<String>,
-        children: Vec<River>,
+        inner: Vec<River>,
+    },
+    /// Dim creates a streamspace of elements with inner `River` type in the
+    /// next dimension w.r.t. its parent.
+    Dim {
+        identifier: Option<String>,
+        inner: Box<River>,
+        parameters: RiverParameters,
+    },
+    /// Rev creates a new physical stream with inner `River` types that flows
+    /// in reverse direction w.r.t. its parent.
+    Rev {
+        identifier: Option<String>,
+        inner: Box<River>,
+        parameters: RiverParameters,
+    },
+    /// New creates a new physical stream of elements with inner `River` type
+    /// in the parent space `D_{p}`.
+    New {
+        identifier: Option<String>,
+        inner: Box<River>,
+        parameters: RiverParameters,
+    },
+    /// Root creates an initial streamspace `D_{0}`.
+    Root {
+        identifier: Option<String>,
+        inner: Box<River>,
+        parameters: RiverParameters,
     },
 }
 
@@ -84,26 +94,11 @@ impl River {
     pub fn width(&self) -> usize {
         match self {
             River::Bits { width, .. } => *width,
-            River::Root {
-                child, parameters, ..
+            River::Group { inner, .. } => inner.iter().map(|inner| inner.width()).sum(),
+            River::Union { inner, .. } => {
+                inner.iter().map(|inner| inner.width()).max().unwrap_or(0)
             }
-            | River::Dim {
-                child, parameters, ..
-            }
-            | River::New {
-                child, parameters, ..
-            }
-            | River::Rev {
-                child, parameters, ..
-            } => {
-                parameters.elements.unwrap_or(1) * child.width() + parameters.userbits.unwrap_or(0)
-            }
-            River::Group { children, .. } => children.iter().map(|child| child.width()).sum(),
-            River::Union { children, .. } => children
-                .iter()
-                .map(|child| child.width())
-                .max()
-                .unwrap_or(0),
+            River::Dim { .. } | River::Rev { .. } | River::New { .. } | River::Root { .. } => 0,
         }
     }
 }
@@ -141,53 +136,26 @@ mod tests {
             3
         );
         assert_eq!(
-            River::Root {
+            River::Group {
                 identifier: None,
-                child: Box::new(River::Bits {
-                    identifier: None,
-                    width: 3
-                }),
-                parameters: RiverParameters::default()
+                inner: vec![
+                    River::Bits {
+                        identifier: None,
+                        width: 7
+                    },
+                    River::Bits {
+                        identifier: None,
+                        width: 16
+                    }
+                ]
             }
             .width(),
-            3
-        );
-        assert_eq!(
-            River::Root {
-                identifier: None,
-                child: Box::new(River::Bits {
-                    identifier: None,
-                    width: 3
-                }),
-                parameters: RiverParameters {
-                    elements: Some(2),
-                    complexity: None,
-                    userbits: None,
-                }
-            }
-            .width(),
-            6
-        );
-        assert_eq!(
-            River::Root {
-                identifier: None,
-                child: Box::new(River::Bits {
-                    identifier: None,
-                    width: 3
-                }),
-                parameters: RiverParameters {
-                    elements: Some(2),
-                    complexity: None,
-                    userbits: Some(3),
-                }
-            }
-            .width(),
-            9
+            23
         );
         assert_eq!(
             River::Group {
                 identifier: None,
-                children: vec![
+                inner: vec![
                     River::Bits {
                         identifier: None,
                         width: 3
@@ -204,7 +172,7 @@ mod tests {
         assert_eq!(
             River::Union {
                 identifier: None,
-                children: vec![
+                inner: vec![
                     River::Bits {
                         identifier: None,
                         width: 3

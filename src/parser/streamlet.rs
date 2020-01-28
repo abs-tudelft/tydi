@@ -65,7 +65,7 @@ d: Bits<4>"#
                     output: vec![
                         Group {
                             identifier: Some("c".to_string()),
-                            children: vec![
+                            inner: vec![
                                 Bits {
                                     identifier: None,
                                     width: 3
