@@ -5,4 +5,9 @@ description = "An open specification for complex data structures over hardware s
 authors = ["Johan Peltenburg", "Jeroen van Straten", "Matthijs Brobbel"]
 edition = "2018"
 
+[features]
+default = ["parser"]
+parser = ["nom"]
+
 [dependencies]
+nom = { version = "5", optional = true }
