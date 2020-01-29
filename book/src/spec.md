@@ -29,23 +29,38 @@ has a name and a bit count.
 > The element type can be empty to make a "null" stream. Such streams can still
 > be useful, as physical streams also carry metadata.
 
-The name of each field is a non-empty, case-insensitive identifier consisting
-of letters, numbers, and/or underscores. It cannot start or end with an
-underscore, nor can it start with a number. The name must be unique within the
-set of named fields.
+The letter \\(E\\) is used as a shorthand for the total number of bits in the
+element; that is, the sum of the field bit count over all fields in the
+element.
+
+#### Field name
+
+The name of each field is a string consisting of letters, numbers, and/or
+underscores.
+
+The name cannot start or end with an underscore.
+
+The name cannot start with a digit.
+
+> It is illegal to start or end with an underscore or start with a number to
+> prevent confusion when the name is prefixed to form the signal name, and
+> for compatibility with VHDL.
+
+The name cannot be empty.
+
+> Fields may be auto-named by the next layer of the spec based on the abstract
+> type if necessary.
+
+The name must be case-insensitively unique within the set of named fields.
 
 > The identifier is case-insensitive because compatibility with VHDL is
-> desired. It is illegal to start or end with an underscore to prevent
-> confusion when the name is prefixed to form the signal name, and (again) for
-> compatibility with VHDL.
+> desired.
+
+#### Bitcount
 
 The bit count cannot be zero.
 
 > A lot of synthesis tools out there do not handle null ranges very well.
-
-The letter \\(E\\) is used as a shorthand for the total number of bits in the
-element; that is, the sum of the field bit count over all fields in the
-element.
 
 ### Number of element lanes (N)
 
@@ -125,23 +140,38 @@ name and a bit count.
 > network-on-chip-like structure by attaching routing information through this
 > method.
 
-The name of each field is a non-empty, case-insensitive identifier consisting
-of letters, numbers, and/or underscores. It cannot start or end with an
-underscore, nor can it start with a number. The name must be unique within the
-set of named fields.
+The letter \\(U\\) is used as a shorthand for the total number of bits in the
+transfer content; that is, the sum of the field bit count over all fields in
+the transfer content.
+
+#### Field name
+
+The name of each field is a string consisting of letters, numbers, and/or
+underscores.
+
+The name cannot start or end with an underscore.
+
+The name cannot start with a digit.
+
+> It is illegal to start or end with an underscore or start with a number to
+> prevent confusion when the name is prefixed to form the signal name, and
+> for compatibility with VHDL.
+
+The name cannot be empty.
+
+> Fields may be auto-named by the next layer of the spec based on the abstract
+> type if necessary.
+
+The name must be case-insensitively unique within the set of named fields.
 
 > The identifier is case-insensitive because compatibility with VHDL is
-> desired. It is illegal to start or end with an underscore to prevent
-> confusion when the name is prefixed to form the signal name, and (again) for
-> compatibility with VHDL.
+> desired.
+
+#### Bitcount
 
 The bit count cannot be zero.
 
 > A lot of synthesis tools out there do not handle null ranges very well.
-
-The letter \\(U\\) is used as a shorthand for the total number of bits in the
-transfer content; that is, the sum of the field bit count over all fields in
-the transfer content.
 
 Signals
 -------
@@ -176,15 +206,17 @@ bit vectors with the following widths.
 ### Clock
 
 All signals are synchronous to a single clock signal, shared between the source
-and sink. It is up to the user to manage clock domains and clock domain
-crossing where needed, and specify the edge sensitivity of the clock(s).
+and sink.
+
+It is up to the user to manage clock domains and clock domain crossing where
+needed, and specify the edge sensitivity of the clock(s).
 
 ### Reset
 
-The source and sink need not share the same reset signal, because the
-requirements on the `valid` and `ready` signals ensure that no transfers occur
-when either the source or the sink is held under reset. It is up to the user to
-manage the synchronicity and sensitivity of the reset signal(s).
+This specification places no constraints on the reset signal. The requirements
+on the `valid` and `ready` signals ensure that no transfers occur when either
+the source or the sink is held under reset, so the source, synchronicity, and
+sensitivity of the reset signal(s) can be chosen by the user.
 
 ### Detailed signal description
 
