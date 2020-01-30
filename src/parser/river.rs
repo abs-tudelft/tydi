@@ -1,13 +1,15 @@
-use crate::{
-    parser::{nonempty_comma_list, r#type, space_opt, usize},
-    River, RiverParameters,
-};
 use nom::{
     branch::alt,
     character::complete::char,
     combinator::{map, opt},
     sequence::{preceded, tuple},
     IResult,
+};
+
+use crate::{
+    parser::{nonempty_comma_list, r#type, space_opt, usize},
+    phys::Complexity,
+    river::{River, RiverParameters},
 };
 
 macro_rules! river_type_parse_fn {
@@ -68,7 +70,10 @@ pub fn river_parameters(input: &str) -> IResult<&str, RiverParameters> {
         |(elements, _, complexity, _, userbits): (usize, _, Option<usize>, _, Option<usize>)| {
             RiverParameters {
                 elements: Some(elements),
-                complexity,
+                complexity: match complexity {
+                    None => None,
+                    Some(num) => Some(Complexity::new_major(num)),
+                },
                 userbits,
             }
         },
@@ -97,8 +102,9 @@ pub fn river_type(input: &str) -> IResult<&str, River> {
 
 #[cfg(test)]
 mod tests {
+    use crate::river::{River, RiverParameters};
+
     use super::*;
-    use crate::RiverParameters;
 
     #[test]
     fn parse_river_parameters() {
@@ -108,8 +114,8 @@ mod tests {
                 "",
                 RiverParameters {
                     elements: Some(3),
-                    complexity: Some(4),
-                    userbits: Some(5)
+                    complexity: Some(Complexity::new_major(4)),
+                    userbits: Some(5),
                 }
             ))
         );
@@ -121,7 +127,7 @@ mod tests {
                 RiverParameters {
                     elements: Some(1),
                     complexity: None,
-                    userbits: None
+                    userbits: None,
                 }
             ))
         );
@@ -131,8 +137,8 @@ mod tests {
                 "",
                 RiverParameters {
                     elements: Some(1),
-                    complexity: Some(2),
-                    userbits: None
+                    complexity: Some(Complexity::new_major(2)),
+                    userbits: None,
                 }
             ))
         );
@@ -144,7 +150,7 @@ mod tests {
                 RiverParameters {
                     elements: Some(1),
                     complexity: None,
-                    userbits: Some(3)
+                    userbits: Some(3),
                 }
             ))
         );
@@ -158,7 +164,7 @@ mod tests {
                 "",
                 River::Bits {
                     identifier: None,
-                    width: 8
+                    width: 8,
                 }
             ))
         );
@@ -176,13 +182,13 @@ mod tests {
                     identifier: None,
                     inner: Box::new(River::Bits {
                         identifier: None,
-                        width: 8
+                        width: 8,
                     }),
                     parameters: RiverParameters {
                         elements: Some(1),
-                        complexity: Some(2),
-                        userbits: Some(3)
-                    }
+                        complexity: Some(Complexity::new_major(2)),
+                        userbits: Some(3),
+                    },
                 }
             ))
         );
@@ -194,9 +200,9 @@ mod tests {
                     identifier: None,
                     inner: Box::new(River::Bits {
                         identifier: None,
-                        width: 8
+                        width: 8,
                     }),
-                    parameters: RiverParameters::default()
+                    parameters: RiverParameters::default(),
                 }
             ))
         );
@@ -213,13 +219,13 @@ mod tests {
                     inner: vec![
                         River::Bits {
                             identifier: None,
-                            width: 4
+                            width: 4,
                         },
                         River::Bits {
                             identifier: None,
-                            width: 8
+                            width: 8,
                         }
-                    ]
+                    ],
                 }
             ))
         );
@@ -235,13 +241,13 @@ mod tests {
                     identifier: None,
                     inner: Box::new(River::Bits {
                         identifier: None,
-                        width: 8
+                        width: 8,
                     }),
                     parameters: RiverParameters {
                         elements: Some(1),
-                        complexity: Some(2),
-                        userbits: Some(3)
-                    }
+                        complexity: Some(Complexity::new_major(2)),
+                        userbits: Some(3),
+                    },
                 }
             ))
         );
@@ -258,13 +264,13 @@ mod tests {
 
                     inner: Box::new(River::Bits {
                         identifier: None,
-                        width: 7
+                        width: 7,
                     }),
                     parameters: RiverParameters {
                         elements: Some(3),
-                        complexity: Some(2),
-                        userbits: Some(1)
-                    }
+                        complexity: Some(Complexity::new_major(2)),
+                        userbits: Some(1),
+                    },
                 }
             ))
         );
@@ -281,13 +287,13 @@ mod tests {
 
                     inner: Box::new(River::Bits {
                         identifier: None,
-                        width: 8
+                        width: 8,
                     }),
                     parameters: RiverParameters {
                         elements: Some(11),
-                        complexity: Some(22),
-                        userbits: Some(33)
-                    }
+                        complexity: Some(Complexity::new_major(22)),
+                        userbits: Some(33),
+                    },
                 }
             ))
         );
@@ -304,13 +310,13 @@ mod tests {
                     inner: vec![
                         River::Bits {
                             identifier: None,
-                            width: 8
+                            width: 8,
                         },
                         River::Bits {
                             identifier: None,
-                            width: 4
+                            width: 4,
                         }
-                    ]
+                    ],
                 }
             ))
         );
@@ -324,7 +330,7 @@ mod tests {
                 "",
                 River::Bits {
                     identifier: None,
-                    width: 8
+                    width: 8,
                 }
             ))
         );
