@@ -1,9 +1,9 @@
 use nom::{
     character::complete::newline,
     combinator::map,
-    IResult,
     multi::{many1, separated_nonempty_list},
     sequence::tuple,
+    IResult,
 };
 
 use crate::{parser::identifier, parser::river, Streamlet};
@@ -34,7 +34,11 @@ pub fn streamlet_interface_definition(input: &str) -> IResult<&str, Streamlet> {
             many1(newline),
             separated_nonempty_list(newline, river::river_type),
         )),
-        |(identifier, _, input, _, output)| Streamlet { identifier, inputs: input, outputs: output },
+        |(identifier, _, input, _, output)| Streamlet {
+            identifier,
+            inputs: input,
+            outputs: output,
+        },
     )(input)
 }
 
@@ -56,7 +60,7 @@ b: Bits<2>
 c: Group<Bits<3>, Bits<4>>
 d: Bits<4>"#
             )
-                .unwrap(),
+            .unwrap(),
             (
                 "",
                 Streamlet {

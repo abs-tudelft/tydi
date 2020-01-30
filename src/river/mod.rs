@@ -57,7 +57,7 @@ fn apply_params_to_first(streams: &mut Vec<Stream>, params: &RiverParameters) {
     if !streams.is_empty() {
         // First physical stream is the phys stream this Root is part of.
         streams[0].elements_per_transfer = params.elements.unwrap_or(1);
-        streams[0].complexity = params.complexity.unwrap_or(Complexity::default());
+        streams[0].complexity = params.complexity.clone().unwrap_or_default();
     }
 }
 
@@ -65,13 +65,13 @@ impl River {
     /// Return the identifier of the River.
     pub fn identifier(&self) -> Option<String> {
         match self {
-            River::Bits { identifier, .. } => identifier.clone(),
-            River::Group { identifier, .. } => identifier.clone(),
-            River::Union { identifier, .. } => identifier.clone(),
-            River::Dim { identifier, .. } => identifier.clone(),
-            River::Rev { identifier, .. } => identifier.clone(),
-            River::New { identifier, .. } => identifier.clone(),
-            River::Root { identifier, .. } => identifier.clone()
+            River::Bits { identifier, .. }
+            | River::Group { identifier, .. }
+            | River::Union { identifier, .. }
+            | River::Dim { identifier, .. }
+            | River::Rev { identifier, .. }
+            | River::New { identifier, .. }
+            | River::Root { identifier, .. } => identifier.clone(),
         }
     }
 
@@ -94,11 +94,10 @@ impl River {
     pub fn bit_fields(&self, prefix: Option<String>) -> Option<BitField> {
         match self {
             River::Group { identifier, inner } => {
-                let suffix = identifier.clone().unwrap_or("data".to_string());
-                let id: String = if prefix.is_some() {
-                    format!("{}_{}", prefix.unwrap(), suffix)
-                } else {
-                    suffix
+                let suffix = identifier.clone().unwrap_or_else(|| "data".to_string());
+                let id: String = match prefix {
+                    None => suffix,
+                    Some(pre) => format!("{}_{}", pre, suffix),
                 };
 
                 let mut result = BitField {
@@ -107,62 +106,79 @@ impl River {
                     children: vec![],
                 };
                 // Iterate over all child river
-                for cr in inner.into_iter().enumerate() {
+                for child_river in inner.iter().enumerate() {
                     // Obtain child bitfields
-                    let cb = cr.1.bit_fields(None);
-                    if cb.is_some() {
-                        result.children.push(cb.unwrap());
+                    let child_bitfields = child_river.1.bit_fields(None);
+                    match child_bitfields {
+                        None => (),
+                        Some(child) => result.children.push(child),
                     }
                 }
                 Some(result)
             }
             River::Bits { identifier, width } => Some(BitField {
-                identifier: Some(identifier.clone().unwrap_or("data".to_string())),
+                identifier: identifier.clone(),
                 width: *width,
                 children: vec![], // no children
             }),
-            _ => None
+            _ => None,
         }
     }
 
-    pub fn as_phys(&self, name_parts: Vec<String>) -> Vec<Stream> {
+    pub fn as_phys(&self, name: Option<String>) -> Vec<Stream> {
         // TODO(johanpel): propagate all parameters.
         match self {
-            River::Root { identifier, inner, parameters } => {
+            River::Root {
+                identifier,
+                inner,
+                parameters,
+            } => {
                 // Return resulting streams from inner
-                let mut result = inner.as_phys(extend_some(&name_parts, identifier));
+                let mut result = inner.as_phys(identifier.clone());
                 apply_params_to_first(&mut result, parameters);
                 result
             }
-            River::Dim { identifier, inner, parameters } => {
+            River::Dim {
+                identifier,
+                inner,
+                parameters,
+            } => {
                 // Increase dimensionality of resulting streams
-                let mut result = inner.as_phys(extend_some(&name_parts, identifier));
+                let mut result = inner.as_phys(identifier.clone());
                 for r in result.iter_mut() {
                     r.dimensionality += 1;
                 }
                 apply_params_to_first(&mut result, parameters);
                 result
             }
-            River::Rev { identifier, inner, parameters } => {
+            River::Rev {
+                identifier,
+                inner,
+                parameters,
+            } => {
                 // Reverse child streams
-                let mut result = inner.as_phys(extend_some(&name_parts, identifier));
+                let mut result = inner.as_phys(identifier.clone());
                 for r in result.iter_mut() {
                     r.dir.reverse()
                 }
                 apply_params_to_first(&mut result, parameters);
                 result
             }
-            River::New { identifier, inner, parameters } => {
+            River::New {
+                identifier,
+                inner,
+                parameters,
+            } => {
                 // Return resulting streams from inner
-                let mut result = inner.as_phys(extend_some(&name_parts, identifier));
+                let mut result = inner.as_phys(identifier.clone());
                 apply_params_to_first(&mut result, parameters);
                 result
             }
-            River::Bits { width, .. } => {
+            River::Bits { identifier, width } => {
                 let new_stream = Stream {
-                    name_parts: name_parts.clone(),
+                    identifier: name,
                     fields: BitField {
-                        identifier: Some(name_parts.join("_")),
+                        identifier: identifier.clone(),
                         width: *width,
                         children: vec![],
                     },
@@ -173,15 +189,15 @@ impl River {
                 };
                 vec![new_stream]
             }
-            River::Group { inner, .. } => {
+            River::Group { identifier, inner } => {
                 let mut result = vec![];
                 // Obtain all (nested) bit fields
-                let bit_fields = self.bit_fields(Some(name_parts.join("_")));
+                let bit_fields = self.bit_fields(identifier.clone());
                 // If there are any bit fields, create a new stream
                 if bit_fields.is_some() {
                     let new_stream = Stream {
-                        name_parts: name_parts.clone(),
-                        fields: bit_fields.unwrap_or(BitField::new_empty()),
+                        identifier: name.clone(),
+                        fields: bit_fields.unwrap_or_else(BitField::new_empty),
                         elements_per_transfer: 1,
                         dir: Dir::Downstream,
                         dimensionality: 0,
@@ -195,11 +211,7 @@ impl River {
                         // Skip bits type, since they will be added through bit_fields()
                         River::Bits { .. } => {}
                         // all other river types.
-                        _ => {
-                            result.extend(
-                                field.as_phys(extend_some(&name_parts, &field.identifier()))
-                                    .into_iter())
-                        }
+                        _ => result.extend(field.as_phys(name.clone()).into_iter()),
                     }
                 }
                 result
@@ -209,21 +221,13 @@ impl River {
     }
 }
 
-fn extend_some<T: Clone>(vec: &Vec<T>, elem: &Option<T>) -> Vec<T> {
-    let mut result: Vec<T> = vec.to_vec();
-    if elem.is_some() {
-        result.push(elem.clone().unwrap());
-    }
-    result
-}
-
 /// Parameters of River types.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct RiverParameters {
     /// N: number of elements per handshake.
     pub elements: Option<usize>,
     /// C: complexity level.
-    pub complexity: Option<usize>,
+    pub complexity: Option<Complexity>,
     /// U: number of user bits.
     pub userbits: Option<usize>,
 }
@@ -238,7 +242,8 @@ mod tests {
             River::Bits {
                 identifier: None,
                 width: 3,
-            }.width(),
+            }
+            .width(),
             3
         );
         assert_eq!(
@@ -254,7 +259,8 @@ mod tests {
                         width: 16,
                     }
                 ],
-            }.width(),
+            }
+            .width(),
             23
         );
         assert_eq!(
@@ -270,7 +276,8 @@ mod tests {
                         width: 4,
                     }
                 ],
-            }.width(),
+            }
+            .width(),
             7
         );
         assert_eq!(
@@ -294,7 +301,8 @@ mod tests {
                         parameters: Default::default(),
                     }
                 ],
-            }.width(),
+            }
+            .width(),
             4
         );
     }
@@ -319,8 +327,15 @@ mod tests {
         let r = River::Group {
             identifier: Some("x".to_string()),
             inner: vec![
-                River::Bits { identifier: Some("a".to_string()), width: 1 },
-                River::Bits { identifier: Some("b".to_string()), width: 2 }],
+                River::Bits {
+                    identifier: Some("a".to_string()),
+                    width: 1,
+                },
+                River::Bits {
+                    identifier: Some("b".to_string()),
+                    width: 2,
+                },
+            ],
         };
 
         let bf = r.bit_fields(None);
@@ -341,13 +356,24 @@ mod tests {
         let r = River::Group {
             identifier: Some("x".to_string()),
             inner: vec![
-                River::Bits { identifier: Some("a".to_string()), width: 1 },
+                River::Bits {
+                    identifier: Some("a".to_string()),
+                    width: 1,
+                },
                 River::Group {
                     identifier: Some("b".to_string()),
                     inner: vec![
-                        River::Bits { identifier: Some("c".to_string()), width: 2 },
-                        River::Bits { identifier: Some("d".to_string()), width: 3 }],
-                }],
+                        River::Bits {
+                            identifier: Some("c".to_string()),
+                            width: 2,
+                        },
+                        River::Bits {
+                            identifier: Some("d".to_string()),
+                            width: 3,
+                        },
+                    ],
+                },
+            ],
         };
 
         let bf = r.bit_fields(None);
@@ -360,10 +386,16 @@ mod tests {
         assert_eq!(bfu.children[1].identifier, Some("b".to_string()));
         assert_eq!(bfu.children[1].width(), 0);
         assert_eq!(bfu.children[1].children.len(), 2);
-        assert_eq!(bfu.children[1].children[0].identifier, Some("c".to_string()));
+        assert_eq!(
+            bfu.children[1].children[0].identifier,
+            Some("c".to_string())
+        );
         assert_eq!(bfu.children[1].children[0].width(), 2);
         assert_eq!(bfu.children[1].children[0].children.len(), 0);
-        assert_eq!(bfu.children[1].children[1].identifier, Some("d".to_string()));
+        assert_eq!(
+            bfu.children[1].children[1].identifier,
+            Some("d".to_string())
+        );
         assert_eq!(bfu.children[1].children[1].width(), 3);
         assert_eq!(bfu.children[1].children[1].children.len(), 0);
         assert_eq!(bfu.width_recursive(), 6);

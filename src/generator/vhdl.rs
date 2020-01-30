@@ -100,7 +100,9 @@ impl Type {
     }
 
     /// Construct a bit vector type.
-    pub fn bitvec(width: usize) -> Type { Type::BitVec { width } }
+    pub fn bitvec(width: usize) -> Type {
+        Type::BitVec { width }
+    }
 
     /// Flatten a VHDL type to a vector of identifiers and non-nested types.
     fn flatten(&self, prefix: Option<String>) -> Vec<(Option<String>, Type)> {
@@ -113,12 +115,12 @@ impl Type {
                             let children = f.typ.flatten(Some(rec.identifier.clone()));
                             result.extend(children.into_iter());
                         }
-                        _ => result.push((Some(f.name.clone()), f.typ.clone()))
+                        _ => result.push((Some(f.name.clone()), f.typ.clone())),
                     }
                 }
                 result
             }
-            _ => vec![(prefix, self.clone())]
+            _ => vec![(prefix, self.clone())],
         }
     }
 }
@@ -134,7 +136,8 @@ impl Declare for Type {
             Type::Record(rec) => {
                 let mut result = format!("record {}\n", rec.identifier);
                 for field in &rec.fields {
-                    result.push_str(format!("{} : {};\n", field.name, field.typ.identify()).as_str());
+                    result
+                        .push_str(format!("{} : {};\n", field.name, field.typ.identify()).as_str());
                 }
                 result.push_str("end record;");
                 result
@@ -155,9 +158,9 @@ impl Identify for Type {
         // Records and arrays use type definitions.
         // Any other types are used directly.
         match self {
-            Type::Record(rec) => { rec.identifier.clone() }
-            Type::Array(arr) => { arr.identifier.clone() }
-            _ => self.declare()
+            Type::Record(rec) => rec.identifier.clone(),
+            Type::Array(arr) => arr.identifier.clone(),
+            _ => self.declare(),
         }
     }
 }
@@ -175,7 +178,7 @@ impl Analyze for Type {
                 }
                 result
             }
-            _ => vec![]
+            _ => vec![],
         }
     }
 }
@@ -202,7 +205,7 @@ impl Identify for Mode {
         match self {
             Mode::In => "in".to_string(),
             Mode::Out => "out".to_string(),
-            Mode::Inout => "inout".to_string()
+            Mode::Inout => "inout".to_string(),
         }
     }
 }
@@ -230,16 +233,25 @@ impl Port {
 
 impl Declare for Port {
     fn declare(&self) -> String {
-        format!("{} : {} {}", self.identifier, self.mode.identify(), self.typ.identify())
+        format!(
+            "{} : {} {}",
+            self.identifier,
+            self.mode.identify(),
+            self.typ.identify()
+        )
     }
 }
 
 impl Identify for Port {
-    fn identify(&self) -> String { self.identifier.to_string() }
+    fn identify(&self) -> String {
+        self.identifier.to_string()
+    }
 }
 
 impl Analyze for Port {
-    fn list_record_types(&self) -> Vec<Type> { self.typ.list_record_types() }
+    fn list_record_types(&self) -> Vec<Type> {
+        self.typ.list_record_types()
+    }
 }
 
 /// A VHDL component.
@@ -258,7 +270,11 @@ impl Component {
         for p in &self.ports {
             let flat_types = p.typ.flatten(Some(p.identifier.clone()));
             for ft in flat_types.into_iter() {
-                new_ports.push(Port::new(format!("{}_{}", p.identifier, ft.0.unwrap()), p.mode, ft.1.clone()));
+                new_ports.push(Port::new(
+                    format!("{}_{}", p.identifier, ft.0.unwrap()),
+                    p.mode,
+                    ft.1.clone(),
+                ));
             }
         }
         self.ports = new_ports;
@@ -326,21 +342,30 @@ mod test {
 
     // Some common types in tests:
     fn rec() -> Type {
-        Type::record("rec", vec![Field::new("a", Type::Bit),
-                                 Field::new("b", Type::BitVec { width: 4 })])
+        Type::record(
+            "rec",
+            vec![
+                Field::new("a", Type::Bit),
+                Field::new("b", Type::BitVec { width: 4 }),
+            ],
+        )
     }
 
     fn rec_nested() -> Type {
-        Type::record("rec_nested", vec![Field::new("a", Type::Bit),
-                                        Field::new("b", rec())])
+        Type::record(
+            "rec_nested",
+            vec![Field::new("a", Type::Bit), Field::new("b", rec())],
+        )
     }
 
     fn comp() -> Component {
         Component {
             identifier: "test_comp".to_string(),
             generics: vec![],
-            ports: vec![Port::new("a", Mode::In, rec()),
-                        Port::new("b", Mode::Out, rec_nested())],
+            ports: vec![
+                Port::new("a", Mode::In, rec()),
+                Port::new("b", Mode::Out, rec_nested()),
+            ],
         }
     }
 
@@ -352,14 +377,24 @@ mod test {
         let t3 = rec_nested();
         assert_eq!(t0.declare(), "std_logic");
         assert_eq!(t1.declare(), "std_logic_vector(7 downto 0)");
-        assert_eq!(t2.declare(), concat!("record rec\n",
-        "a : std_logic;\n",
-        "b : std_logic_vector(3 downto 0);\n",
-        "end record;"));
-        assert_eq!(t3.declare(), concat!("record rec_nested\n",
-        "a : std_logic;\n",
-        "b : rec;\n",
-        "end record;"));
+        assert_eq!(
+            t2.declare(),
+            concat!(
+                "record rec\n",
+                "a : std_logic;\n",
+                "b : std_logic_vector(3 downto 0);\n",
+                "end record;"
+            )
+        );
+        assert_eq!(
+            t3.declare(),
+            concat!(
+                "record rec_nested\n",
+                "a : std_logic;\n",
+                "b : rec;\n",
+                "end record;"
+            )
+        );
     }
 
     #[test]
@@ -371,12 +406,16 @@ mod test {
     #[test]
     fn test_comp_decl() {
         let c = comp();
-        assert_eq!(c.declare(), concat!("component test_comp\n",
-        "port(\n",
-        "a : in rec;\n",
-        "b : out rec_nested);\n",
-        "end component;"
-        ));
+        assert_eq!(
+            c.declare(),
+            concat!(
+                "component test_comp\n",
+                "port(\n",
+                "a : in rec;\n",
+                "b : out rec_nested);\n",
+                "end component;"
+            )
+        );
     }
 
     #[test]

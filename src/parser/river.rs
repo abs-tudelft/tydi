@@ -2,12 +2,13 @@ use nom::{
     branch::alt,
     character::complete::char,
     combinator::{map, opt},
-    IResult,
     sequence::{preceded, tuple},
+    IResult,
 };
 
 use crate::{
     parser::{nonempty_comma_list, r#type, space_opt, usize},
+    phys::Complexity,
     river::{River, RiverParameters},
 };
 
@@ -41,8 +42,8 @@ macro_rules! river_group_type_parse_fn {
 /// Returns a River type parser.
 #[allow(clippy::needless_lifetimes)] // rust-lang/rust-clippy/issues/2944
 fn river_type_parser<'a, F>(name: &'a str, inner: F) -> impl Fn(&'a str) -> IResult<&'a str, River>
-    where
-        F: Fn((Option<String>, (River, Option<RiverParameters>))) -> River,
+where
+    F: Fn((Option<String>, (River, Option<RiverParameters>))) -> River,
 {
     map(
         r#type(
@@ -69,7 +70,10 @@ pub fn river_parameters(input: &str) -> IResult<&str, RiverParameters> {
         |(elements, _, complexity, _, userbits): (usize, _, Option<usize>, _, Option<usize>)| {
             RiverParameters {
                 elements: Some(elements),
-                complexity,
+                complexity: match complexity {
+                    None => None,
+                    Some(num) => Some(Complexity::new_major(num)),
+                },
                 userbits,
             }
         },
@@ -110,7 +114,7 @@ mod tests {
                 "",
                 RiverParameters {
                     elements: Some(3),
-                    complexity: Some(4),
+                    complexity: Some(Complexity::new_major(4)),
                     userbits: Some(5),
                 }
             ))
@@ -133,7 +137,7 @@ mod tests {
                 "",
                 RiverParameters {
                     elements: Some(1),
-                    complexity: Some(2),
+                    complexity: Some(Complexity::new_major(2)),
                     userbits: None,
                 }
             ))
@@ -182,7 +186,7 @@ mod tests {
                     }),
                     parameters: RiverParameters {
                         elements: Some(1),
-                        complexity: Some(2),
+                        complexity: Some(Complexity::new_major(2)),
                         userbits: Some(3),
                     },
                 }
@@ -241,7 +245,7 @@ mod tests {
                     }),
                     parameters: RiverParameters {
                         elements: Some(1),
-                        complexity: Some(2),
+                        complexity: Some(Complexity::new_major(2)),
                         userbits: Some(3),
                     },
                 }
@@ -264,7 +268,7 @@ mod tests {
                     }),
                     parameters: RiverParameters {
                         elements: Some(3),
-                        complexity: Some(2),
+                        complexity: Some(Complexity::new_major(2)),
                         userbits: Some(1),
                     },
                 }
@@ -287,7 +291,7 @@ mod tests {
                     }),
                     parameters: RiverParameters {
                         elements: Some(11),
-                        complexity: Some(22),
+                        complexity: Some(Complexity::new_major(22)),
                         userbits: Some(33),
                     },
                 }

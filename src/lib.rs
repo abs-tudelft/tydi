@@ -1,8 +1,8 @@
 use crate::river::River;
 
+pub mod generator;
 #[cfg(feature = "parser")]
 pub mod parser;
-pub mod generator;
 pub mod phys;
 pub mod river;
 
@@ -51,4 +51,3 @@ pub struct Streamlet {
     pub inputs: Vec<River>,
     pub outputs: Vec<River>,
 }
-

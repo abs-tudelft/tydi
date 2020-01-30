@@ -1,16 +1,20 @@
 //! Tydi physical streams.
 
 /// Tydi stream interface complexity level.
-// TODO(johanpel): implement Complexity "version numbering system" in parser
 #[derive(Debug, Clone, PartialEq)]
 pub struct Complexity {
-    num: Vec<usize>
+    num: Vec<usize>,
 }
 
 impl Complexity {
-    // TODO(johanpel): See above todo, this needs fixing
-    pub fn default() -> usize {
-        0
+    pub fn new_major(num: usize) -> Self {
+        Complexity { num: vec![num] }
+    }
+}
+
+impl Default for Complexity {
+    fn default() -> Self {
+        Complexity { num: vec![0] }
     }
 }
 
@@ -24,13 +28,18 @@ pub struct BitField {
     /// Potential child fields.
     pub children: Vec<BitField>,
     // TODO(johanpel): we need this tree to be either a bitfield with only children and width 0, or
-    // only a width > 0 and no children.
+    // only a width > 0 and no children. I.e. it was either a group or bits type.
 }
 
 impl BitField {
     /// Return the width of the sum of all bit fields in the bit field tree.
     pub fn width_recursive(&self) -> usize {
-        self.width + self.children.iter().fold(0, |acc, x| acc + x.width_recursive())
+        let v = self.width;
+        let c = self
+            .children
+            .iter()
+            .fold(0, |acc, x| acc + x.width_recursive());
+        v + c
     }
 
     /// Return the width of only this bit field.
@@ -71,7 +80,7 @@ impl Dir {
     pub fn reversed(self) -> Self {
         match self {
             Dir::Downstream => Dir::Upstream,
-            Dir::Upstream => Dir::Downstream
+            Dir::Upstream => Dir::Downstream,
         }
     }
     /// In-place reverse.
@@ -84,7 +93,7 @@ impl Dir {
 #[derive(Debug)]
 pub struct Stream {
     /// Name of the physical stream.
-    pub name_parts: Vec<String>,
+    pub identifier: Option<String>,
     /// Tree of bit fields contained within the elements of the physical stream.
     pub fields: BitField,
     /// The number of elements moved per transfer.
@@ -94,5 +103,42 @@ pub struct Stream {
     /// Direction of the physical stream.
     pub dir: Dir,
     /// Complexity level of the physical stream.
-    pub complexity: usize, // TODO(johanpel): this needs to be replaced with `Complexity` when the parser is fixed.
+    pub complexity: Complexity,
+}
+
+#[cfg(test)]
+mod test {
+    use crate::phys::*;
+
+    #[test]
+    fn test_bitfield_recursive_width() {
+        let bf = BitField {
+            identifier: None,
+            width: 0,
+            children: vec![
+                BitField {
+                    identifier: None,
+                    width: 1,
+                    children: vec![],
+                },
+                BitField {
+                    identifier: None,
+                    width: 0,
+                    children: vec![
+                        BitField {
+                            identifier: None,
+                            width: 2,
+                            children: vec![],
+                        },
+                        BitField {
+                            identifier: None,
+                            width: 3,
+                            children: vec![],
+                        },
+                    ],
+                },
+            ],
+        };
+        assert_eq!(bf.width_recursive(), 6);
+    }
 }

@@ -8,3 +8,4 @@ book/book
 /target
 **/*.rs.bk
 Cargo.lock
+tarpaulin-report.html
