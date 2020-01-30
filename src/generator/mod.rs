@@ -157,9 +157,8 @@ mod test {
     use crate::generator::common::Type;
     use crate::phys::{BitField, Complexity, Dir, Stream};
 
-    #[test]
-    fn test_from_stream_to_type() {
-        let p = Stream {
+    fn test_stream() -> Stream {
+        Stream {
             identifier: Some("test".to_string()),
             fields: BitField {
                 identifier: None,
@@ -174,7 +173,12 @@ mod test {
             dir: Dir::Downstream,
             complexity: Complexity::highest(),
             user_bits: 0,
-        };
+        }
+    }
+
+    #[test]
+    fn test_from_stream_to_type() {
+        let p = test_stream();
         let typ: Type = p.into();
         match typ {
             Type::Record(rec) => {
@@ -191,6 +195,76 @@ mod test {
                 assert_eq!(rec.fields[3].name, "strb".to_string());
                 assert_eq!(rec.fields[3].typ, Type::bitvec(1));
                 assert_eq!(rec.fields[3].reversed, false);
+            }
+            _ => panic!("expected record, got something else."),
+        };
+    }
+
+    #[test]
+    fn test_from_stream_to_type_with_ept_dim() {
+        let mut p = test_stream();
+        p.dimensionality = 2;
+        p.elements_per_transfer = 3;
+        let typ: Type = p.into();
+        dbg!(&typ);
+        match typ {
+            Type::Record(rec) => {
+                assert_eq!(rec.identifier, "test".to_string());
+                assert_eq!(rec.fields[0].name, "valid".to_string());
+                assert_eq!(rec.fields[0].typ, Type::Bit);
+                assert_eq!(rec.fields[0].reversed, false);
+                assert_eq!(rec.fields[1].name, "ready".to_string());
+                assert_eq!(rec.fields[1].typ, Type::Bit);
+                assert_eq!(rec.fields[1].reversed, true);
+                assert_eq!(rec.fields[2].name, "data".to_string());
+                assert_eq!(rec.fields[2].typ, Type::bitvec(3 * 3));
+                assert_eq!(rec.fields[2].reversed, false);
+                assert_eq!(rec.fields[3].name, "stai".to_string());
+                assert_eq!(rec.fields[3].typ, Type::bitvec(2));
+                assert_eq!(rec.fields[3].reversed, false);
+                assert_eq!(rec.fields[4].name, "endi".to_string());
+                assert_eq!(rec.fields[4].typ, Type::bitvec(2));
+                assert_eq!(rec.fields[4].reversed, false);
+                assert_eq!(rec.fields[5].name, "strb".to_string());
+                assert_eq!(rec.fields[5].typ, Type::bitvec(3));
+                assert_eq!(rec.fields[5].reversed, false);
+                assert_eq!(rec.fields[6].name, "last".to_string());
+                assert_eq!(rec.fields[6].typ, Type::bitvec(2));
+                assert_eq!(rec.fields[6].reversed, false);
+            }
+            _ => panic!(),
+        };
+    }
+
+    #[test]
+    fn test_from_stream_to_type_with_ept_dim_lowest_c() {
+        let mut p = test_stream();
+        p.dimensionality = 2;
+        p.elements_per_transfer = 3;
+        p.complexity = Complexity::lowest();
+        let typ: Type = p.into();
+        dbg!(&typ);
+        match typ {
+            Type::Record(rec) => {
+                assert_eq!(rec.identifier, "test".to_string());
+                assert_eq!(rec.fields[0].name, "valid".to_string());
+                assert_eq!(rec.fields[0].typ, Type::Bit);
+                assert_eq!(rec.fields[0].reversed, false);
+                assert_eq!(rec.fields[1].name, "ready".to_string());
+                assert_eq!(rec.fields[1].typ, Type::Bit);
+                assert_eq!(rec.fields[1].reversed, true);
+                assert_eq!(rec.fields[2].name, "data".to_string());
+                assert_eq!(rec.fields[2].typ, Type::bitvec(3 * 3));
+                assert_eq!(rec.fields[2].reversed, false);
+                assert_eq!(rec.fields[3].name, "endi".to_string());
+                assert_eq!(rec.fields[3].typ, Type::bitvec(2));
+                assert_eq!(rec.fields[3].reversed, false);
+                assert_eq!(rec.fields[4].name, "strb".to_string());
+                assert_eq!(rec.fields[4].typ, Type::bitvec(3));
+                assert_eq!(rec.fields[4].reversed, false);
+                assert_eq!(rec.fields[5].name, "last".to_string());
+                assert_eq!(rec.fields[5].typ, Type::bitvec(2));
+                assert_eq!(rec.fields[5].reversed, false);
             }
             _ => panic!(),
         };
