@@ -58,6 +58,7 @@ fn apply_params_to_first(streams: &mut Vec<Stream>, params: &RiverParameters) {
         // First physical stream is the phys stream this Root is part of.
         streams[0].elements_per_transfer = params.elements.unwrap_or(1);
         streams[0].complexity = params.complexity.clone().unwrap_or_default();
+        streams[0].user_bits = params.user_bits.unwrap_or(0);
     }
 }
 
@@ -186,6 +187,7 @@ impl River {
                     dir: Dir::Downstream,
                     dimensionality: 0,
                     complexity: Complexity::default(),
+                    user_bits: 0,
                 };
                 vec![new_stream]
             }
@@ -202,6 +204,7 @@ impl River {
                         dir: Dir::Downstream,
                         dimensionality: 0,
                         complexity: Complexity::default(),
+                        user_bits: 0,
                     };
                     result.push(new_stream);
                 }
@@ -229,7 +232,7 @@ pub struct RiverParameters {
     /// C: complexity level.
     pub complexity: Option<Complexity>,
     /// U: number of user bits.
-    pub userbits: Option<usize>,
+    pub user_bits: Option<usize>,
 }
 
 #[cfg(test)]

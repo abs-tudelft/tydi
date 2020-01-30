@@ -3,12 +3,18 @@
 /// Tydi stream interface complexity level.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Complexity {
-    num: Vec<usize>,
+    pub num: Vec<usize>,
 }
 
 impl Complexity {
     pub fn new_major(num: usize) -> Self {
         Complexity { num: vec![num] }
+    }
+    pub fn highest() -> Self {
+        Complexity { num: vec![8] }
+    }
+    pub fn lowest() -> Self {
+        Complexity { num: vec![0] }
     }
 }
 
@@ -100,6 +106,8 @@ pub struct Stream {
     pub elements_per_transfer: usize,
     /// The dimensionality, i.e. nesting level, of the elements.
     pub dimensionality: usize,
+    /// The user bits.
+    pub user_bits: usize,
     /// Direction of the physical stream.
     pub dir: Dir,
     /// Complexity level of the physical stream.

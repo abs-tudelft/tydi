@@ -2,6 +2,8 @@
 //!
 //! This module contains helper structs, functions and traits to generate structural VHDL.
 
+use crate::generator::common::*;
+
 /// Generate VHDL declarations.
 pub trait Declare {
     /// Generate a VHDL declaration from self.
@@ -16,111 +18,17 @@ pub trait Identify {
 
 /// Analyze VHDL objects.
 pub trait Analyze {
-    /// List all record types used in VHDL objects.
+    /// List all record types used.
     fn list_record_types(&self) -> Vec<Type>;
 }
 
-/// Inner struct for `Type::Array`
-#[derive(Debug, Clone, PartialEq)]
-pub struct Array {
-    /// VHDL identifier for this array type.
-    identifier: String,
-    /// The size of the array.
-    size: usize,
-    /// The type of the array elements.
-    typ: Box<Type>,
-}
-
-/// A field for a `Record`.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Field {
-    /// Name of the field.
-    name: String,
-    /// Type of the field.
-    typ: Type,
-}
-
-impl Field {
-    /// Construct a new record field.
-    pub fn new(name: impl Into<String>, typ: Type) -> Field {
-        Field {
-            name: name.into(),
-            typ,
-        }
-    }
-}
-
-/// Inner struct for `Type::Record`
-#[derive(Debug, Clone, PartialEq)]
-pub struct Record {
-    /// VHDL identifier for this record type.
-    identifier: String,
-    /// The fields of the record.
-    fields: Vec<Field>,
-}
-
-impl Record {
-    pub fn new(name: impl Into<String>, fields: Vec<Field>) -> Record {
-        Record {
-            identifier: name.into(),
-            fields,
-        }
-    }
-
-    pub fn add_field(&mut self, name: impl Into<String>, typ: Type) {
-        self.fields.push(Field::new(name, typ));
-    }
-}
-
-/// VHDL types.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Type {
-    /// A single bit.
-    Bit,
-    /// A vector of bits.
-    BitVec { width: usize },
-    /// A statically-sized array.
-    Array(Array),
-    /// A record.
-    Record(Record),
-    /// A string (non-synthesizable).
-    String,
-    /// A natural (non-synthesizable).
-    Natural,
-    /// An integer (non-synthesizable).
-    Integer,
-    /// A real (non-synthesizable).
-    Real,
-}
-
-impl Type {
-    /// Construct a record type.
-    pub fn record(name: impl Into<String>, fields: Vec<Field>) -> Type {
-        Type::Record(Record::new(name.into(), fields))
-    }
-
-    /// Construct a bit vector type.
-    pub fn bitvec(width: usize) -> Type {
-        Type::BitVec { width }
-    }
-
-    /// Flatten a VHDL type to a vector of identifiers and non-nested types.
-    fn flatten(&self, prefix: Option<String>) -> Vec<(Option<String>, Type)> {
+impl Identify for Mode {
+    fn identify(&self) -> String {
         match self {
-            Type::Record(rec) => {
-                let mut result = vec![];
-                for f in rec.fields.iter() {
-                    match &f.typ {
-                        Type::Record(..) => {
-                            let children = f.typ.flatten(Some(rec.identifier.clone()));
-                            result.extend(children.into_iter());
-                        }
-                        _ => result.push((Some(f.name.clone()), f.typ.clone())),
-                    }
-                }
-                result
-            }
-            _ => vec![(prefix, self.clone())],
+            Mode::In => "in".to_string(),
+            Mode::Out => "out".to_string(),
+            Mode::Inout => "inout".to_string(),
+            _ => unimplemented!(),
         }
     }
 }
@@ -145,10 +53,6 @@ impl Declare for Type {
             Type::Array(arr) => {
                 format!("array ({} to {}) of {}", 0, arr.size - 1, arr.typ.declare())
             }
-            Type::String => "string".to_string(),
-            Type::Natural => "natural".to_string(),
-            Type::Integer => "integer".to_string(),
-            Type::Real => "real".to_string(),
         }
     }
 }
@@ -183,54 +87,6 @@ impl Analyze for Type {
     }
 }
 
-/// A VHDL generic for components.
-pub struct Generic {
-    pub name: String,
-    pub typ: Type,
-}
-
-/// VHDL port modes.
-#[derive(Copy, Clone, Debug)]
-pub enum Mode {
-    /// Input.
-    In,
-    /// Output.
-    Out,
-    /// Bidirectional, should probably not be used.
-    Inout,
-}
-
-impl Identify for Mode {
-    fn identify(&self) -> String {
-        match self {
-            Mode::In => "in".to_string(),
-            Mode::Out => "out".to_string(),
-            Mode::Inout => "inout".to_string(),
-        }
-    }
-}
-
-/// A VHDL port.
-#[derive(Debug, Clone)]
-pub struct Port {
-    /// Port identifier.
-    identifier: String,
-    /// Port mode.
-    mode: Mode,
-    /// Port type.
-    typ: Type,
-}
-
-impl Port {
-    pub fn new(name: impl Into<String>, mode: Mode, typ: Type) -> Port {
-        Port {
-            identifier: name.into(),
-            mode,
-            typ,
-        }
-    }
-}
-
 impl Declare for Port {
     fn declare(&self) -> String {
         format!(
@@ -251,33 +107,6 @@ impl Identify for Port {
 impl Analyze for Port {
     fn list_record_types(&self) -> Vec<Type> {
         self.typ.list_record_types()
-    }
-}
-
-/// A VHDL component.
-pub struct Component {
-    /// Component identifier.
-    pub identifier: String,
-    /// The generic parameters of the component..
-    pub generics: Vec<Generic>,
-    /// The ports of the component.
-    pub ports: Vec<Port>,
-}
-
-impl Component {
-    pub fn flatten_types(&mut self) {
-        let mut new_ports: Vec<Port> = Vec::new();
-        for p in &self.ports {
-            let flat_types = p.typ.flatten(Some(p.identifier.clone()));
-            for ft in flat_types.into_iter() {
-                new_ports.push(Port::new(
-                    format!("{}_{}", p.identifier, ft.0.unwrap()),
-                    p.mode,
-                    ft.1.clone(),
-                ));
-            }
-        }
-        self.ports = new_ports;
     }
 }
 
@@ -312,15 +141,7 @@ impl Analyze for Component {
     }
 }
 
-/// A VHDL package.
-pub struct Package {
-    /// The identifier.
-    pub identifier: String,
-    /// The components declared within the package.
-    pub components: Vec<Component>,
-}
-
-impl Declare for Package {
+impl Declare for Library {
     fn declare(&self) -> String {
         let mut result = String::new();
         result.push_str(format!("package {} is\n", self.identifier).as_str());
@@ -340,17 +161,12 @@ impl Declare for Package {
 mod test {
     use super::*;
 
-    // Some common types in tests:
     fn rec() -> Type {
         Type::record(
             "rec",
-            vec![
-                Field::new("a", Type::Bit),
-                Field::new("b", Type::BitVec { width: 4 }),
-            ],
+            vec![Field::new("a", Type::Bit), Field::new("b", Type::bitvec(4))],
         )
     }
-
     fn rec_nested() -> Type {
         Type::record(
             "rec_nested",
@@ -361,12 +177,20 @@ mod test {
     fn comp() -> Component {
         Component {
             identifier: "test_comp".to_string(),
-            generics: vec![],
+            parameters: vec![],
             ports: vec![
                 Port::new("a", Mode::In, rec()),
                 Port::new("b", Mode::Out, rec_nested()),
             ],
         }
+    }
+
+    #[test]
+    fn test_mode_decl() {
+        let m0 = Mode::In;
+        let m1 = Mode::Out;
+        assert_eq!(m0.identify(), "in");
+        assert_eq!(m1.identify(), "out");
     }
 
     #[test]
@@ -420,27 +244,10 @@ mod test {
 
     #[test]
     fn test_package_decl() {
-        let p = Package {
+        let p = Library {
             identifier: "test".to_string(),
             components: vec![comp()],
         };
         println!("{}", p.declare());
-    }
-
-    #[test]
-    fn test_flatten_rec() {
-        let flat = rec().flatten(None);
-        assert_eq!(flat[0].0, Some("a".to_string()));
-        assert_eq!(flat[0].1, Type::Bit);
-        assert_eq!(flat[1].0, Some("b".to_string()));
-        assert_eq!(flat[1].1, Type::BitVec { width: 4 });
-    }
-
-    #[test]
-    fn test_mode_decl() {
-        let m0 = Mode::In;
-        let m1 = Mode::Out;
-        assert_eq!(m0.identify(), "in");
-        assert_eq!(m1.identify(), "out");
     }
 }
