@@ -179,18 +179,18 @@ pub struct Component {
 impl Component {
     pub fn flatten_types(&mut self) {
         let mut new_ports: Vec<Port> = Vec::new();
-        for p in &self.ports {
-            let flat_types = p
+        self.ports.iter().for_each(|port| {
+            let bundle = port
                 .typ
-                .flatten(vec![p.identifier.clone()], p.mode == Mode::In);
-            for ft in flat_types.into_iter() {
+                .flatten(vec![port.identifier.clone()], port.mode == Mode::In);
+            for tup in bundle {
                 new_ports.push(Port::new(
-                    format!("{}_{}", p.identifier, ft.0.join("_")),
-                    p.mode,
-                    ft.1.clone(),
+                    tup.0.join("_"),
+                    if tup.2 { Mode::In } else { Mode::Out },
+                    tup.1,
                 ));
             }
-        }
+        });
         self.ports = new_ports;
     }
 }

@@ -154,8 +154,11 @@ impl From<Streamlet> for Component {
 
 #[cfg(test)]
 mod test {
-    use crate::generator::common::Type;
+    use crate::generator::common::{Component, Library, Type};
+    use crate::generator::vhdl::Declare;
+    use crate::parser::streamlet::streamlet_interface_definition;
     use crate::phys::{BitField, Complexity, Dir, Stream};
+    use crate::Streamlet;
 
     fn test_stream() -> Stream {
         Stream {
@@ -270,28 +273,26 @@ mod test {
         };
     }
 
-    /*
-        #[test]
-        fn test_simple_streamlet() {
-            let streamlet = streamlet_interface_definition(
-                r#"MuhStreamlet
+    #[test]
+    fn test_simple_streamlet() {
+        let streamlet = streamlet_interface_definition(
+            r#"MuhStreamlet
 
-    a: Bits<1>
-    b: Rev<Dim<Bits<1>>>
+a: Bits<1>
+b: Rev<Dim<Bits<1>>>
 
-    c: Group<Bits<3>, Bits<4>>
-    d: Bits<4>"#,
-            );
-            dbg!(&streamlet);
-            let streamlet: Streamlet = streamlet.unwrap().1;
-            let mut comp: Component = streamlet.into();
-            comp.flatten_types();
-            let pkg = Package {
-                identifier: "Tydi".to_string(),
-                components: vec![comp],
-            };
-            let code: String = pkg.declare();
-            println!("{}", code);
-        }
-        */
+c: Group<Bits<3>, Bits<4>>
+d: Bits<4>"#,
+        );
+        dbg!(&streamlet);
+        let streamlet: Streamlet = streamlet.unwrap().1;
+        let mut comp: Component = streamlet.into();
+        comp.flatten_types();
+        let pkg = Library {
+            identifier: "Tydi".to_string(),
+            components: vec![comp],
+        };
+        let code: String = pkg.declare();
+        println!("{}", code);
+    }
 }
