@@ -8,7 +8,7 @@ in which they are transferred are defined in a parameterized way, to provide
 the necessary flexibility for the higher levels of this specification, and to
 give hardware developers the freedom to optimize their designs. Based on these
 parameters, this specification defines which signals must exist on the
-interface, and what the significance of these signals is.
+interface, and the significance of these signals.
 
 Parameters
 ----------
@@ -16,22 +16,21 @@ Parameters
 A physical stream interface has five parameters, described in the following
 subsections.
 
-> Note that we define the parameters on the interfaces of the source and the
-> sink, not on the stream between them! This is because the complexity
-> parameter need not be the same on the source and sink. The others do.
+> The parameters are defined on the interfaces of the source and the sink
+> rather than the stream between them, because the complexity parameter need
+> not be the same on the source and sink. The others do.
 
-### Element content (E)
+### Element content
 
 This describes the physical layout of the elementary data being transferred by
 the stream. It is an emptyable, ordered set of named fields, where each field
 has a name and a bit count.
 
-> The element type can be empty to make a "null" stream. Such streams can still
-> be useful, as physical streams also carry metadata.
+> The element type can be given zero fields to make a "null" stream. Such
+> streams can still be useful, as physical streams also carry metadata.
 
-The letter \\(E\\) is used as a shorthand for the total number of bits in the
-element; that is, the sum of the field bit count over all fields in the
-element.
+\\(E\\) is used as a shorthand for the total number of bits in the element;
+that is, the sum of the field bit count over all fields in the element.
 
 #### Field name
 
@@ -56,7 +55,7 @@ The name must be case-insensitively unique within the set of named fields.
 > The identifier is case-insensitive because compatibility with VHDL is
 > desired.
 
-#### Bitcount
+#### Bit count
 
 The bit count cannot be zero.
 
@@ -64,24 +63,24 @@ The bit count cannot be zero.
 
 ### Number of element lanes (N)
 
-The data described by the element content is physically replicated this many
-times, allowing multiple elements to be transferred per stream handshake.
-\\(N\\) must be an integer greater than or equal to one.
+The signals used for describing a data element are replicated this many times,
+allowing multiple elements to be transferred per stream handshake. \\(N\\) must
+be an integer greater than or equal to one.
 
 ### Dimensionality (D)
 
-This parameter specifies how many `last` bits are needed to represent the data.
-It must be an integer greater than or equal to zero.
+This parameter specifies the number of `last` bits needed to represent the
+data. It must be an integer greater than or equal to zero.
 
-> Intuitively, each list nesting level adds one to this number. For instance,
-> to stream two-dimensional lists, two last bits will be needed: one to mark
-> the boundaries of the inner list, and one to mark the boundary of each
-> two-dimensional list.
+> Intuitively, each sequence nesting level adds one to this number. For
+> instance, to stream two-dimensional sequences, two `last` bits are needed:
+> one to mark the boundaries of the inner sequence, and one to mark the
+> boundary of each two-dimensional sequence.
 
 ### Complexity (C)
 
-This parameter specifies what guarantees the source makes about how elements
-are transferred. Equivalently, it specifies how many assumptions the sink can
+This parameter specifies the guarantees a source makes about how elements
+are transferred. Equivalently, it specifies the assumptions a sink can safely
 make.
 
 | Higher C                        | Lower C                        |
@@ -107,26 +106,27 @@ with zeros on the right.
 > later) to insert new complexity levels between the ones defined here. For
 > instance, 3 < 3.1 < 3.1.1 < 3.2 < 4.
 
-The restrictions imposed by certain complexity levels are listed in detail
-along with the unconditional signal requirements in later sections.
-Intuitively, however, the complexity number carries the following significance.
+The complexity number carries the following intuitive significance.
 
 | \\(C\\) | Description                                                                         |
 |---------|-------------------------------------------------------------------------------------|
 | < 8     | Only one sequence can be terminated per transfer.                                   |
-| < 7     | Which data lanes are enabled can be described with a simple range.                  |
-| < 6     | The range of enabled data lanes must always start with lane zero.                   |
-| < 5     | All lanes must be enabled for all but the last transfer of the innermost sequence.  |
+| < 7     | The indices of the active data lanes can be described with a simple range.          |
+| < 6     | The range of active data lanes must always start with lane zero.                    |
+| < 5     | All lanes must be active for all but the last transfer of the innermost sequence.   |
 | < 4     | The `last` flag cannot be postponed until after the transfer of the last element.   |
 | < 3     | Innermost sequences must be transferred in consecutive cycles.                      |
 | < 2     | Whole outermost instances must be transferred in consecutive cycles.                |
+
+The exact requirements imposed for each \\(C\\) can be found along with the
+unconditional signal requirements in later sections.
 
 A stream is considered to be normalized when \\(C < 4\\). At this complexity
 level, there is a one-to-one mapping between the transferred data and the
 actual transfers for any given \\(N\\). This is called the canonical
 representation of the data for a given \\(N\\).
 
-### User-defined transfer content (U)
+### User-defined transfer content
 
 This describes the physical layout of the user-defined transfer content of the
 stream. It is an emptyable, ordered set of named fields, where each field has a
@@ -167,7 +167,7 @@ The name must be case-insensitively unique within the set of named fields.
 > The identifier is case-insensitive because compatibility with VHDL is
 > desired.
 
-#### Bitcount
+#### Bit count
 
 The bit count cannot be zero.
 
@@ -183,7 +183,7 @@ A physical stream is comprised of the following signals.
 | `valid` | Source | Stalling the data stream due to the source not being ready.                            |
 | `ready` | Sink   | Stalling the data stream due to the sink not being ready.                              |
 | `data`  | Source | Data transfer of \\(N\\) \\(E\\)-bit elements.                                         |
-| `last`  | Source | Indicating the last transfer for \\(D\\) levels of nested packets.                     |
+| `last`  | Source | Indicating the last transfer for \\(D\\) levels of nested sequences.                   |
 | `stai`  | Source | Start index; encodes the index of the first valid lane.                                |
 | `endi`  | Source | End index; encodes the index of the last valid lane.                                   |
 | `strb`  | Source | Strobe; encodes individual lane validity for \\(C \ge 8\\), empty sequences otherwise. |
@@ -257,7 +257,7 @@ downstream signals and `valid` remains asserted, or `valid` is released.
 
 `valid` must be released while the source is being reset.
 
-> This prevents spurious transfers if the sink has a different reset source.
+> This prevents spurious transfers when the sink has a different reset source.
 
 #### `ready` signal description
 
@@ -279,7 +279,7 @@ and the sink.
 
 `ready` must be released while the sink is being reset.
 
-> This prevents transfers from being lost if the source has a different reset
+> This prevents transfers from being lost when the source has a different reset
 > source.
 
 #### `data` signal description
@@ -301,13 +301,13 @@ considered active if and only if
 > `strb` signal (only applicable for \\(C \ge 7\\)) has to do with the rule
 > that it must always be possible to connect a source with low complexity to a
 > sink with high complexity. That is, while a source that desires individual
-> control over the lanes and thus has \\(C \ge 7\\)) would probably always
+> control over the lanes and thus has \\(C \ge 7\\) would probably always
 > drive `endi` to \\(N-1\\) and `stai` to 0, a sink with complexity
-> \\(C \ge 7\\)) still needs to accept input from sources that do use `endi`
+> \\(C \ge 7\\) still needs to accept input from sources that do use `endi`
 > and `stai`.
 >
 > The overhead incurred by this should be negligible in practice. First of all,
-> because \\(C \ge 7\\)) with significant \\(N\\) will be quite large to begin
+> because \\(C \ge 7\\) with significant \\(N\\) will be quite large to begin
 > with, so managing two additional signals of size
 > \\(\lceil \log_2{N} \rceil\\) probably doesn't matter much. Secondly, in most
 > cases, constant propagation will remove the unneeded `endi` and `stai`
@@ -319,7 +319,7 @@ considered active if and only if
 > LUTs per lane (one for `stai`, one for `endi`, and one 3-input AND gate to
 > merge the outputs of the first two and the `strb` bit).
 
-The significant lanes are interpreted ordered by increasing index for each
+The significant lanes are interpreted in order of increasing index for each
 transfer.
 
 #### `last` signal description
@@ -329,13 +329,16 @@ termination bit for each nested sequence represented by the physical stream.
 The `last` bit for lane \\(i\\) and dimension \\(j\\) (i.e., bit
 \\(i \cdot D + j\\)) being asserted indicates completion of a sequence with
 nesting level \\(D - j - 1\\), containing all elements streamed between the
-previous lane/transfer this occured for \\(j' \ge j\\) (or system reset, if
-never) exclusively and this point inclusively, where nesting level is defined
-to be 0 for the outermost list, 1 for its inner list, up to \\(D - 1\\) for
-the innermost list. It is active-high.
+previous lane/transfer this occured for dimension \\(j' \ge j\\) (or system
+reset, if never) exclusively and this point inclusively, where nesting level
+is defined to be 0 for the outermost sequence, 1 for its inner sequence, up to
+\\(D - 1\\) for the innermost sequence. It is active-high.
 
 > For example, one way to represent the value
-> `["Hello", "World"], ["Tydi", "is", "nice"], [""], []` is as follows:
+> `["Hello", "World"], ["Tydi", "is", "nice"], [""], []` with
+> \\(N = 6, C \ge 8\\) is as follows. Note that \\(D = 2\\) follows
+> from the data type, \\(E\\) depends on the character encoding, and the
+> example does not depend on \\(U\\).
 > ```text
 > reset released here
 >         |                      transfer -->
@@ -366,22 +369,22 @@ the innermost list. It is active-high.
 >         '------------' '------------' '------------' '------------'
 > ```
 > `"Hello"` is delimited by the reset condition and the asserted `last` bit
-> in transfer A, lane 4, for \\(j = 0\\) (innermost). `"World"` is delimited
+> in transfer A, lane 4, dimension 0 (innermost). `"World"` is delimited
 > by the aforementioned and the `last` bit in transfer B, lane 3, also for
-> \\(j = 0\\). The `last` bit for B3/\\(j = 1\\) is also asserted, which
+> dimension 0. The `last` bit for B3/dimension 1 is also asserted, which
 > delimits `["Hello", "World"]` along with the reset condition; both the
 > `"Hello"` and `"World"` sequence are fully contained by the delimited
-> portion of the stream, so the outer list has those as its two entries.
+> portion of the stream, so the outer sequence has those as its two entries.
 > `"Tydi"` is delimited by B3 and C1, `"is"` by C1 and C3, and `"nice"` by
-> C3 and D2 for \\(j = 0\\). Note that the D2 is postponed beyond the last
+> C3 and D2 for dimension 0. Note that the D2 is postponed beyond the last
 > element (D1) by means of deactivating data lane D2. The `last` flag for
-> the surrounding list is similarly postponed to D3; note though that data
-> lane D3 *must* be inactive, *or* the last bit for D3/\\(j = 0\\) must be
+> the surrounding sequence is similarly postponed to D3; note though that data
+> lane D3 *must* be inactive, *or* the last bit for D3/dimension 0 must be
 > asserted for the data stream to be legal. The next `""` is delimited by
-> D3 (\\(j' = 1\\)) and D4 (\\(j = 0\\)), and `[""]` is delimited by D3 and D4
-> for \\(j = 1\\). The final `[]` is delimited by D4 and D5 for \\(j = 1\\).
-> It does not contain an inner list item because D5/\\(j = 0\\) is not
-> asserted, so the outer list is empty.
+> D3/dimension 1 and D4/dimension 0, and `[""]` is delimited by D3 and D4
+> for dimension 1. The final `[]` is delimited by D4 and D5 for dimension 1.
+> It does not contain an inner sequence item because D5/dimension 0 is not
+> asserted, so the outer sequence is empty.
 
 The state of lane \\(i\\) in the `data` signal is significant only while
 `valid` is asserted.
@@ -392,9 +395,9 @@ The state of lane \\(i\\) in the `data` signal is significant only while
 > sequences, but also allows postponing the end-of-sequence marker until after
 > the last element (if complexity allows) as the previous example shows.
 
-It is illegal to assert `last` bit \\(j\\) without first terminating all
-\\(j' < j\\), if any data lanes were active since the previous assertion of
-`last` bit \\(j" = 0\\).
+It is illegal to assert a `last` bit for dimension \\(j\\) without first
+terminating all dimensions \\(j' < j\\), if any data lanes were active since
+the previous assertion of a `last` bit for dimension 0.
 
 > For example, the following is illegal because of the above:
 >
@@ -422,19 +425,19 @@ It is illegal to assert `last` bit \\(j\\) without first terminating all
 >
 > An argument could be made that this encodes `[[1, 2], 3, 4], [[5, 6]]`, but
 > allowing this interpretation would make the stream significantly less
-> type-safe, and there would be no way to encode non-list elements before the
-> last inner list in the outer list without introducing a `start` signal as
-> well.
+> type-safe, and there would be no way to encode non-sequence elements before
+> the last inner sequence in the outer sequence without introducing a `start`
+> signal as well.
 >
 > An argument could also be made that this encodes `[[1, 2]], [[3, 4, 5, 6]]`,
-> because the `last` flag delimiting `[1, 2]` falls within the first outer list
-> and the `last` flag delimiting `[3, 4, 5, 6]` falls within the second. However,
-> This would unnecessarily complicate sink logic, make manual interpretation of
-> the data structure more context-sensitive, and so on.
+> because the `last` flag delimiting `[1, 2]` falls within the first outer
+> sequence and the `last` flag delimiting `[3, 4, 5, 6]` falls within the
+> second. However, this would unnecessarily complicate sink logic, make manual
+> interpretation of the data structure more context-sensitive, and so on.
 >
 > One could also argue that it encodes `[[1, 2]], [[5, 6]]`, because `3` and
-> `4` are not enclosed by any inner list, but then it makes more sense to just
-> deactivate the lanes.
+> `4` are not enclosed by any inner sequence, but then it makes more sense to
+> just deactivate the lanes.
 >
 > Ultimately, this representation is ambiguous or at least leads to confusion,
 > and is therefore illegal.
@@ -445,13 +448,14 @@ driven low by the source, and may be ignored by the sink.
 > The above rule ultimately means that the `last` information is transferred on
 > a transfer basis instead of on element basis, similar to AXI4-stream. This
 > can significantly decrease decoding complexity, but only allows one innermost
-> sequence to be transferred per cycle regardless of \((N\\) and the length of
+> sequence to be transferred per cycle regardless of \(N\\) and the length of
 > the sequence.
 
-*[\\(C < 4\\)]* It is illegal to assert `last` bit \\(j\\) without also
-terminating all \\(j' < j\\) within the same lane.
+*[\\(C < 4\\)]* It is illegal to assert a `last` bit for dimension \\(j\\)
+without also asserting the `last` bits for dimensions \\(j' < j\\) in the same
+lane.
 
-*[\\(C < 4\\)]* It is illegal to assert the `last` bit for \\(j = 0\\) when
+*[\\(C < 4\\)]* It is illegal to assert the `last` bit for dimension 0 when
 the respective data lane is inactive, except for empty sequences.
 
 > The above two rules mean that the `last` flags cannot be postponed.
@@ -460,7 +464,7 @@ the respective data lane is inactive, except for empty sequences.
 
 The `stai` signal (start index) is used to deactivate data lanes with an index
 lower than the encoded binary number. It is a bit vector of size
-\\(\lceil \log_2{N} \rceil\\) to be able to encode the full index range.
+\\(\lceil \log_2{N} \rceil\\) to encode the full index range.
 
 The state of the `stai` signal is significant only while `valid` is asserted.
 
@@ -475,7 +479,7 @@ ignored by the sink.
 
 The `endi` signal (end index) is used to deactivate data lanes with an index
 greater than the encoded binary number. It is a bit vector of size
-\\(\lceil \log_2{N} \rceil\\) to be able to encode the full index range.
+\\(\lceil \log_2{N} \rceil\\) to encode the full index range.
 
 > Note that `endi` cannot be used to disable the first lane.
 
@@ -489,9 +493,9 @@ It is illegal to drive `endi` to the value \\(N\\) or greater.
 It is illegal to drive `endi` to a value less than `stai`.
 
 > This would essentially encode a VHDL null range, which, if allowed, could be
-> used to encode empty lists. However, detecting this condition is relatively
-> hard on FPGA resources (timing in particular), typically requiring a carry
-> chain for \\(N > 8\\). Instead, use `strb` for this purpose; at lower
+> used to encode empty sequences. However, detecting this condition is
+> relatively hard on FPGA resources (timing in particular), typically requiring
+> a carry chain for \\(N > 8\\). Instead, use `strb` for this purpose; at lower
 > complexities all `strb` bits must be equal, so only a single bit has to be
 > checked to determine whether a transfer carries any data.
 
@@ -500,16 +504,16 @@ is zero, and may be ignored by the sink in this case.
 
 > Together with the other complexity rules up to this level, this means that
 > all lanes must be used for all but the last transfer containing elements for
-> the innermost list. This furthermore implies that the element with innermost
-> index \\(i\\) is always transferred on data lane \\(i \mod N\\).
+> the innermost sequence. This furthermore implies that the element with
+> innermost index \\(i\\) is always transferred on data lane \\(i \mod N\\).
 
 #### `strb` signal description
 
 The `strb` signal (strobe) is used to deactivate individual data lanes. It is
-a bit vector of size \\(N\\). If a `strb` bit is low, the associated data lane
-is deactivated.
+a bit vector of size \\(N\\). When a `strb` bit is low, the associated data
+lane is deactivated.
 
-> Note that the opposite ("`strb` high -> activated) is *not* necessarily true
+> Note that the opposite (`strb` high -> activated) is *not* necessarily true
 > due to `endi` and `stai`.
 
 The state of the `strb` signal is significant only while `valid` is asserted.
@@ -535,22 +539,32 @@ asserted.
 
 ### Signal omission
 
-Not all signals are always needed. The following table shows the conditions for
+Not all signals are always needed. The following table shows the condition for
 a signal to be relevant. If the condition is false, the signal may be omitted
 on the interface. When two interfaces with differing but compatible
 complexities are connected together, the default value specified in the table
-below must be driven for any omitted signals.
+below must be driven for the omitted signals.
 
 | Name    | Condition                                   | Default   |
 |---------|---------------------------------------------|-----------|
-| `valid` | \\(\top\\)                                  | `'1'`     |
-| `ready` | \\(\top\\)                                  | `'1'`     |
+| `valid` | *see below*                                 | `'1'`     |
+| `ready` | *see below*                                 | `'1'`     |
 | `data`  | \\(E > 0\\)                                 | all `'0'` |
 | `last`  | \\(D \ge 1\\)                               | all `'1'` |
 | `stai`  | \\(C \ge 6 \wedge N > 1\\)                  | 0         |
 | `endi`  | \\((C \ge 5 \vee D \ge 1) \wedge N > 1\\)   | \\(N-1\\) |
 | `strb`  | \\(C \ge 7 \vee D \ge 1\\)                  | all `'1'` |
 | `user`  | \\(U > 0\\)                                 | all `'0'` |
+
+`valid` may be omitted for sources that are always valid.
+
+> For example, a constant or status signal source (the latter must be valid
+> during reset as well for this to apply).
+
+`ready` may be omitted for sinks that never block.
+
+> For example, a sink that voids all incoming data in order to measure
+> performance of the source.
 
 ### Interface conventions
 
@@ -564,7 +578,8 @@ concatenated LSB first, such that the lane index is major and the field index
 is minor.
 
 Where applicable, the signals must be listed in the following order: `dn`,
-`up`, `valid`, `ready`, `data`, `last`, `stai`, `endi`, `strb`, `user`.
+`up`, `valid`, `ready`, `data`, `last`, `stai`, `endi`, `strb`, `user` (`dn`
+and `up` are part of the alternative representation defined below).
 
 > This is mostly just a consistency thing, primarily because it helps to get
 > used to a single ordering when interpreting simulation waveforms. It may also
@@ -585,10 +600,11 @@ block.
 
  - `valid`, `data`, `last`, `stai`, `endi`, `strb`, and `user` may be bundled
    in an aggregate type named `<stream-name>_dn_type` with signal name
-   `<stream-name>_dn`.
+   `<stream-name>_dn` (`dn` is short for "downstream").
 
  - `ready` may be "bundled" in an aggregate type named `<stream-name>_up_type`
-   with signal name `<stream-name>_up` for symmetry.
+   with signal name `<stream-name>_up` for symmetry (`up` is short for
+   "upstream").
 
  - If the language allows for signal direction reversal within a bundle, all
    stream signals may also be bundled into a single type named
@@ -597,7 +613,7 @@ block.
  - The data and user fields may be bundled in aggregate types named
    `<stream-name>_data_type` and `<stream-name>_user_type` respectively. The
    `data` signal becomes an array of `<stream-name>_data_type`s from 0 to
-   \\(N - 1\\) if \\(N > 1\\) or this is otherwise desirable.
+   \\(N - 1\\) if \\(N > 1\\) or when otherwise desirable.
 
  - Data and user fields consisting of a single bit may be interpreted as either
    a bit vector of size one or a scalar bit depending on context.
@@ -612,14 +628,14 @@ block.
 Where applicable, the bitrange for bit vector signals is always `n-1 downto 0`,
 where `n` is the number of bits in the signal.
 
-Concatenations of bit vector signals are done LSB-first, i.e., lower indexed
-entries use lower bit indices and thus occur on the right-hand side when the
-bit vector is written as a binary number.
+Concatenations of bit vector signals are done LSB-first.
 
-> Note that this results in the inverse order when using the concatenation
-> operator in VHDL (and possibly other languages). LSB-first order is chosen
-> because it is more intuitive when indexing the vector. Ultimately this is
-> just a convention.
+> That is, lower indexed entries use lower bit indices and thus occur on the
+> right-hand side when the bit vector is written as a binary number. Note that
+> this results in the inverse order when using the concatenation operator in
+> VHDL (and possibly other languages). LSB-first order is chosen because it is
+> more intuitive when indexing the vector. Ultimately this is just a
+> convention.
 
 Where applicable, the range for arrays is always `0 to n-1`, where `n` is the
 number of entries in the array.
