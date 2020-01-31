@@ -2,6 +2,7 @@
 
 use common::*;
 
+use crate::river::River;
 use crate::{
     phys::{BitField, Dir, Stream},
     Streamlet,
@@ -47,7 +48,7 @@ impl From<Dir> for Mode {
 impl From<Stream> for Type {
     fn from(s: Stream) -> Self {
         // Creates a type from a physical `Stream` according to Tidy spec.
-        let name: String = s.identifier.clone().unwrap_or_else(|| "anon".to_string());
+        let name: String = s.identifier.join("_");
         let mut result = Record::empty(name);
 
         // Valid/Ready handshake ports
@@ -120,6 +121,19 @@ impl From<Stream> for Type {
     }
 }
 
+fn append_io(rivers: &[River], to: &mut Vec<Port>, mode: Mode) {
+    for river in rivers {
+        let river_streams: Vec<Stream> = river.as_phys(vec![]);
+        for stream in river_streams.into_iter() {
+            to.push(Port {
+                identifier: stream.identifier.join("_"),
+                mode,
+                typ: stream.into(),
+            });
+        }
+    }
+}
+
 impl From<Streamlet> for Component {
     fn from(s: Streamlet) -> Self {
         let mut result = Component {
@@ -127,27 +141,9 @@ impl From<Streamlet> for Component {
             parameters: vec![],
             ports: vec![],
         };
-        // Obtain the physicals streams of each river.
-        for i in s.inputs {
-            let phys_streams: Vec<Stream> = i.as_phys(i.identifier());
-            for ps in phys_streams.into_iter() {
-                result.ports.push(Port::new(
-                    ps.identifier.clone().unwrap_or_else(|| "".to_string()),
-                    Mode::In,
-                    ps.into(),
-                ));
-            }
-        }
-        for o in s.outputs {
-            let phys_streams: Vec<Stream> = o.as_phys(o.identifier());
-            for ps in phys_streams.into_iter() {
-                result.ports.push(Port::new(
-                    ps.identifier.clone().unwrap_or_else(|| "".to_string()),
-                    Mode::Out,
-                    ps.into(),
-                ));
-            }
-        }
+        // Obtain the physicals streams of each river and append them with the appropriate mode.
+        append_io(&s.inputs, &mut result.ports, Mode::In);
+        append_io(&s.outputs, &mut result.ports, Mode::Out);
         result
     }
 }
@@ -162,7 +158,7 @@ mod test {
 
     fn test_stream() -> Stream {
         Stream {
-            identifier: Some("test".to_string()),
+            identifier: vec!["test".to_string()],
             fields: BitField {
                 identifier: None,
                 width: 0,
@@ -281,7 +277,7 @@ mod test {
 a: Bits<1>
 b: Rev<Dim<Bits<1>>>
 
-c: Group<Bits<3>, Bits<4>>
+c: Group<x: Bits<3>, y: Bits<4>>
 d: Bits<4>"#,
         );
         dbg!(&streamlet);

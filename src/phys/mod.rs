@@ -1,5 +1,8 @@
 //! Tydi physical streams.
 
+use nom::lib::std::fmt::{Error, Formatter};
+use std::fmt::Display;
+
 /// Tydi stream interface complexity level.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Complexity {
@@ -24,6 +27,12 @@ impl Default for Complexity {
     }
 }
 
+impl Display for Complexity {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(f, "{:?}", self.num)
+    }
+}
+
 /// Element bit field.
 #[derive(Debug, Clone)]
 pub struct BitField {
@@ -33,8 +42,9 @@ pub struct BitField {
     pub width: usize,
     /// Potential child fields.
     pub children: Vec<BitField>,
-    // TODO(johanpel): we need this tree to be either a bitfield with only children and width 0, or
-    // only a width > 0 and no children. I.e. it was either a group or bits type.
+    // TODO(johanpel): we need this tree to be either a bitfield with only children and width 0,
+    // or only a width > 0 and no children. I.e. it was either a group or bits type as
+    // streamspace type.
 }
 
 impl BitField {
@@ -98,8 +108,9 @@ impl Dir {
 /// A Tydi physical stream.
 #[derive(Debug)]
 pub struct Stream {
-    /// Name of the physical stream.
-    pub identifier: Option<String>,
+    /// Name of the physical stream. Stored as a vector of strings to allow various types of
+    /// joins for different back-ends and preferences.
+    pub identifier: Vec<String>,
     /// Tree of bit fields contained within the elements of the physical stream.
     pub fields: BitField,
     /// The number of elements moved per transfer.

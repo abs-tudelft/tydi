@@ -1,6 +1,8 @@
 //! Tydi streamspace types.
 
 use crate::phys::{BitField, Complexity, Dir, Stream};
+use nom::lib::std::fmt::{Error, Formatter};
+use std::fmt::Debug;
 
 /// A potentially nested structure expressing a Streamspace type tree.
 #[derive(Clone, Debug, PartialEq)]
@@ -60,6 +62,15 @@ fn apply_params_to_first(streams: &mut Vec<Stream>, params: &RiverParameters) {
         streams[0].complexity = params.complexity.clone().unwrap_or_default();
         streams[0].user_bits = params.user_bits.unwrap_or(0);
     }
+}
+
+fn push_some<T: Clone>(v: &Vec<T>, e: &Option<T>) -> Vec<T> {
+    let mut result = v.clone();
+    match e {
+        None => (),
+        Some(s) => result.push(s.clone()),
+    }
+    result
 }
 
 impl River {
@@ -126,8 +137,12 @@ impl River {
         }
     }
 
-    pub fn as_phys(&self, name: Option<String>) -> Vec<Stream> {
-        // TODO(johanpel): propagate all parameters.
+    /// Convert this River to Physical Streams.
+    ///
+    /// This can potentially generate multiple physical streams.
+    pub fn as_phys(&self, name: Vec<String>) -> Vec<Stream> {
+        // TODO(johanpel):  this flattens the river type structure but we could consider allowing
+        //                  physical streams to be nested.
         match self {
             River::Root {
                 identifier,
@@ -135,7 +150,8 @@ impl River {
                 parameters,
             } => {
                 // Return resulting streams from inner
-                let mut result = inner.as_phys(identifier.clone());
+                let mut result = inner.as_phys(push_some(&name, identifier));
+
                 apply_params_to_first(&mut result, parameters);
                 result
             }
@@ -145,7 +161,7 @@ impl River {
                 parameters,
             } => {
                 // Increase dimensionality of resulting streams
-                let mut result = inner.as_phys(identifier.clone());
+                let mut result = inner.as_phys(push_some(&name, identifier));
                 for r in result.iter_mut() {
                     r.dimensionality += 1;
                 }
@@ -158,7 +174,7 @@ impl River {
                 parameters,
             } => {
                 // Reverse child streams
-                let mut result = inner.as_phys(identifier.clone());
+                let mut result = inner.as_phys(push_some(&name, identifier));
                 for r in result.iter_mut() {
                     r.dir.reverse()
                 }
@@ -171,15 +187,15 @@ impl River {
                 parameters,
             } => {
                 // Return resulting streams from inner
-                let mut result = inner.as_phys(identifier.clone());
+                let mut result = inner.as_phys(push_some(&name, identifier));
                 apply_params_to_first(&mut result, parameters);
                 result
             }
             River::Bits { identifier, width } => {
                 let new_stream = Stream {
-                    identifier: name,
+                    identifier: push_some(&name, identifier),
                     fields: BitField {
-                        identifier: identifier.clone(),
+                        identifier: None,
                         width: *width,
                         children: vec![],
                     },
@@ -198,7 +214,7 @@ impl River {
                 // If there are any bit fields, create a new stream
                 if bit_fields.is_some() {
                     let new_stream = Stream {
-                        identifier: name.clone(),
+                        identifier: push_some(&name, identifier),
                         fields: bit_fields.unwrap_or_else(BitField::new_empty),
                         elements_per_transfer: 1,
                         dir: Dir::Downstream,
@@ -225,7 +241,7 @@ impl River {
 }
 
 /// Parameters of River types.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct RiverParameters {
     /// N: number of elements per handshake.
     pub elements: Option<usize>,
@@ -233,6 +249,18 @@ pub struct RiverParameters {
     pub complexity: Option<Complexity>,
     /// U: number of user bits.
     pub user_bits: Option<usize>,
+}
+
+impl Debug for RiverParameters {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(
+            f,
+            "(E={},C={},U={})",
+            self.elements.unwrap_or(1),
+            self.complexity.clone().unwrap_or_default(),
+            self.user_bits.unwrap_or(0)
+        )
+    }
 }
 
 #[cfg(test)]
