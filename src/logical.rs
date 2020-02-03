@@ -1,8 +1,7 @@
 //! Tydi logical streams.
 
 use crate::physical::{BitField, Complexity, Dir, PhysicalStream};
-use nom::lib::std::fmt::{Error, Formatter};
-use std::fmt::Debug;
+use std::fmt;
 
 /// A potentially nested structure expressing a logical stream type tree.
 #[derive(Clone, Debug, PartialEq)]
@@ -254,8 +253,8 @@ pub struct LogicalStreamParameters {
     pub user_bits: Option<usize>,
 }
 
-impl Debug for LogicalStreamParameters {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+impl fmt::Debug for LogicalStreamParameters {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "(E={},C={},U={})",

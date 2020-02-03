@@ -67,7 +67,7 @@ impl From<PhysicalStream> for Type {
         // Transfer metadata
 
         // Start index (stai) Condition C >= 6 and N > 1
-        if (s.complexity.num[0] >= 6) && (s.elements_per_transfer > 1) {
+        if (s.complexity.major() >= 6) && (s.elements_per_transfer > 1) {
             result.add_field(
                 "stai",
                 Type::BitVec {
@@ -77,7 +77,7 @@ impl From<PhysicalStream> for Type {
         }
 
         // End index (endi) condition (C >=5 or D >= 1) and (N > 1)
-        if ((s.complexity.num[0] >= 5) || (s.dimensionality >= 1)) && (s.elements_per_transfer > 1)
+        if ((s.complexity.major() >= 5) || (s.dimensionality >= 1)) && (s.elements_per_transfer > 1)
         {
             result.add_field(
                 "endi",
@@ -88,7 +88,7 @@ impl From<PhysicalStream> for Type {
         }
 
         // Strobe (strb) condition  C >= 7 or D >= 1
-        if s.complexity.num[0] >= 7 || s.dimensionality >= 1 {
+        if s.complexity.major() >= 7 || s.dimensionality >= 1 {
             result.add_field(
                 "strb",
                 Type::BitVec {
@@ -175,7 +175,7 @@ mod test {
             elements_per_transfer: 1,
             dimensionality: 0,
             dir: Dir::Downstream,
-            complexity: Complexity::highest(),
+            complexity: Complexity::new_major(8),
             user_bits: 0,
         }
     }
@@ -245,7 +245,7 @@ mod test {
         let mut p = test_stream();
         p.dimensionality = 2;
         p.elements_per_transfer = 3;
-        p.complexity = Complexity::lowest();
+        p.complexity = Complexity::default();
         let typ: Type = p.into();
         dbg!(&typ);
         match typ {

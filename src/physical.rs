@@ -1,35 +1,147 @@
 //! Tydi physical streams.
 
-use nom::lib::std::fmt::{Error, Formatter};
-use std::fmt::Display;
+use crate::error::Error;
+use std::{error, fmt};
 
-/// Tydi stream interface complexity level.
-#[derive(Debug, Clone, PartialEq)]
+/// Logical stream interface Complexity level.
+///
+///
+/// This logical stream parameter specifies the guarantees a source makes about
+/// how elements are transferred. Equivalently, it specifies the assumptions a
+/// sink can safely make.
+///
+/// # Examples
+///
+/// ```rust
+/// use tydi::physical::Complexity;
+///
+/// let c3 = Complexity::new_major(3);
+/// let c30 = Complexity::new(vec![3, 0])?;
+/// let c31 = Complexity::new(vec![3, 1])?;
+/// let c4 = Complexity::new_major(4);
+///
+/// assert_eq!(c3, c30);
+/// assert!(c3 < c31);
+/// assert!(c31 < c4);
+///
+/// assert_eq!(c31.to_string(), "3.1");
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// [Reference]
+///
+/// [Reference]: https://abs-tudelft.github.io/tydi/specification/physical.html#complexity-c
+#[derive(Debug, Clone, PartialOrd, Ord)]
 pub struct Complexity {
-    pub num: Vec<usize>,
+    /// The complexity level.
+    level: Vec<usize>,
 }
 
+impl PartialEq for Complexity {
+    /// A complexity number is higher than another when the leftmost integer is
+    /// greater, and lower when the leftmost integer is lower. If the leftmost
+    /// integer is equal, the next integer is checked recursively. If one
+    /// complexity number has more entries than another, the shorter number is
+    /// padded with zeros on the right.
+    fn eq(&self, other: &Self) -> bool {
+        (0..self.level.len().max(other.level.len()))
+            .all(|idx| self.level.get(idx).unwrap_or(&0) == other.level.get(idx).unwrap_or(&0))
+    }
+}
+
+impl Eq for Complexity {}
+
 impl Complexity {
-    pub fn new_major(num: usize) -> Self {
-        Complexity { num: vec![num] }
+    /// Constructs a new Complexity with provided level. The functions returns
+    /// an error when the provided level iterator is empty.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use tydi::physical::Complexity;
+    ///
+    /// let c = Complexity::new(vec![1, 2, 3, 4])?;
+    /// assert!(Complexity::new(vec![]).is_err());
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn new(level: impl IntoIterator<Item = usize>) -> Result<Self, Box<dyn error::Error>> {
+        let level = level.into_iter().collect::<Vec<usize>>();
+        if level.is_empty() {
+            Err(Box::new(Error::InvalidArguments(
+                "complexity level can't be empty".to_string(),
+            )))
+        } else {
+            Ok(Complexity {
+                level: level.into_iter().collect(),
+            })
+        }
     }
-    pub fn highest() -> Self {
-        Complexity { num: vec![8] }
+
+    /// Constructs a new Complexity with provided level as major version.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use tydi::physical::Complexity;
+    ///
+    /// let c = Complexity::new_major(4);
+    ///
+    /// assert_eq!(c, Complexity::new(vec![4])?);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn new_major(level: usize) -> Self {
+        Complexity { level: vec![level] }
     }
-    pub fn lowest() -> Self {
-        Complexity { num: vec![0] }
+
+    /// Returns the level of this Complexity.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use tydi::physical::Complexity;
+    ///
+    /// let c = Complexity::new(vec![3, 14])?;
+    /// assert_eq!(c.level(), &[3, 14]);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn level(&self) -> &[usize] {
+        &self.level
+    }
+
+    /// Returns the major version of this Complexity level.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use tydi::physical::Complexity;
+    ///
+    /// let c = Complexity::new(vec![3, 14])?;
+    /// assert_eq!(c.major(), 3);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    pub fn major(&self) -> usize {
+        self.level[0]
     }
 }
 
 impl Default for Complexity {
     fn default() -> Self {
-        Complexity { num: vec![0] }
+        Complexity::new_major(0)
     }
 }
 
-impl Display for Complexity {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f, "{:?}", self.num)
+impl fmt::Display for Complexity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut result = String::new();
+        let mut level = self.level.iter();
+        if let Some(x) = level.next() {
+            result.push_str(&x.to_string());
+
+            for x in level {
+                result.push('.');
+                result.push_str(&x.to_string());
+            }
+        }
+        write!(f, "{}", result)
     }
 }
 
@@ -126,8 +238,30 @@ pub struct PhysicalStream {
 }
 
 #[cfg(test)]
-mod test {
-    use crate::physical::*;
+mod tests {
+    use super::*;
+
+    #[test]
+    fn complexity() {
+        let c3 = Complexity::new_major(3);
+        let c30 = Complexity::new(vec![3, 0]).unwrap();
+        let c31 = Complexity::new(vec![3, 1]).unwrap();
+        let c311 = Complexity::new(vec![3, 1, 1]).unwrap();
+        let c32 = Complexity::new(vec![3, 2]).unwrap();
+        let c4 = Complexity::new_major(4);
+        let c400 = Complexity::new(vec![4, 0, 0]).unwrap();
+        let c401 = Complexity::new(vec![4, 0, 1]).unwrap();
+        assert!(c3 < c31);
+        assert_eq!(c3, c30);
+        assert!(c31 < c311);
+        assert!(c311 < c32);
+        assert!(c32 < c4);
+        assert_eq!(c4, c4);
+        assert_eq!(c4, c400);
+        assert_eq!(c400, c4);
+        assert!(c400 < c401);
+        assert!(c4 < c401);
+    }
 
     #[test]
     fn test_bitfield_recursive_width() {

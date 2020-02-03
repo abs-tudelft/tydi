@@ -11,6 +11,7 @@
 
 #[cfg(feature = "data")]
 pub mod data;
+pub mod error;
 #[cfg(feature = "generator")]
 pub mod generator;
 pub mod logical;
