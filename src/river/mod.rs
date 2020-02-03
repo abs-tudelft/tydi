@@ -64,8 +64,8 @@ fn apply_params_to_first(streams: &mut Vec<Stream>, params: &RiverParameters) {
     }
 }
 
-fn push_some<T: Clone>(v: &Vec<T>, e: &Option<T>) -> Vec<T> {
-    let mut result = v.clone();
+fn push_some<T: Clone>(v: &[T], e: &Option<T>) -> Vec<T> {
+    let mut result = v.to_owned();
     match e {
         None => (),
         Some(s) => result.push(s.clone()),
