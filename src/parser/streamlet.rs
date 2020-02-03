@@ -6,12 +6,13 @@ use nom::{
     IResult,
 };
 
-use crate::{parser::identifier, parser::river, Streamlet};
+use crate::{parser::identifier, parser::logical::river_type, Streamlet};
 
 /// Parses a Streamlet interface definition.
 ///
-/// A streamlet interface definition consists of one or more input River types
-/// followed by one or more output River types, separated by a newline.
+/// A streamlet interface definition consists of one or more input logical
+/// stream types followed by one or more output logical stream types, separated
+/// by a newline.
 ///
 /// # Example
 ///
@@ -30,9 +31,9 @@ pub fn streamlet_interface_definition(input: &str) -> IResult<&str, Streamlet> {
         tuple((
             identifier,
             many1(newline),
-            separated_nonempty_list(newline, river::river_type),
+            separated_nonempty_list(newline, river_type),
             many1(newline),
-            separated_nonempty_list(newline, river::river_type),
+            separated_nonempty_list(newline, river_type),
         )),
         |(identifier, _, input, _, output)| Streamlet {
             identifier,
@@ -44,7 +45,7 @@ pub fn streamlet_interface_definition(input: &str) -> IResult<&str, Streamlet> {
 
 #[cfg(test)]
 mod tests {
-    use crate::River::{Bits, Group};
+    use crate::LogicalStream::{Bits, Group};
 
     use super::*;
 

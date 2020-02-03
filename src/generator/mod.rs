@@ -1,11 +1,11 @@
-//! Source generator module.
+//! Generator methods and implementations for Tydi types.
+//!
+//! The generator module is enabled by the `generator` feature flag.
 
-use common::*;
-
-use crate::river::River;
 use crate::{
-    phys::{BitField, Dir, Stream},
-    Streamlet,
+    generator::common::{Component, Field, Mode, Port, Record, Type},
+    physical::{BitField, Dir},
+    LogicalStream, PhysicalStream, Streamlet,
 };
 
 pub mod common;
@@ -45,8 +45,8 @@ impl From<Dir> for Mode {
     }
 }
 
-impl From<Stream> for Type {
-    fn from(s: Stream) -> Self {
+impl From<PhysicalStream> for Type {
+    fn from(s: PhysicalStream) -> Self {
         // Creates a type from a physical `Stream` according to Tidy spec.
         let name: String = s.identifier.join("_");
         let mut result = Record::empty(name);
@@ -121,14 +121,14 @@ impl From<Stream> for Type {
     }
 }
 
-fn append_io(rivers: &[River], to: &mut Vec<Port>, mode: Mode) {
-    for river in rivers {
-        let river_streams: Vec<Stream> = river.as_phys(vec![]);
-        for stream in river_streams.into_iter() {
+fn append_io(logical_streams: &[LogicalStream], to: &mut Vec<Port>, mode: Mode) {
+    for logical_stream in logical_streams {
+        let physical_streams: Vec<PhysicalStream> = logical_stream.as_phys(vec![]);
+        for physical_stream in physical_streams.into_iter() {
             to.push(Port {
-                identifier: stream.identifier.join("_"),
+                identifier: physical_stream.identifier.join("_"),
                 mode,
-                typ: stream.into(),
+                typ: physical_stream.into(),
             });
         }
     }
@@ -141,7 +141,8 @@ impl From<Streamlet> for Component {
             parameters: vec![],
             ports: vec![],
         };
-        // Obtain the physicals streams of each river and append them with the appropriate mode.
+        // Obtain the physicals streams of each logical stream and append them
+        // with the appropriate mode.
         append_io(&s.inputs, &mut result.ports, Mode::In);
         append_io(&s.outputs, &mut result.ports, Mode::Out);
         result
@@ -150,14 +151,18 @@ impl From<Streamlet> for Component {
 
 #[cfg(test)]
 mod test {
-    use crate::generator::common::{Component, Library, Type};
-    use crate::generator::vhdl::Declare;
-    use crate::parser::streamlet::streamlet_interface_definition;
-    use crate::phys::{BitField, Complexity, Dir, Stream};
-    use crate::Streamlet;
+    use crate::{
+        generator::{
+            common::{Component, Library, Type},
+            vhdl::Declare,
+        },
+        parser::streamlet::streamlet_interface_definition,
+        physical::{BitField, Complexity, Dir},
+        PhysicalStream, Streamlet,
+    };
 
-    fn test_stream() -> Stream {
-        Stream {
+    fn test_stream() -> PhysicalStream {
+        PhysicalStream {
             identifier: vec!["test".to_string()],
             fields: BitField {
                 identifier: None,

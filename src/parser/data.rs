@@ -1,6 +1,6 @@
 use crate::{
+    data::Data,
     parser::{nonempty_comma_list, r#type, space_opt, usize},
-    Data,
 };
 use nom::{
     branch::alt, bytes::complete::tag, character::complete::char, combinator::map,

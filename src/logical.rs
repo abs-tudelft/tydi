@@ -1,61 +1,61 @@
-//! Tydi streamspace types.
+//! Tydi logical streams.
 
-use crate::phys::{BitField, Complexity, Dir, Stream};
+use crate::physical::{BitField, Complexity, Dir, PhysicalStream};
 use nom::lib::std::fmt::{Error, Formatter};
 use std::fmt::Debug;
 
-/// A potentially nested structure expressing a Streamspace type tree.
+/// A potentially nested structure expressing a logical stream type tree.
 #[derive(Clone, Debug, PartialEq)]
-pub enum River {
+pub enum LogicalStream {
     /// Bits is a primitive element with `width` bits.
     Bits {
         identifier: Option<String>,
         width: usize,
     },
-    /// Group concatenates all (nested) elements of inner `River` types into a
+    /// Group concatenates all (nested) elements of inner `LogicalStream` types into a
     /// single phys stream element.
     Group {
         identifier: Option<String>,
-        inner: Vec<River>,
+        inner: Vec<LogicalStream>,
     },
     /// Union defines a `B`-bits element, where `B` is the maximum `width`
-    /// value of the `inner` River types.
+    /// value of the `inner` LogicalStream types.
     Union {
         identifier: Option<String>,
-        inner: Vec<River>,
+        inner: Vec<LogicalStream>,
     },
-    /// Dim creates a streamspace of elements with inner `River` type in the
+    /// Dim creates a streamspace of elements with inner `LogicalStream` type in the
     /// next dimension w.r.t. its parent.
     Dim {
         identifier: Option<String>,
-        inner: Box<River>,
-        parameters: RiverParameters,
+        inner: Box<LogicalStream>,
+        parameters: LogicalStreamParameters,
     },
-    /// Rev creates a new phys stream with inner `River` types that flows
+    /// Rev creates a new phys stream with inner `LogicalStream` types that flows
     /// in reverse direction w.r.t. its parent.
     Rev {
         identifier: Option<String>,
-        inner: Box<River>,
-        parameters: RiverParameters,
+        inner: Box<LogicalStream>,
+        parameters: LogicalStreamParameters,
     },
-    /// New creates a new phys stream of elements with inner `River` type
+    /// New creates a new phys stream of elements with inner `LogicalStream` type
     /// in the parent space `D_{p}`.
     New {
         identifier: Option<String>,
-        inner: Box<River>,
-        parameters: RiverParameters,
+        inner: Box<LogicalStream>,
+        parameters: LogicalStreamParameters,
     },
     /// Root creates an initial streamspace `D_{0}`.
     Root {
         identifier: Option<String>,
-        inner: Box<River>,
-        parameters: RiverParameters,
+        inner: Box<LogicalStream>,
+        parameters: LogicalStreamParameters,
     },
 }
 
 /// Apply elements-per-transfer and complexity from `params` to the first stream in a vector of
 /// streams.
-fn apply_params_to_first(streams: &mut Vec<Stream>, params: &RiverParameters) {
+fn apply_params_to_first(streams: &mut Vec<PhysicalStream>, params: &LogicalStreamParameters) {
     if !streams.is_empty() {
         // First physical stream is the phys stream this Root is part of.
         streams[0].elements_per_transfer = params.elements.unwrap_or(1);
@@ -73,39 +73,42 @@ fn push_some<T: Clone>(v: &[T], e: &Option<T>) -> Vec<T> {
     result
 }
 
-impl River {
-    /// Return the identifier of the River.
+impl LogicalStream {
+    /// Return the identifier of the LogicalStream.
     pub fn identifier(&self) -> Option<String> {
         match self {
-            River::Bits { identifier, .. }
-            | River::Group { identifier, .. }
-            | River::Union { identifier, .. }
-            | River::Dim { identifier, .. }
-            | River::Rev { identifier, .. }
-            | River::New { identifier, .. }
-            | River::Root { identifier, .. } => identifier.clone(),
+            LogicalStream::Bits { identifier, .. }
+            | LogicalStream::Group { identifier, .. }
+            | LogicalStream::Union { identifier, .. }
+            | LogicalStream::Dim { identifier, .. }
+            | LogicalStream::Rev { identifier, .. }
+            | LogicalStream::New { identifier, .. }
+            | LogicalStream::Root { identifier, .. } => identifier.clone(),
         }
     }
 
-    /// Returns the combined width of the river types considering the
-    /// RiverParameters for number of elements and user bits.
+    /// Returns the combined width of the LogicalStream types considering the
+    /// LogicalStreamParameters for number of elements and user bits.
     pub fn width(&self) -> usize {
         match self {
-            River::Bits { width, .. } => *width,
-            River::Group { inner, .. } => inner.iter().map(|inner| inner.width()).sum(),
-            River::Union { inner, .. } => {
+            LogicalStream::Bits { width, .. } => *width,
+            LogicalStream::Group { inner, .. } => inner.iter().map(|inner| inner.width()).sum(),
+            LogicalStream::Union { inner, .. } => {
                 inner.iter().map(|inner| inner.width()).max().unwrap_or(0)
             }
-            River::Dim { .. } | River::Rev { .. } | River::New { .. } | River::Root { .. } => 0,
+            LogicalStream::Dim { .. }
+            | LogicalStream::Rev { .. }
+            | LogicalStream::New { .. }
+            | LogicalStream::Root { .. } => 0,
         }
     }
 
-    /// Obtain sub-element bit fields resulting from the river type's immediate corresponding
+    /// Obtain sub-element bit fields resulting from the LogicalStream type's immediate corresponding
     /// physical stream only. Ignores potentially nested physical streams.
     /// 'prefix' is used to prefix the bit fields.
     pub fn bit_fields(&self, prefix: Option<String>) -> Option<BitField> {
         match self {
-            River::Group { identifier, inner } => {
+            LogicalStream::Group { identifier, inner } => {
                 let suffix = identifier.clone().unwrap_or_else(|| "data".to_string());
                 let id: String = match prefix {
                     None => suffix,
@@ -117,10 +120,10 @@ impl River {
                     width: 0,
                     children: vec![],
                 };
-                // Iterate over all child river
-                for child_river in inner.iter().enumerate() {
+                // Iterate over all child LogicalStream
+                for child_logical_stream in inner.iter().enumerate() {
                     // Obtain child bitfields
-                    let child_bitfields = child_river.1.bit_fields(None);
+                    let child_bitfields = child_logical_stream.1.bit_fields(None);
                     match child_bitfields {
                         None => (),
                         Some(child) => result.children.push(child),
@@ -128,7 +131,7 @@ impl River {
                 }
                 Some(result)
             }
-            River::Bits { identifier, width } => Some(BitField {
+            LogicalStream::Bits { identifier, width } => Some(BitField {
                 identifier: identifier.clone(),
                 width: *width,
                 children: vec![], // no children
@@ -137,14 +140,14 @@ impl River {
         }
     }
 
-    /// Convert this River to Physical Streams.
+    /// Convert this LogicalStream to Physical Streams.
     ///
     /// This can potentially generate multiple physical streams.
-    pub fn as_phys(&self, name: Vec<String>) -> Vec<Stream> {
-        // TODO(johanpel):  this flattens the river type structure but we could consider allowing
+    pub fn as_phys(&self, name: Vec<String>) -> Vec<PhysicalStream> {
+        // TODO(johanpel):  this flattens the LogicalStream type structure but we could consider allowing
         //                  physical streams to be nested.
         match self {
-            River::Root {
+            LogicalStream::Root {
                 identifier,
                 inner,
                 parameters,
@@ -155,7 +158,7 @@ impl River {
                 apply_params_to_first(&mut result, parameters);
                 result
             }
-            River::Dim {
+            LogicalStream::Dim {
                 identifier,
                 inner,
                 parameters,
@@ -168,7 +171,7 @@ impl River {
                 apply_params_to_first(&mut result, parameters);
                 result
             }
-            River::Rev {
+            LogicalStream::Rev {
                 identifier,
                 inner,
                 parameters,
@@ -181,7 +184,7 @@ impl River {
                 apply_params_to_first(&mut result, parameters);
                 result
             }
-            River::New {
+            LogicalStream::New {
                 identifier,
                 inner,
                 parameters,
@@ -191,8 +194,8 @@ impl River {
                 apply_params_to_first(&mut result, parameters);
                 result
             }
-            River::Bits { identifier, width } => {
-                let new_stream = Stream {
+            LogicalStream::Bits { identifier, width } => {
+                let new_stream = PhysicalStream {
                     identifier: push_some(&name, identifier),
                     fields: BitField {
                         identifier: None,
@@ -207,13 +210,13 @@ impl River {
                 };
                 vec![new_stream]
             }
-            River::Group { identifier, inner } => {
+            LogicalStream::Group { identifier, inner } => {
                 let mut result = vec![];
                 // Obtain all (nested) bit fields
                 let bit_fields = self.bit_fields(identifier.clone());
                 // If there are any bit fields, create a new stream
                 if bit_fields.is_some() {
-                    let new_stream = Stream {
+                    let new_stream = PhysicalStream {
                         identifier: push_some(&name, identifier),
                         fields: bit_fields.unwrap_or_else(BitField::new_empty),
                         elements_per_transfer: 1,
@@ -228,8 +231,8 @@ impl River {
                 for field in inner.iter() {
                     match field {
                         // Skip bits type, since they will be added through bit_fields()
-                        River::Bits { .. } => {}
-                        // all other river types.
+                        LogicalStream::Bits { .. } => {}
+                        // all other LogicalStream types.
                         _ => result.extend(field.as_phys(name.clone()).into_iter()),
                     }
                 }
@@ -240,9 +243,9 @@ impl River {
     }
 }
 
-/// Parameters of River types.
+/// Parameters of LogicalStream types.
 #[derive(Clone, Default, PartialEq)]
-pub struct RiverParameters {
+pub struct LogicalStreamParameters {
     /// N: number of elements per handshake.
     pub elements: Option<usize>,
     /// C: complexity level.
@@ -251,7 +254,7 @@ pub struct RiverParameters {
     pub user_bits: Option<usize>,
 }
 
-impl Debug for RiverParameters {
+impl Debug for LogicalStreamParameters {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         write!(
             f,
@@ -268,9 +271,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn river_width() {
+    fn logical_stream_width() {
         assert_eq!(
-            River::Bits {
+            LogicalStream::Bits {
                 identifier: None,
                 width: 3,
             }
@@ -278,14 +281,14 @@ mod tests {
             3
         );
         assert_eq!(
-            River::Group {
+            LogicalStream::Group {
                 identifier: None,
                 inner: vec![
-                    River::Bits {
+                    LogicalStream::Bits {
                         identifier: None,
                         width: 7,
                     },
-                    River::Bits {
+                    LogicalStream::Bits {
                         identifier: None,
                         width: 16,
                     }
@@ -295,14 +298,14 @@ mod tests {
             23
         );
         assert_eq!(
-            River::Group {
+            LogicalStream::Group {
                 identifier: None,
                 inner: vec![
-                    River::Bits {
+                    LogicalStream::Bits {
                         identifier: None,
                         width: 3,
                     },
-                    River::Bits {
+                    LogicalStream::Bits {
                         identifier: None,
                         width: 4,
                     }
@@ -312,20 +315,20 @@ mod tests {
             7
         );
         assert_eq!(
-            River::Union {
+            LogicalStream::Union {
                 identifier: None,
                 inner: vec![
-                    River::Bits {
+                    LogicalStream::Bits {
                         identifier: None,
                         width: 3,
                     },
-                    River::Bits {
+                    LogicalStream::Bits {
                         identifier: None,
                         width: 4,
                     },
-                    River::Dim {
+                    LogicalStream::Dim {
                         identifier: None,
-                        inner: Box::new(River::Bits {
+                        inner: Box::new(LogicalStream::Bits {
                             identifier: None,
                             width: 10,
                         }),
@@ -339,9 +342,9 @@ mod tests {
     }
 
     #[test]
-    fn test_river_bitfields() {
-        // River of just bits.
-        let r = River::Bits {
+    fn test_logical_stream_bitfields() {
+        // LogicalStream of just bits.
+        let r = LogicalStream::Bits {
             identifier: Some("test".to_string()),
             width: 1,
         };
@@ -354,15 +357,15 @@ mod tests {
     }
 
     #[test]
-    fn test_river_bitfields_group() {
-        let r = River::Group {
+    fn test_logical_stream_bitfields_group() {
+        let r = LogicalStream::Group {
             identifier: Some("x".to_string()),
             inner: vec![
-                River::Bits {
+                LogicalStream::Bits {
                     identifier: Some("a".to_string()),
                     width: 1,
                 },
-                River::Bits {
+                LogicalStream::Bits {
                     identifier: Some("b".to_string()),
                     width: 2,
                 },
@@ -383,22 +386,22 @@ mod tests {
     }
 
     #[test]
-    fn test_river_bitfields_group_nested() {
-        let r = River::Group {
+    fn test_logical_stream_bitfields_group_nested() {
+        let r = LogicalStream::Group {
             identifier: Some("x".to_string()),
             inner: vec![
-                River::Bits {
+                LogicalStream::Bits {
                     identifier: Some("a".to_string()),
                     width: 1,
                 },
-                River::Group {
+                LogicalStream::Group {
                     identifier: Some("b".to_string()),
                     inner: vec![
-                        River::Bits {
+                        LogicalStream::Bits {
                             identifier: Some("c".to_string()),
                             width: 2,
                         },
-                        River::Bits {
+                        LogicalStream::Bits {
                             identifier: Some("d".to_string()),
                             width: 3,
                         },

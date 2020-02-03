@@ -1,7 +1,7 @@
-//! Parser methods and implementations for Tydi types and formats.
+//! Parser methods and implementations for Tydi types.
 //!
 //! The parser module is enabled by the `parser` feature flag. It adds some
-//! utitity parser methods and implementations of parsers for Tydi and
+//! utitity parser methods and implementations of parsers for Tydi stream and
 //! streamlet types.
 //!
 //! The current parsers are built using [`nom`], a parser combinators crate.
@@ -16,8 +16,10 @@ use nom::{
     IResult,
 };
 
+#[cfg(feature = "data")]
 pub mod data;
-pub mod river;
+
+pub mod logical;
 pub mod streamlet;
 
 /// Parses an identifier.

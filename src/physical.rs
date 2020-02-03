@@ -107,7 +107,7 @@ impl Dir {
 
 /// A Tydi physical stream.
 #[derive(Debug)]
-pub struct Stream {
+pub struct PhysicalStream {
     /// Name of the physical stream. Stored as a vector of strings to allow various types of
     /// joins for different back-ends and preferences.
     pub identifier: Vec<String>,
@@ -127,7 +127,7 @@ pub struct Stream {
 
 #[cfg(test)]
 mod test {
-    use crate::phys::*;
+    use crate::physical::*;
 
     #[test]
     fn test_bitfield_recursive_width() {

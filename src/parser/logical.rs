@@ -7,14 +7,14 @@ use nom::{
 };
 
 use crate::{
+    logical::{LogicalStream, LogicalStreamParameters},
     parser::{nonempty_comma_list, r#type, space_opt, usize},
-    phys::Complexity,
-    river::{River, RiverParameters},
+    physical::Complexity,
 };
 
 macro_rules! river_type_parse_fn {
     ($ident:ident, $name:expr, $variant:path) => {
-        pub fn $ident(input: &str) -> IResult<&str, River> {
+        pub fn $ident(input: &str) -> IResult<&str, LogicalStream> {
             river_type_parser($name, |(identifier, (river_type, river_parameters))| {
                 $variant {
                     identifier,
@@ -28,7 +28,7 @@ macro_rules! river_type_parse_fn {
 
 macro_rules! river_group_type_parse_fn {
     ($ident:ident, $name:expr, $variant:path) => {
-        pub fn $ident(input: &str) -> IResult<&str, River> {
+        pub fn $ident(input: &str) -> IResult<&str, LogicalStream> {
             map(r#type($name, nonempty_comma_list(river_type)), |x| {
                 $variant {
                     identifier: x.0,
@@ -41,9 +41,17 @@ macro_rules! river_group_type_parse_fn {
 
 /// Returns a River type parser.
 #[allow(clippy::needless_lifetimes)] // rust-lang/rust-clippy/issues/2944
-fn river_type_parser<'a, F>(name: &'a str, inner: F) -> impl Fn(&'a str) -> IResult<&'a str, River>
+fn river_type_parser<'a, F>(
+    name: &'a str,
+    inner: F,
+) -> impl Fn(&'a str) -> IResult<&'a str, LogicalStream>
 where
-    F: Fn((Option<String>, (River, Option<RiverParameters>))) -> River,
+    F: Fn(
+        (
+            Option<String>,
+            (LogicalStream, Option<LogicalStreamParameters>),
+        ),
+    ) -> LogicalStream,
 {
     map(
         r#type(
@@ -57,8 +65,8 @@ where
     )
 }
 
-/// Parses a RiverParameters.
-pub fn river_parameters(input: &str) -> IResult<&str, RiverParameters> {
+/// Parses a LogicalStreamParameters.
+pub fn river_parameters(input: &str) -> IResult<&str, LogicalStreamParameters> {
     map(
         tuple((
             usize,
@@ -68,7 +76,7 @@ pub fn river_parameters(input: &str) -> IResult<&str, RiverParameters> {
             opt(usize),
         )),
         |(elements, _, complexity, _, userbits): (usize, _, Option<usize>, _, Option<usize>)| {
-            RiverParameters {
+            LogicalStreamParameters {
                 elements: Some(elements),
                 complexity: match complexity {
                     None => None,
@@ -81,28 +89,27 @@ pub fn river_parameters(input: &str) -> IResult<&str, RiverParameters> {
 }
 
 /// Parses a Bits<b>.
-pub fn bits(input: &str) -> IResult<&str, River> {
-    map(r#type("Bits", usize), |(identifier, width)| River::Bits {
-        identifier,
-        width,
+pub fn bits(input: &str) -> IResult<&str, LogicalStream> {
+    map(r#type("Bits", usize), |(identifier, width)| {
+        LogicalStream::Bits { identifier, width }
     })(input)
 }
 
-river_type_parse_fn!(root, "Root", River::Root);
-river_type_parse_fn!(dim, "Dim", River::Dim);
-river_type_parse_fn!(new, "New", River::New);
-river_type_parse_fn!(rev, "Rev", River::Rev);
-river_group_type_parse_fn!(group, "Group", River::Group);
-river_group_type_parse_fn!(r#union, "Union", River::Union);
+river_type_parse_fn!(root, "Root", LogicalStream::Root);
+river_type_parse_fn!(dim, "Dim", LogicalStream::Dim);
+river_type_parse_fn!(new, "New", LogicalStream::New);
+river_type_parse_fn!(rev, "Rev", LogicalStream::Rev);
+river_group_type_parse_fn!(group, "Group", LogicalStream::Group);
+river_group_type_parse_fn!(r#union, "Union", LogicalStream::Union);
 
 /// Parses a River type.
-pub fn river_type(input: &str) -> IResult<&str, River> {
+pub fn river_type(input: &str) -> IResult<&str, LogicalStream> {
     alt((r#union, rev, new, dim, group, root, bits))(input)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::river::{River, RiverParameters};
+    use crate::logical::{LogicalStream, LogicalStreamParameters};
 
     use super::*;
 
@@ -112,7 +119,7 @@ mod tests {
             river_parameters("3, 4, 5"),
             Ok((
                 "",
-                RiverParameters {
+                LogicalStreamParameters {
                     elements: Some(3),
                     complexity: Some(Complexity::new_major(4)),
                     user_bits: Some(5),
@@ -124,7 +131,7 @@ mod tests {
             river_parameters("1"),
             Ok((
                 "",
-                RiverParameters {
+                LogicalStreamParameters {
                     elements: Some(1),
                     complexity: None,
                     user_bits: None,
@@ -135,7 +142,7 @@ mod tests {
             river_parameters("1,2"),
             Ok((
                 "",
-                RiverParameters {
+                LogicalStreamParameters {
                     elements: Some(1),
                     complexity: Some(Complexity::new_major(2)),
                     user_bits: None,
@@ -147,7 +154,7 @@ mod tests {
             river_parameters("1,,3"),
             Ok((
                 "",
-                RiverParameters {
+                LogicalStreamParameters {
                     elements: Some(1),
                     complexity: None,
                     user_bits: Some(3),
@@ -162,7 +169,7 @@ mod tests {
             bits("Bits<8>"),
             Ok((
                 "",
-                River::Bits {
+                LogicalStream::Bits {
                     identifier: None,
                     width: 8,
                 }
@@ -178,13 +185,13 @@ mod tests {
             root("Root<Bits<8>, 1, 2, 3>"),
             Ok((
                 "",
-                River::Root {
+                LogicalStream::Root {
                     identifier: None,
-                    inner: Box::new(River::Bits {
+                    inner: Box::new(LogicalStream::Bits {
                         identifier: None,
                         width: 8,
                     }),
-                    parameters: RiverParameters {
+                    parameters: LogicalStreamParameters {
                         elements: Some(1),
                         complexity: Some(Complexity::new_major(2)),
                         user_bits: Some(3),
@@ -196,13 +203,13 @@ mod tests {
             root("Root<Bits<8>>"),
             Ok((
                 "",
-                River::Root {
+                LogicalStream::Root {
                     identifier: None,
-                    inner: Box::new(River::Bits {
+                    inner: Box::new(LogicalStream::Bits {
                         identifier: None,
                         width: 8,
                     }),
-                    parameters: RiverParameters::default(),
+                    parameters: LogicalStreamParameters::default(),
                 }
             ))
         );
@@ -214,14 +221,14 @@ mod tests {
             group("Group<Bits<4>, Bits<8>>"),
             Ok((
                 "",
-                River::Group {
+                LogicalStream::Group {
                     identifier: None,
                     inner: vec![
-                        River::Bits {
+                        LogicalStream::Bits {
                             identifier: None,
                             width: 4,
                         },
-                        River::Bits {
+                        LogicalStream::Bits {
                             identifier: None,
                             width: 8,
                         }
@@ -237,13 +244,13 @@ mod tests {
             dim("Dim<Bits<8>, 1, 2, 3>"),
             Ok((
                 "",
-                River::Dim {
+                LogicalStream::Dim {
                     identifier: None,
-                    inner: Box::new(River::Bits {
+                    inner: Box::new(LogicalStream::Bits {
                         identifier: None,
                         width: 8,
                     }),
-                    parameters: RiverParameters {
+                    parameters: LogicalStreamParameters {
                         elements: Some(1),
                         complexity: Some(Complexity::new_major(2)),
                         user_bits: Some(3),
@@ -259,14 +266,14 @@ mod tests {
             new("New<Bits<7>, 3, 2, 1>"),
             Ok((
                 "",
-                River::New {
+                LogicalStream::New {
                     identifier: None,
 
-                    inner: Box::new(River::Bits {
+                    inner: Box::new(LogicalStream::Bits {
                         identifier: None,
                         width: 7,
                     }),
-                    parameters: RiverParameters {
+                    parameters: LogicalStreamParameters {
                         elements: Some(3),
                         complexity: Some(Complexity::new_major(2)),
                         user_bits: Some(1),
@@ -282,14 +289,14 @@ mod tests {
             rev("Rev<Bits<8>, 11, 22, 33>"),
             Ok((
                 "",
-                River::Rev {
+                LogicalStream::Rev {
                     identifier: None,
 
-                    inner: Box::new(River::Bits {
+                    inner: Box::new(LogicalStream::Bits {
                         identifier: None,
                         width: 8,
                     }),
-                    parameters: RiverParameters {
+                    parameters: LogicalStreamParameters {
                         elements: Some(11),
                         complexity: Some(Complexity::new_major(22)),
                         user_bits: Some(33),
@@ -305,14 +312,14 @@ mod tests {
             union("Union<Bits<8>, Bits<4>>"),
             Ok((
                 "",
-                River::Union {
+                LogicalStream::Union {
                     identifier: None,
                     inner: vec![
-                        River::Bits {
+                        LogicalStream::Bits {
                             identifier: None,
                             width: 8,
                         },
-                        River::Bits {
+                        LogicalStream::Bits {
                             identifier: None,
                             width: 4,
                         }
@@ -328,7 +335,7 @@ mod tests {
             river_type("Bits<8>"),
             Ok((
                 "",
-                River::Bits {
+                LogicalStream::Bits {
                     identifier: None,
                     width: 8,
                 }

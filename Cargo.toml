@@ -6,8 +6,10 @@ authors = ["Johan Peltenburg", "Jeroen van Straten", "Matthijs Brobbel"]
 edition = "2018"
 
 [features]
-default = ["parser"]
+default = ["parser", "generator"]
 parser = ["nom"]
+generator = []
+data = []
 
 [dependencies]
 nom = { version = "5", optional = true }
