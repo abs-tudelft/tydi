@@ -74,7 +74,7 @@ pub fn river_parameters(input: &str) -> IResult<&str, RiverParameters> {
                     None => None,
                     Some(num) => Some(Complexity::new_major(num)),
                 },
-                userbits,
+                user_bits: userbits,
             }
         },
     )(input)
@@ -115,7 +115,7 @@ mod tests {
                 RiverParameters {
                     elements: Some(3),
                     complexity: Some(Complexity::new_major(4)),
-                    userbits: Some(5),
+                    user_bits: Some(5),
                 }
             ))
         );
@@ -127,7 +127,7 @@ mod tests {
                 RiverParameters {
                     elements: Some(1),
                     complexity: None,
-                    userbits: None,
+                    user_bits: None,
                 }
             ))
         );
@@ -138,7 +138,7 @@ mod tests {
                 RiverParameters {
                     elements: Some(1),
                     complexity: Some(Complexity::new_major(2)),
-                    userbits: None,
+                    user_bits: None,
                 }
             ))
         );
@@ -150,7 +150,7 @@ mod tests {
                 RiverParameters {
                     elements: Some(1),
                     complexity: None,
-                    userbits: Some(3),
+                    user_bits: Some(3),
                 }
             ))
         );
@@ -187,7 +187,7 @@ mod tests {
                     parameters: RiverParameters {
                         elements: Some(1),
                         complexity: Some(Complexity::new_major(2)),
-                        userbits: Some(3),
+                        user_bits: Some(3),
                     },
                 }
             ))
@@ -246,7 +246,7 @@ mod tests {
                     parameters: RiverParameters {
                         elements: Some(1),
                         complexity: Some(Complexity::new_major(2)),
-                        userbits: Some(3),
+                        user_bits: Some(3),
                     },
                 }
             ))
@@ -269,7 +269,7 @@ mod tests {
                     parameters: RiverParameters {
                         elements: Some(3),
                         complexity: Some(Complexity::new_major(2)),
-                        userbits: Some(1),
+                        user_bits: Some(1),
                     },
                 }
             ))
@@ -292,7 +292,7 @@ mod tests {
                     parameters: RiverParameters {
                         elements: Some(11),
                         complexity: Some(Complexity::new_major(22)),
-                        userbits: Some(33),
+                        user_bits: Some(33),
                     },
                 }
             ))

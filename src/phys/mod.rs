@@ -1,20 +1,35 @@
 //! Tydi physical streams.
 
+use nom::lib::std::fmt::{Error, Formatter};
+use std::fmt::Display;
+
 /// Tydi stream interface complexity level.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Complexity {
-    num: Vec<usize>,
+    pub num: Vec<usize>,
 }
 
 impl Complexity {
     pub fn new_major(num: usize) -> Self {
         Complexity { num: vec![num] }
     }
+    pub fn highest() -> Self {
+        Complexity { num: vec![8] }
+    }
+    pub fn lowest() -> Self {
+        Complexity { num: vec![0] }
+    }
 }
 
 impl Default for Complexity {
     fn default() -> Self {
         Complexity { num: vec![0] }
+    }
+}
+
+impl Display for Complexity {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(f, "{:?}", self.num)
     }
 }
 
@@ -27,8 +42,9 @@ pub struct BitField {
     pub width: usize,
     /// Potential child fields.
     pub children: Vec<BitField>,
-    // TODO(johanpel): we need this tree to be either a bitfield with only children and width 0, or
-    // only a width > 0 and no children. I.e. it was either a group or bits type.
+    // TODO(johanpel): we need this tree to be either a bitfield with only children and width 0,
+    // or only a width > 0 and no children. I.e. it was either a group or bits type as
+    // streamspace type.
 }
 
 impl BitField {
@@ -92,14 +108,17 @@ impl Dir {
 /// A Tydi physical stream.
 #[derive(Debug)]
 pub struct Stream {
-    /// Name of the physical stream.
-    pub identifier: Option<String>,
+    /// Name of the physical stream. Stored as a vector of strings to allow various types of
+    /// joins for different back-ends and preferences.
+    pub identifier: Vec<String>,
     /// Tree of bit fields contained within the elements of the physical stream.
     pub fields: BitField,
     /// The number of elements moved per transfer.
     pub elements_per_transfer: usize,
     /// The dimensionality, i.e. nesting level, of the elements.
     pub dimensionality: usize,
+    /// The user bits.
+    pub user_bits: usize,
     /// Direction of the physical stream.
     pub dir: Dir,
     /// Complexity level of the physical stream.

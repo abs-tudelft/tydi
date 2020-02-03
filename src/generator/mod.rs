@@ -1,13 +1,14 @@
 //! Source generator module.
 
-use vhdl::{Component, Mode, Port, Type};
+use common::*;
 
-use crate::generator::vhdl::Record;
+use crate::river::River;
 use crate::{
     phys::{BitField, Dir, Stream},
     Streamlet,
 };
 
+pub mod common;
 pub mod vhdl;
 
 fn log2ceil(v: usize) -> usize {
@@ -16,11 +17,22 @@ fn log2ceil(v: usize) -> usize {
 
 impl From<BitField> for Type {
     fn from(b: BitField) -> Self {
-        if b.width() == 1 {
-            Type::Bit
-        } else {
-            Type::BitVec { width: b.width() }
-        }
+        Type::Record(Record {
+            identifier: b.identifier.unwrap_or_else(|| "anon".to_string()),
+            fields: b
+                .children
+                .into_iter()
+                .map(|child| {
+                    Field::new(
+                        child
+                            .identifier
+                            .clone()
+                            .unwrap_or_else(|| "anon".to_string()),
+                        child.into(),
+                    )
+                })
+                .collect(),
+        })
     }
 }
 
@@ -33,65 +45,92 @@ impl From<Dir> for Mode {
     }
 }
 
-impl From<Stream> for Vec<Port> {
-    fn from(p: Stream) -> Self {
-        // TODO(johanpel): insert complexity level selections
-        let name: String = p.identifier.unwrap_or_else(|| "".to_string());
-
-        // Up and downstream up
-        let mut up = Record::new(format!("{}_up_type", name), vec![]);
-        let mut dn = Record::new(format!("{}_dn_type", name), vec![]);
+impl From<Stream> for Type {
+    fn from(s: Stream) -> Self {
+        // Creates a type from a physical `Stream` according to Tidy spec.
+        let name: String = s.identifier.join("_");
+        let mut result = Record::empty(name);
 
         // Valid/Ready handshake ports
-        up.add_field("ready", Type::Bit);
-        dn.add_field("valid", Type::Bit);
+        result.add_field("valid", Type::Bit);
+        result.add_field_rev("ready", Type::Bit);
 
-        // Data elements
-        dn.add_field(
-            "data",
-            Type::bitvec(p.elements_per_transfer * p.fields.width_recursive()),
-        );
+        // Condition E > 0
+        if s.elements_per_transfer > 0 {
+            // Data elements
+            result.add_field(
+                "data",
+                Type::bitvec(s.elements_per_transfer * s.fields.width_recursive()),
+            );
+        }
 
         // Transfer metadata
-        dn.add_field(
-            "stai",
-            Type::BitVec {
-                width: log2ceil(p.elements_per_transfer),
-            },
-        );
-        dn.add_field(
-            "endi",
-            Type::BitVec {
-                width: log2ceil(p.elements_per_transfer),
-            },
-        );
-        dn.add_field(
-            "strb",
-            Type::BitVec {
-                width: p.elements_per_transfer,
-            },
-        );
+
+        // Start index (stai) Condition C >= 6 and N > 1
+        if (s.complexity.num[0] >= 6) && (s.elements_per_transfer > 1) {
+            result.add_field(
+                "stai",
+                Type::BitVec {
+                    width: log2ceil(s.elements_per_transfer),
+                },
+            );
+        }
+
+        // End index (endi) condition (C >=5 or D >= 1) and (N > 1)
+        if ((s.complexity.num[0] >= 5) || (s.dimensionality >= 1)) && (s.elements_per_transfer > 1)
+        {
+            result.add_field(
+                "endi",
+                Type::BitVec {
+                    width: log2ceil(s.elements_per_transfer),
+                },
+            );
+        }
+
+        // Strobe (strb) condition  C >= 7 or D >= 1
+        if s.complexity.num[0] >= 7 || s.dimensionality >= 1 {
+            result.add_field(
+                "strb",
+                Type::BitVec {
+                    width: s.elements_per_transfer,
+                },
+            );
+        }
 
         // Dimensional data
-        dn.add_field(
-            "last",
-            Type::BitVec {
-                width: p.dimensionality,
-            },
-        );
-        dn.add_field("empty", Type::Bit);
+
+        // Condition D >= 1
+        if s.dimensionality >= 1 {
+            result.add_field(
+                "last",
+                Type::BitVec {
+                    width: s.dimensionality,
+                },
+            );
+        }
 
         // User data
-        dn.add_field("user", Type::Bit);
 
-        vec![
-            Port::new(format!("{}_{}", name, "dn"), p.dir.into(), Type::Record(dn)),
-            Port::new(
-                format!("{}_{}", name, "up"),
-                p.dir.reversed().into(),
-                Type::Record(up),
-            ),
-        ]
+        // Condition U > 0
+        if s.user_bits > 0 {
+            result.add_field("user", Type::Bit);
+        }
+
+        // Return a common type.
+        Type::Record(result)
+    }
+}
+
+fn append_io(rivers: &[River], to: &mut Vec<Port>, mode: Mode) {
+    for river in rivers {
+        let river_streams: Vec<Stream> = river.as_phys(vec![]);
+        for stream in river_streams.into_iter() {
+            to.push(Port {
+                identifier: stream.identifier.join("_"),
+                mode,
+                typ: stream.into(),
+            });
+        }
     }
 }
 
@@ -99,39 +138,27 @@ impl From<Streamlet> for Component {
     fn from(s: Streamlet) -> Self {
         let mut result = Component {
             identifier: s.identifier,
-            generics: vec![],
+            parameters: vec![],
             ports: vec![],
         };
-        // Obtain the physicals streams of each river.
-        for i in s.inputs {
-            let phys_streams: Vec<Stream> = i.as_phys(i.identifier());
-            for ps in phys_streams.into_iter() {
-                let ps_ports: Vec<Port> = ps.into();
-                result.ports.extend(ps_ports.into_iter());
-            }
-        }
-        for o in s.outputs {
-            let phys_streams: Vec<Stream> = o.as_phys(o.identifier());
-            for ps in phys_streams.into_iter() {
-                let ps_ports: Vec<Port> = ps.into();
-                result.ports.extend(ps_ports.into_iter());
-            }
-        }
+        // Obtain the physicals streams of each river and append them with the appropriate mode.
+        append_io(&s.inputs, &mut result.ports, Mode::In);
+        append_io(&s.outputs, &mut result.ports, Mode::Out);
         result
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::generator::vhdl::{Component, Declare, Package, Port};
+    use crate::generator::common::{Component, Library, Type};
+    use crate::generator::vhdl::Declare;
     use crate::parser::streamlet::streamlet_interface_definition;
     use crate::phys::{BitField, Complexity, Dir, Stream};
     use crate::Streamlet;
 
-    #[test]
-    fn test_from_phys_to_ports() {
-        let p = Stream {
-            identifier: Some("test".to_string()),
+    fn test_stream() -> Stream {
+        Stream {
+            identifier: vec!["test".to_string()],
             fields: BitField {
                 identifier: None,
                 width: 0,
@@ -143,10 +170,103 @@ mod test {
             elements_per_transfer: 1,
             dimensionality: 0,
             dir: Dir::Downstream,
-            complexity: Complexity::default(),
+            complexity: Complexity::highest(),
+            user_bits: 0,
+        }
+    }
+
+    #[test]
+    fn test_from_stream_to_type() {
+        let p = test_stream();
+        let typ: Type = p.into();
+        match typ {
+            Type::Record(rec) => {
+                assert_eq!(rec.identifier, "test".to_string());
+                assert_eq!(rec.fields[0].name, "valid".to_string());
+                assert_eq!(rec.fields[0].typ, Type::Bit);
+                assert_eq!(rec.fields[0].reversed, false);
+                assert_eq!(rec.fields[1].name, "ready".to_string());
+                assert_eq!(rec.fields[1].typ, Type::Bit);
+                assert_eq!(rec.fields[1].reversed, true);
+                assert_eq!(rec.fields[2].name, "data".to_string());
+                assert_eq!(rec.fields[2].typ, Type::bitvec(3));
+                assert_eq!(rec.fields[2].reversed, false);
+                assert_eq!(rec.fields[3].name, "strb".to_string());
+                assert_eq!(rec.fields[3].typ, Type::bitvec(1));
+                assert_eq!(rec.fields[3].reversed, false);
+            }
+            _ => panic!("expected record, got something else."),
         };
-        let vp: Vec<Port> = p.into();
-        dbg!(vp);
+    }
+
+    #[test]
+    fn test_from_stream_to_type_with_ept_dim() {
+        let mut p = test_stream();
+        p.dimensionality = 2;
+        p.elements_per_transfer = 3;
+        let typ: Type = p.into();
+        dbg!(&typ);
+        match typ {
+            Type::Record(rec) => {
+                assert_eq!(rec.identifier, "test".to_string());
+                assert_eq!(rec.fields[0].name, "valid".to_string());
+                assert_eq!(rec.fields[0].typ, Type::Bit);
+                assert_eq!(rec.fields[0].reversed, false);
+                assert_eq!(rec.fields[1].name, "ready".to_string());
+                assert_eq!(rec.fields[1].typ, Type::Bit);
+                assert_eq!(rec.fields[1].reversed, true);
+                assert_eq!(rec.fields[2].name, "data".to_string());
+                assert_eq!(rec.fields[2].typ, Type::bitvec(3 * 3));
+                assert_eq!(rec.fields[2].reversed, false);
+                assert_eq!(rec.fields[3].name, "stai".to_string());
+                assert_eq!(rec.fields[3].typ, Type::bitvec(2));
+                assert_eq!(rec.fields[3].reversed, false);
+                assert_eq!(rec.fields[4].name, "endi".to_string());
+                assert_eq!(rec.fields[4].typ, Type::bitvec(2));
+                assert_eq!(rec.fields[4].reversed, false);
+                assert_eq!(rec.fields[5].name, "strb".to_string());
+                assert_eq!(rec.fields[5].typ, Type::bitvec(3));
+                assert_eq!(rec.fields[5].reversed, false);
+                assert_eq!(rec.fields[6].name, "last".to_string());
+                assert_eq!(rec.fields[6].typ, Type::bitvec(2));
+                assert_eq!(rec.fields[6].reversed, false);
+            }
+            _ => panic!(),
+        };
+    }
+
+    #[test]
+    fn test_from_stream_to_type_with_ept_dim_lowest_c() {
+        let mut p = test_stream();
+        p.dimensionality = 2;
+        p.elements_per_transfer = 3;
+        p.complexity = Complexity::lowest();
+        let typ: Type = p.into();
+        dbg!(&typ);
+        match typ {
+            Type::Record(rec) => {
+                assert_eq!(rec.identifier, "test".to_string());
+                assert_eq!(rec.fields[0].name, "valid".to_string());
+                assert_eq!(rec.fields[0].typ, Type::Bit);
+                assert_eq!(rec.fields[0].reversed, false);
+                assert_eq!(rec.fields[1].name, "ready".to_string());
+                assert_eq!(rec.fields[1].typ, Type::Bit);
+                assert_eq!(rec.fields[1].reversed, true);
+                assert_eq!(rec.fields[2].name, "data".to_string());
+                assert_eq!(rec.fields[2].typ, Type::bitvec(3 * 3));
+                assert_eq!(rec.fields[2].reversed, false);
+                assert_eq!(rec.fields[3].name, "endi".to_string());
+                assert_eq!(rec.fields[3].typ, Type::bitvec(2));
+                assert_eq!(rec.fields[3].reversed, false);
+                assert_eq!(rec.fields[4].name, "strb".to_string());
+                assert_eq!(rec.fields[4].typ, Type::bitvec(3));
+                assert_eq!(rec.fields[4].reversed, false);
+                assert_eq!(rec.fields[5].name, "last".to_string());
+                assert_eq!(rec.fields[5].typ, Type::bitvec(2));
+                assert_eq!(rec.fields[5].reversed, false);
+            }
+            _ => panic!(),
+        };
     }
 
     #[test]
@@ -157,14 +277,14 @@ mod test {
 a: Bits<1>
 b: Rev<Dim<Bits<1>>>
 
-c: Group<Bits<3>, Bits<4>>
+c: Group<x: Bits<3>, y: Bits<4>>
 d: Bits<4>"#,
         );
         dbg!(&streamlet);
         let streamlet: Streamlet = streamlet.unwrap().1;
         let mut comp: Component = streamlet.into();
         comp.flatten_types();
-        let pkg = Package {
+        let pkg = Library {
             identifier: "Tydi".to_string(),
             components: vec![comp],
         };
