@@ -67,7 +67,7 @@ impl Complexity {
     pub fn new(level: impl IntoIterator<Item = usize>) -> Result<Self, Box<dyn error::Error>> {
         let level = level.into_iter().collect::<Vec<usize>>();
         if level.is_empty() {
-            Err(Box::new(Error::InvalidArguments(
+            Err(Box::new(Error::InvalidArgument(
                 "complexity level can't be empty".to_string(),
             )))
         } else {
@@ -240,17 +240,26 @@ pub struct PhysicalStream {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::error;
 
     #[test]
-    fn complexity() {
+    fn complexity() -> Result<(), Box<dyn error::Error>> {
+        let empty = Complexity::new(vec![]);
+        assert_eq!(
+            empty.unwrap_err().to_string(),
+            "Invalid argument: complexity level can\'t be empty"
+        );
+
+        let c = Complexity::default();
         let c3 = Complexity::new_major(3);
-        let c30 = Complexity::new(vec![3, 0]).unwrap();
-        let c31 = Complexity::new(vec![3, 1]).unwrap();
-        let c311 = Complexity::new(vec![3, 1, 1]).unwrap();
-        let c32 = Complexity::new(vec![3, 2]).unwrap();
+        let c30 = Complexity::new(vec![3, 0])?;
+        let c31 = Complexity::new(vec![3, 1])?;
+        let c311 = Complexity::new(vec![3, 1, 1])?;
+        let c32 = Complexity::new(vec![3, 2])?;
         let c4 = Complexity::new_major(4);
-        let c400 = Complexity::new(vec![4, 0, 0]).unwrap();
-        let c401 = Complexity::new(vec![4, 0, 1]).unwrap();
+        let c400 = Complexity::new(vec![4, 0, 0])?;
+        let c401 = Complexity::new(vec![4, 0, 1])?;
+        assert!(c < c3);
         assert!(c3 < c31);
         assert_eq!(c3, c30);
         assert!(c31 < c311);
@@ -261,6 +270,17 @@ mod tests {
         assert_eq!(c400, c4);
         assert!(c400 < c401);
         assert!(c4 < c401);
+
+        assert_eq!(c3.to_string(), "3");
+        assert_eq!(c31.to_string(), "3.1");
+
+        assert_eq!(c3.major(), 3);
+        assert_eq!(c31.major(), 3);
+        assert_eq!(c4.major(), 4);
+
+        assert_eq!(c4.level(), &[4]);
+        assert_eq!(c400.level(), &[4, 0, 0]);
+        Ok(())
     }
 
     #[test]
