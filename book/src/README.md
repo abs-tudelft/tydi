@@ -35,10 +35,11 @@ structures* in hardware.
 
 ## Tools
 
-Using the Tydi specifications, reference implementations of tools are implemented and open-sourced.
+Using the Tydi specifications, reference implementations of tools are 
+implemented and open-sourced.
 
-1. [Generators](./tools/generators.md)
-2. [Compositors](./tools/compositors.md)
+1. [Generators](./tools/generators.md) (under construction)
+2. [Compositors](./tools/compositors.md) (under construction)
 
 **Generators** create HDL templates, that users may fill in with their 
 desired behavior. Tydi aims to impose *no restrictions* on what 

@@ -1,7 +1,15 @@
 # References
 
-- [Fletcher streams](https://github.com/jvanstraten/fletcher_streams): an incomplete early version of the Tydi specification
-- [Fletcher research paper](https://doi.org/10.1109/FPL.2019.00051): published in 2019 29th International Conference on Field Programmable Logic and Applications (FPL)
-- [Fletcher](https://github.com/abs-tudelft/fletcher): the Fletcher project repository
-- [Tydi playground](https://mbrobbel.github.io/opentyde): an interactive playground to visualize Tydi streamspace types
+- [Tydi playground](https://mbrobbel.github.io/opentyde): an interactive 
+playground to visualize Tydi types
 
+An early implementation from which the more generalized Tydi was spawned is 
+Fletcher. Resources on Fletcher can be found here:
+
+- [Fletcher general paper](https://doi.org/10.1109/FPL.2019.00051): 
+published in 2019 29th International Conference on Field Programmable Logic 
+and Applications (FPL)
+- [Fletcher hardware design](https://link.springer.com/chapter/10.1007/978-3-030-17227-5_3):
+published in ARC 2019: Applied Reconfigurable Computing.
+- [Fletcher](https://github.com/abs-tudelft/fletcher): 
+the Fletcher project repository
