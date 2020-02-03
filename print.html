@@ -41,7 +41,7 @@
         <!-- Provide site root to javascript -->
         <script type="text/javascript">
             var path_to_root = "";
-            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "light" : "light";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
 
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
@@ -86,7 +86,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div id="sidebar-scrollbox" class="sidebar-scrollbox">
-                <ol class="chapter"><li class="expanded affix "><a href="tydi.html">Tydi</a></li><li class="expanded affix "><a href="spec.html">Spec</a></li></ol>
+                <ol class="chapter"><li class="expanded affix "><a href="index.html">Tydi</a></li><li class="spacer"></li><li class="expanded "><a href="index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="expanded "><a href="specification/index.html"><strong aria-hidden="true">2.</strong> Specification</a></li><li><ol class="section"><li class="expanded "><a href="specification/physical.html"><strong aria-hidden="true">2.1.</strong> Physical stream</a></li><li class="expanded "><a href="specification/logical.html"><strong aria-hidden="true">2.2.</strong> Logical stream</a></li><li class="expanded "><a href="specification/streamlet.html"><strong aria-hidden="true">2.3.</strong> Streamlet</a></li></ol></li><li class="expanded "><a href="tools/index.html"><strong aria-hidden="true">3.</strong> Tools</a></li><li><ol class="section"><li class="expanded "><a href="tools/generators.html"><strong aria-hidden="true">3.1.</strong> Generators</a></li><li class="expanded "><a href="tools/compositors.html"><strong aria-hidden="true">3.2.</strong> Compositors</a></li></ol></li><li class="expanded "><a href="faq.html">Frequently Asked Questions</a></li><li class="expanded affix "><a href="references.html">References</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -158,13 +158,84 @@
                 <div id="content" class="content">
                     <main>
                         <h1><a class="header" href="#tydi-an-open-specification-for-complex-data-structures-over-hardware-streams" id="tydi-an-open-specification-for-complex-data-structures-over-hardware-streams">Tydi: an open specification for complex data structures over hardware streams</a></h1>
-<p>The Tydi specification will be published soon. For now please refer to the following resources for more information:</p>
-<ul>
-<li><a href="https://github.com/jvanstraten/fletcher_streams">Fletcher streams</a>: an incomplete early version of the Tydi specification</li>
-<li><a href="https://doi.org/10.1109/FPL.2019.00051">Fletcher research paper</a>: published in 2019 29th International Conference on Field Programmable Logic and Applications (FPL)</li>
-<li><a href="https://github.com/abs-tudelft/fletcher">Fletcher</a>: the Fletcher project repository</li>
-<li><a href="https://mbrobbel.github.io/opentyde">Tydi playground</a>: an interactive playground to visualize Tydi streamspace types</li>
-</ul>
+<h1><a class="header" href="#1-introduction" id="1-introduction">1. Introduction</a></h1>
+<p>Tydi is an open-source project that aims to standardize interfaces for 
+hardware components used in modern streaming dataflow designs.</p>
+<p>The project consists of two parts: a set of <em>specifications</em> and a set of 
+reference implementations of useful tools.</p>
+<h2><a class="header" href="#specification" id="specification">Specification</a></h2>
+<p>Tydi contains a set of three specifications for the following, related 
+concepts:</p>
+<ol>
+<li><a href="./specification/physical.html">Physical streams</a></li>
+<li><a href="./specification/logical.html">Logical streams</a> (under construction)</li>
+<li><a href="./specification/streamlet.html">Streamlets</a> (under construction)</li>
+</ol>
+<p><strong>Physical streams</strong> are hardware streams with their own valid/ready 
+handshaking interface, transporting elementary data. Their exact bit-level 
+representation and transfer behavior is defined through five parameters. 
+These parameters are derived from logical streams.</p>
+<p><strong>Logical streams</strong> are one or multiple physical streams of some type from 
+the Tydi type system. Types expressed in this type system determine which 
+physical streams with which parameters make up the logical stream.</p>
+<p><strong>Streamlets</strong> are components that have Tydi logical streams as input and 
+output.</p>
+<p>The Tydi type system for logical streams allows the expression of data types 
+that represent <em>dynamically-sized, nested and multidimensional data 
+structures</em> in hardware.</p>
+<h2><a class="header" href="#tools" id="tools">Tools</a></h2>
+<p>Using the Tydi specifications, reference implementations of tools are 
+implemented and open-sourced.</p>
+<ol>
+<li><a href="./tools/generators.html">Generators</a> (under construction)</li>
+<li><a href="./tools/compositors.html">Compositors</a> (under construction)</li>
+</ol>
+<p><strong>Generators</strong> create HDL templates, that users may fill in with their 
+desired behavior. Tydi aims to impose <em>no restrictions</em> on what 
+hardware-description languages are used to work with the specification.
+Tydi aims to provide generators for old HDLs, such as VHDL and Verilog, 
+but also modern HDL</p>
+<p><strong>Compositors</strong> are tools that combine streamlets into larger designs.</p>
+<h1><a class="header" href="#tydi-an-open-specification-for-complex-data-structures-over-hardware-streams-1" id="tydi-an-open-specification-for-complex-data-structures-over-hardware-streams-1">Tydi: an open specification for complex data structures over hardware streams</a></h1>
+<h1><a class="header" href="#1-introduction-1" id="1-introduction-1">1. Introduction</a></h1>
+<p>Tydi is an open-source project that aims to standardize interfaces for 
+hardware components used in modern streaming dataflow designs.</p>
+<p>The project consists of two parts: a set of <em>specifications</em> and a set of 
+reference implementations of useful tools.</p>
+<h2><a class="header" href="#specification-1" id="specification-1">Specification</a></h2>
+<p>Tydi contains a set of three specifications for the following, related 
+concepts:</p>
+<ol>
+<li><a href="./specification/physical.html">Physical streams</a></li>
+<li><a href="./specification/logical.html">Logical streams</a> (under construction)</li>
+<li><a href="./specification/streamlet.html">Streamlets</a> (under construction)</li>
+</ol>
+<p><strong>Physical streams</strong> are hardware streams with their own valid/ready 
+handshaking interface, transporting elementary data. Their exact bit-level 
+representation and transfer behavior is defined through five parameters. 
+These parameters are derived from logical streams.</p>
+<p><strong>Logical streams</strong> are one or multiple physical streams of some type from 
+the Tydi type system. Types expressed in this type system determine which 
+physical streams with which parameters make up the logical stream.</p>
+<p><strong>Streamlets</strong> are components that have Tydi logical streams as input and 
+output.</p>
+<p>The Tydi type system for logical streams allows the expression of data types 
+that represent <em>dynamically-sized, nested and multidimensional data 
+structures</em> in hardware.</p>
+<h2><a class="header" href="#tools-1" id="tools-1">Tools</a></h2>
+<p>Using the Tydi specifications, reference implementations of tools are 
+implemented and open-sourced.</p>
+<ol>
+<li><a href="./tools/generators.html">Generators</a> (under construction)</li>
+<li><a href="./tools/compositors.html">Compositors</a> (under construction)</li>
+</ol>
+<p><strong>Generators</strong> create HDL templates, that users may fill in with their 
+desired behavior. Tydi aims to impose <em>no restrictions</em> on what 
+hardware-description languages are used to work with the specification.
+Tydi aims to provide generators for old HDLs, such as VHDL and Verilog, 
+but also modern HDL</p>
+<p><strong>Compositors</strong> are tools that combine streamlets into larger designs.</p>
+<h1><a class="header" href="#specification-2" id="specification-2">Specification</a></h1>
 <h1><a class="header" href="#physical-stream-specification" id="physical-stream-specification">Physical stream specification</a></h1>
 <p>A Tydi physical stream carries a stream of elements, dimensionality information
 for said elements, and (optionally) user-defined transfer information from a
@@ -740,6 +811,33 @@ number of entries in the array.</p>
 <p>This is the more natural order for array-like structures, actually putting
 the first entry on the left-hand side.</p>
 </blockquote>
+<h1><a class="header" href="#logical-stream-specification" id="logical-stream-specification">Logical stream specification</a></h1>
+<p>(under construction)</p>
+<h1><a class="header" href="#streamlet" id="streamlet">Streamlet</a></h1>
+<p>(under construction)</p>
+<h1><a class="header" href="#tools-2" id="tools-2">Tools</a></h1>
+<p>(under construction)</p>
+<h1><a class="header" href="#generators" id="generators">Generators</a></h1>
+<p>(under construction)</p>
+<h1><a class="header" href="#compositors" id="compositors">Compositors</a></h1>
+<p>(under construction)</p>
+<h1><a class="header" href="#frequently-asked-questions" id="frequently-asked-questions">Frequently Asked Questions</a></h1>
+<h1><a class="header" href="#references" id="references">References</a></h1>
+<ul>
+<li><a href="https://mbrobbel.github.io/opentyde">Tydi playground</a>: an interactive 
+playground to visualize Tydi types</li>
+</ul>
+<p>An early implementation from which the more generalized Tydi was spawned is 
+Fletcher. Resources on Fletcher can be found here:</p>
+<ul>
+<li><a href="https://doi.org/10.1109/FPL.2019.00051">Fletcher general paper</a>: 
+published in 2019 29th International Conference on Field Programmable Logic 
+and Applications (FPL)</li>
+<li><a href="https://link.springer.com/chapter/10.1007/978-3-030-17227-5_3">Fletcher hardware design</a>:
+published in ARC 2019: Applied Reconfigurable Computing.</li>
+<li><a href="https://github.com/abs-tudelft/fletcher">Fletcher</a>: 
+the Fletcher project repository</li>
+</ul>
 
                     </main>
 
