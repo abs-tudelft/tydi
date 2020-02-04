@@ -9,19 +9,20 @@
 //!
 //! [Tydi book]: https://abs-tudelft.github.io/tydi/
 
-#[cfg(feature = "data")]
-pub mod data;
+// #[cfg(feature = "data")]
+// pub mod data;
 pub mod error;
-#[cfg(feature = "generator")]
-pub mod generator;
-pub mod logical;
-#[cfg(feature = "parser")]
-pub mod parser;
+// #[cfg(feature = "generator")]
+// pub mod generator;
+// pub mod logical;
+// #[cfg(feature = "parser")]
+// pub mod parser;
 pub mod physical;
-pub mod streamlet;
+// pub mod stream;
+// pub mod streamlet;
 
-#[cfg(feature = "data")]
-pub use data::Data;
-pub use logical::LogicalStream;
+// #[cfg(feature = "data")]
+// pub use data::Data;
+// pub use logical::LogicalStream;
 pub use physical::PhysicalStream;
-pub use streamlet::Streamlet;
+// pub use streamlet::Streamlet;

@@ -1,6 +1,10 @@
-//! Tydi logical streams.
+//! Logical streams.
+//!
+//! [Reference]
+//!
+//! [Reference]: https://abs-tudelft.github.io/tydi/specification/logical.html
 
-use crate::physical::{BitField, Complexity, Dir, PhysicalStream};
+use crate::physical::{Complexity, Field, PhysicalStream};
 use std::fmt;
 
 /// A potentially nested structure expressing a logical stream type tree.
@@ -202,9 +206,9 @@ impl LogicalStream {
                         children: vec![],
                     },
                     elements_per_transfer: 1,
-                    dir: Dir::Downstream,
+                    dir: Direction::Downstream,
                     dimensionality: 0,
-                    complexity: Complexity::default(),
+                    complexity: Complexity::new_major(0),
                     user_bits: 0,
                 };
                 vec![new_stream]
@@ -219,7 +223,7 @@ impl LogicalStream {
                         identifier: push_some(&name, identifier),
                         fields: bit_fields.unwrap_or_else(BitField::new_empty),
                         elements_per_transfer: 1,
-                        dir: Dir::Downstream,
+                        dir: Direction::Downstream,
                         dimensionality: 0,
                         complexity: Complexity::default(),
                         user_bits: 0,

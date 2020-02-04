@@ -1,4 +1,4 @@
-//! Tydi streamlet definition.
+//! Streamlet definition.
 
 use crate::LogicalStream;
 

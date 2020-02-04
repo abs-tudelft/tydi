@@ -1,4 +1,4 @@
-//! Tydi algebraic data types.
+//! Algebraic data types.
 //!
 //! The data module is enabled by the (non-default) `data` feature flag.
 
