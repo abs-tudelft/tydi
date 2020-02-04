@@ -266,14 +266,6 @@ impl Identifier {
     }
 }
 
-impl Deref for Identifier {
-    type Target = str;
-
-    fn deref(&self) -> &str {
-        self.as_ref()
-    }
-}
-
 impl fmt::Display for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -709,6 +701,7 @@ impl From<PhysicalStream> for SignalMap {
 /// [`PhysicalStream`]: ./struct.PhysicalStream.html
 /// [`signal_map`]: ./struct.PhysicalStream.html#method.signal_map
 /// [Reference]: https://abs-tudelft.github.io/tydi/specification/physical.html#signal-omission
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct SignalMap {
     data: Option<usize>,
     last: Option<usize>,
@@ -943,12 +936,107 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::cognitive_complexity)]
     fn physical_stream() -> Result<(), Box<dyn error::Error>> {
+        let physical_stream = PhysicalStream::new(
+            vec![
+                Field::new("a", 8)?,
+                Field::new("b", 16)?,
+                Field::new("c", 1)?,
+            ],
+            3,
+            4,
+            8,
+            vec![Field::new("user", 1)?],
+        )?;
+
+        assert_eq!(
+            physical_stream.fields(),
+            &[
+                Field::new("a", 8)?,
+                Field::new("b", 16)?,
+                Field::new("c", 1)?,
+            ]
+        );
+        assert_eq!(physical_stream.lanes(), 3);
+        assert_eq!(physical_stream.dimensionality(), 4);
+        assert_eq!(physical_stream.complexity(), &Complexity::new_major(8));
+        assert_eq!(physical_stream.user(), &[Field::new("user", 1)?]);
+        assert_eq!(physical_stream.width(), 87);
+        assert_eq!(physical_stream.data_width(), (8 + 16 + 1) * 3);
+        assert_eq!(physical_stream.last_width(), 4);
+        assert_eq!(physical_stream.stai_width(), 2);
+        assert_eq!(physical_stream.endi_width(), 2);
+        assert_eq!(physical_stream.strb_width(), 3);
+        assert_eq!(physical_stream.user_width(), 1);
+        assert_eq!(
+            physical_stream.signal_map(),
+            SignalMap {
+                data: Some(75),
+                last: Some(4),
+                stai: Some(2),
+                endi: Some(2),
+                strb: Some(3),
+                user: Some(1)
+            }
+        );
+
+        let physical_stream = PhysicalStream::new(vec![Field::new("a", 8)?], 1, 0, 0, vec![])?;
+
+        assert_eq!(physical_stream.fields(), &[Field::new("a", 8)?,]);
+        assert_eq!(physical_stream.lanes(), 1);
+        assert_eq!(physical_stream.dimensionality(), 0);
+        assert_eq!(physical_stream.complexity(), &Complexity::new_major(0));
+        assert_eq!(physical_stream.user(), &[]);
+        assert_eq!(physical_stream.width(), 8);
+        assert_eq!(physical_stream.data_width(), 8);
+        assert_eq!(physical_stream.last_width(), 0);
+        assert_eq!(physical_stream.stai_width(), 0);
+        assert_eq!(physical_stream.endi_width(), 0);
+        assert_eq!(physical_stream.strb_width(), 0);
+        assert_eq!(physical_stream.user_width(), 0);
+        assert_eq!(
+            physical_stream.signal_map(),
+            SignalMap {
+                data: Some(8),
+                last: None,
+                stai: None,
+                endi: None,
+                strb: None,
+                user: None
+            }
+        );
+
         Ok(())
     }
 
     #[test]
     fn signal_map() -> Result<(), Box<dyn error::Error>> {
+        let physical_stream = PhysicalStream::new(
+            vec![Field::new("a", 3)?, Field::new("b", 2)?],
+            2,
+            3,
+            Complexity::new_major(8),
+            vec![],
+        )?;
+
+        let signal_map = SignalMap::from(&physical_stream);
+        assert_eq!(physical_stream.width(), 17);
+        assert_eq!(physical_stream.data_width(), 2 * (3 + 2));
+        assert_eq!(physical_stream.last_width(), 3);
+        assert_eq!(physical_stream.stai_width(), 1);
+        assert_eq!(physical_stream.endi_width(), 1);
+        assert_eq!(physical_stream.strb_width(), 2);
+        assert_eq!(physical_stream.user_width(), 0);
+
+        assert_eq!(physical_stream.data_width(), signal_map.data().unwrap_or(0));
+        assert_eq!(physical_stream.last_width(), signal_map.last().unwrap_or(0));
+        assert_eq!(physical_stream.stai_width(), signal_map.stai().unwrap_or(0));
+        assert_eq!(physical_stream.endi_width(), signal_map.endi().unwrap_or(0));
+        assert_eq!(physical_stream.strb_width(), signal_map.strb().unwrap_or(0));
+        assert_eq!(physical_stream.user_width(), signal_map.user().unwrap_or(0));
+
+        assert_eq!(signal_map.width(), Some(17));
         Ok(())
     }
 }
