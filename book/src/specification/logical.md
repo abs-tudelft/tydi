@@ -64,11 +64,11 @@ defined as \\(\mathrm{Stream}(T_d, n, d, s, c, r, T_u)\\), where:
 > As the \\(\mathrm{Stream}\\) node carries many parameters and can therefore
 > be hard to read, some abbreviations are in order:
 > 
->  - \\(\mathrm{Dim}(T_d, n, c, T_u>  \rightarrow \mathrm{Stream}(T_d, n, 1, \mathrm{Sync},    c, \mathrm{Forward}, T_u)\\)
->  - \\(\mathrm{New}(T_d, n, c, T_u>  \rightarrow \mathrm{Stream}(T_d, n, 0, \mathrm{Sync},    c, \mathrm{Forward}, T_u)\\)
->  - \\(\mathrm{Des}(T_d, n, c, T_u>  \rightarrow \mathrm{Stream}(T_d, n, 0, \mathrm{Desync},  c, \mathrm{Forward}, T_u)\\)
->  - \\(\mathrm{Flat}(T_d, n, c, T_u> \rightarrow \mathrm{Stream}(T_d, n, 0, \mathrm{Flatten}, c, \mathrm{Forward}, T_u)\\)
->  - \\(\mathrm{Rev}(T_d, n, c, T_u>  \rightarrow \mathrm{Stream}(T_d, n, 0, \mathrm{Sync},    c, \mathrm{Reverse}, T_u)\\)
+>  - \\(\mathrm{Dim}(T_d, n, c, T_u) \ \rightarrow\ \mathrm{Stream}(T_d, n, 1, \mathrm{Sync},    c, \mathrm{Forward}, T_u)\\)
+>  - \\(\mathrm{New}(T_d, n, c, T_u) \ \rightarrow\ \mathrm{Stream}(T_d, n, 0, \mathrm{Sync},    c, \mathrm{Forward}, T_u)\\)
+>  - \\(\mathrm{Des}(T_d, n, c, T_u) \ \rightarrow\ \mathrm{Stream}(T_d, n, 0, \mathrm{Desync},  c, \mathrm{Forward}, T_u)\\)
+>  - \\(\mathrm{Flat}(T_d, n, c, T_u)\ \rightarrow\ \mathrm{Stream}(T_d, n, 0, \mathrm{Flatten}, c, \mathrm{Forward}, T_u)\\)
+>  - \\(\mathrm{Rev}(T_d, n, c, T_u) \ \rightarrow\ \mathrm{Stream}(T_d, n, 0, \mathrm{Sync},    c, \mathrm{Reverse}, T_u)\\)
 > 
 > For the above abbreviations, the following defaults apply in addition:
 > 
