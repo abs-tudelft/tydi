@@ -84,7 +84,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div id="sidebar-scrollbox" class="sidebar-scrollbox">
-                <ol class="chapter"><li class="expanded affix "><a href="index.html" class="active">Tydi</a></li><li class="spacer"></li><li class="expanded "><a href="index.html" class="active"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="expanded "><a href="specification/index.html"><strong aria-hidden="true">2.</strong> Specification</a></li><li><ol class="section"><li class="expanded "><a href="specification/physical.html"><strong aria-hidden="true">2.1.</strong> Physical stream</a></li><li class="expanded "><a href="specification/logical.html"><strong aria-hidden="true">2.2.</strong> Logical stream</a></li><li class="expanded "><a href="specification/streamlet.html"><strong aria-hidden="true">2.3.</strong> Streamlet</a></li></ol></li><li class="expanded "><a href="tools/index.html"><strong aria-hidden="true">3.</strong> Tools</a></li><li><ol class="section"><li class="expanded "><a href="tools/generators.html"><strong aria-hidden="true">3.1.</strong> Generators</a></li><li class="expanded "><a href="tools/compositors.html"><strong aria-hidden="true">3.2.</strong> Compositors</a></li></ol></li><li class="expanded "><a href="faq.html">Frequently Asked Questions</a></li><li class="expanded affix "><a href="references.html">References</a></li></ol>
+                <ol class="chapter"><li class="expanded affix "><a href="index.html" class="active">Tydi</a></li><li class="spacer"></li><li class="expanded "><a href="index.html" class="active"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="expanded "><a href="specification/index.html"><strong aria-hidden="true">2.</strong> Tydi specification</a></li><li><ol class="section"><li class="expanded "><a href="specification/intro.html"><strong aria-hidden="true">2.1.</strong> Introduction</a></li><li class="expanded "><a href="specification/physical.html"><strong aria-hidden="true">2.2.</strong> Physical streams</a></li><li class="expanded "><a href="specification/logical.html"><strong aria-hidden="true">2.3.</strong> Logical streams</a></li></ol></li><li class="expanded "><a href="tools/index.html"><strong aria-hidden="true">3.</strong> Tools</a></li><li><ol class="section"><li class="expanded "><a href="tools/generators.html"><strong aria-hidden="true">3.1.</strong> Generators</a></li><li class="expanded "><a href="tools/compositors.html"><strong aria-hidden="true">3.2.</strong> Compositors</a></li></ol></li><li class="expanded "><a href="faq.html">Frequently Asked Questions</a></li><li class="expanded affix "><a href="references.html">References</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -159,28 +159,13 @@
 <h1><a class="header" href="#1-introduction" id="1-introduction">1. Introduction</a></h1>
 <p>Tydi is an open-source project that aims to standardize interfaces for 
 hardware components used in modern streaming dataflow designs.</p>
-<p>The project consists of two parts: a set of <em>specifications</em> and a set of 
+<p>The project consists of two parts: the Tydi specification and a set of 
 reference implementations of useful tools.</p>
 <h2><a class="header" href="#specification" id="specification">Specification</a></h2>
-<p>Tydi contains a set of three specifications for the following, related 
-concepts:</p>
-<ol>
-<li><a href="./specification/physical.html">Physical streams</a></li>
-<li><a href="./specification/logical.html">Logical streams</a> (under construction)</li>
-<li><a href="./specification/streamlet.html">Streamlets</a> (under construction)</li>
-</ol>
-<p><strong>Physical streams</strong> are hardware streams with their own valid/ready 
-handshaking interface, transporting elementary data. Their exact bit-level 
-representation and transfer behavior is defined through five parameters. 
-These parameters are derived from logical streams.</p>
-<p><strong>Logical streams</strong> are one or multiple physical streams of some type from 
-the Tydi type system. Types expressed in this type system determine which 
-physical streams with which parameters make up the logical stream.</p>
-<p><strong>Streamlets</strong> are components that have Tydi logical streams as input and 
-output.</p>
-<p>The Tydi type system for logical streams allows the expression of data types 
-that represent <em>dynamically-sized, nested and multidimensional data 
-structures</em> in hardware.</p>
+<p>The Tydi (Typed dataflow interface) specification is at the core of the
+project: it defines what an interface should look like and constrains its
+behavior, based on a constructively defined, low-level data type. Start
+reading <a href="./specification/index.html">here</a>.</p>
 <h2><a class="header" href="#tools" id="tools">Tools</a></h2>
 <p>Using the Tydi specifications, reference implementations of tools are 
 implemented and open-sourced.</p>

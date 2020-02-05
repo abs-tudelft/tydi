@@ -86,7 +86,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div id="sidebar-scrollbox" class="sidebar-scrollbox">
-                <ol class="chapter"><li class="expanded affix "><a href="index.html">Tydi</a></li><li class="spacer"></li><li class="expanded "><a href="index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="expanded "><a href="specification/index.html"><strong aria-hidden="true">2.</strong> Specification</a></li><li><ol class="section"><li class="expanded "><a href="specification/physical.html"><strong aria-hidden="true">2.1.</strong> Physical stream</a></li><li class="expanded "><a href="specification/logical.html"><strong aria-hidden="true">2.2.</strong> Logical stream</a></li><li class="expanded "><a href="specification/streamlet.html"><strong aria-hidden="true">2.3.</strong> Streamlet</a></li></ol></li><li class="expanded "><a href="tools/index.html"><strong aria-hidden="true">3.</strong> Tools</a></li><li><ol class="section"><li class="expanded "><a href="tools/generators.html"><strong aria-hidden="true">3.1.</strong> Generators</a></li><li class="expanded "><a href="tools/compositors.html"><strong aria-hidden="true">3.2.</strong> Compositors</a></li></ol></li><li class="expanded "><a href="faq.html">Frequently Asked Questions</a></li><li class="expanded affix "><a href="references.html">References</a></li></ol>
+                <ol class="chapter"><li class="expanded affix "><a href="index.html">Tydi</a></li><li class="spacer"></li><li class="expanded "><a href="index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="expanded "><a href="specification/index.html"><strong aria-hidden="true">2.</strong> Tydi specification</a></li><li><ol class="section"><li class="expanded "><a href="specification/intro.html"><strong aria-hidden="true">2.1.</strong> Introduction</a></li><li class="expanded "><a href="specification/physical.html"><strong aria-hidden="true">2.2.</strong> Physical streams</a></li><li class="expanded "><a href="specification/logical.html"><strong aria-hidden="true">2.3.</strong> Logical streams</a></li></ol></li><li class="expanded "><a href="tools/index.html"><strong aria-hidden="true">3.</strong> Tools</a></li><li><ol class="section"><li class="expanded "><a href="tools/generators.html"><strong aria-hidden="true">3.1.</strong> Generators</a></li><li class="expanded "><a href="tools/compositors.html"><strong aria-hidden="true">3.2.</strong> Compositors</a></li></ol></li><li class="expanded "><a href="faq.html">Frequently Asked Questions</a></li><li class="expanded affix "><a href="references.html">References</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -161,28 +161,13 @@
 <h1><a class="header" href="#1-introduction" id="1-introduction">1. Introduction</a></h1>
 <p>Tydi is an open-source project that aims to standardize interfaces for 
 hardware components used in modern streaming dataflow designs.</p>
-<p>The project consists of two parts: a set of <em>specifications</em> and a set of 
+<p>The project consists of two parts: the Tydi specification and a set of 
 reference implementations of useful tools.</p>
 <h2><a class="header" href="#specification" id="specification">Specification</a></h2>
-<p>Tydi contains a set of three specifications for the following, related 
-concepts:</p>
-<ol>
-<li><a href="./specification/physical.html">Physical streams</a></li>
-<li><a href="./specification/logical.html">Logical streams</a> (under construction)</li>
-<li><a href="./specification/streamlet.html">Streamlets</a> (under construction)</li>
-</ol>
-<p><strong>Physical streams</strong> are hardware streams with their own valid/ready 
-handshaking interface, transporting elementary data. Their exact bit-level 
-representation and transfer behavior is defined through five parameters. 
-These parameters are derived from logical streams.</p>
-<p><strong>Logical streams</strong> are one or multiple physical streams of some type from 
-the Tydi type system. Types expressed in this type system determine which 
-physical streams with which parameters make up the logical stream.</p>
-<p><strong>Streamlets</strong> are components that have Tydi logical streams as input and 
-output.</p>
-<p>The Tydi type system for logical streams allows the expression of data types 
-that represent <em>dynamically-sized, nested and multidimensional data 
-structures</em> in hardware.</p>
+<p>The Tydi (Typed dataflow interface) specification is at the core of the
+project: it defines what an interface should look like and constrains its
+behavior, based on a constructively defined, low-level data type. Start
+reading <a href="./specification/index.html">here</a>.</p>
 <h2><a class="header" href="#tools" id="tools">Tools</a></h2>
 <p>Using the Tydi specifications, reference implementations of tools are 
 implemented and open-sourced.</p>
@@ -200,28 +185,13 @@ but also modern HDL</p>
 <h1><a class="header" href="#1-introduction-1" id="1-introduction-1">1. Introduction</a></h1>
 <p>Tydi is an open-source project that aims to standardize interfaces for 
 hardware components used in modern streaming dataflow designs.</p>
-<p>The project consists of two parts: a set of <em>specifications</em> and a set of 
+<p>The project consists of two parts: the Tydi specification and a set of 
 reference implementations of useful tools.</p>
 <h2><a class="header" href="#specification-1" id="specification-1">Specification</a></h2>
-<p>Tydi contains a set of three specifications for the following, related 
-concepts:</p>
-<ol>
-<li><a href="./specification/physical.html">Physical streams</a></li>
-<li><a href="./specification/logical.html">Logical streams</a> (under construction)</li>
-<li><a href="./specification/streamlet.html">Streamlets</a> (under construction)</li>
-</ol>
-<p><strong>Physical streams</strong> are hardware streams with their own valid/ready 
-handshaking interface, transporting elementary data. Their exact bit-level 
-representation and transfer behavior is defined through five parameters. 
-These parameters are derived from logical streams.</p>
-<p><strong>Logical streams</strong> are one or multiple physical streams of some type from 
-the Tydi type system. Types expressed in this type system determine which 
-physical streams with which parameters make up the logical stream.</p>
-<p><strong>Streamlets</strong> are components that have Tydi logical streams as input and 
-output.</p>
-<p>The Tydi type system for logical streams allows the expression of data types 
-that represent <em>dynamically-sized, nested and multidimensional data 
-structures</em> in hardware.</p>
+<p>The Tydi (Typed dataflow interface) specification is at the core of the
+project: it defines what an interface should look like and constrains its
+behavior, based on a constructively defined, low-level data type. Start
+reading <a href="./specification/index.html">here</a>.</p>
 <h2><a class="header" href="#tools-1" id="tools-1">Tools</a></h2>
 <p>Using the Tydi specifications, reference implementations of tools are 
 implemented and open-sourced.</p>
@@ -235,8 +205,201 @@ hardware-description languages are used to work with the specification.
 Tydi aims to provide generators for old HDLs, such as VHDL and Verilog, 
 but also modern HDL</p>
 <p><strong>Compositors</strong> are tools that combine streamlets into larger designs.</p>
-<h1><a class="header" href="#specification-2" id="specification-2">Specification</a></h1>
-<h1><a class="header" href="#physical-stream-specification" id="physical-stream-specification">Physical stream specification</a></h1>
+<h1><a class="header" href="#tydi-specification" id="tydi-specification">Tydi specification</a></h1>
+<p>The Tydi specification, short for Typed dataflow interface specification,
+aims to provide a standardized way in which complex data types can be
+transferred from one circuit to another, within the context of FPGAs or
+ASICs.</p>
+<h2><a class="header" href="#how-to-read-this-document" id="how-to-read-this-document">How to read this document</a></h2>
+<p>The specification is comprised of the following sections.</p>
+<ul>
+<li>
+<p><a href="specification/intro.html">Introduction</a>: defines the motivation and scope of this
+specification.</p>
+</li>
+<li>
+<p><a href="specification/physical.html">Physical stream specification</a>. <strong>Physical streams</strong> are
+hardware streams with their own valid/ready handshaking interface,
+transporting elementary data and dimensionality information. Their exact
+bit-level representation and transfer behavior is defined through five
+parameters. These parameters are normally derived from logical streams.</p>
+</li>
+<li>
+<p><a href="specification/logical.html">Logical stream specification</a>. <strong>Logical streams</strong> are bundles
+of one or multiple physical streams of some type from the Tydi type system.
+Types expressed in this type system determine which physical streams with
+which parameters make up the logical stream. This section also introduces
+<strong>streamlets</strong>, the Tydi name for components that have logical streams as
+inputs and/or outputs.</p>
+</li>
+</ul>
+<p>The two specification sections are written such that the first paragraph of
+each section <em>defines</em> a new concept, and the subsequent paragraphs <em>constrain</em>
+it.</p>
+<blockquote>
+<p>Additional information, such as examples, a more intuitive description, or
+motivation, is written in these kinds of blocks.</p>
+</blockquote>
+<h1><a class="header" href="#introduction" id="introduction">Introduction</a></h1>
+<p>This section describes the motivation and scope of the Tydi specification.</p>
+<h2><a class="header" href="#background-and-motivation" id="background-and-motivation">Background and motivation</a></h2>
+<p>As FPGAs become faster and larger, they are increasingly used within a
+data center context to accelerate computational workloads. FPGAs can already
+achieve greater compute density and power efficiency than CPUs and GPUs for
+certain types of workloads, particularly those that rely on high streaming
+throughput and branch-heavy computation. Examples of this are decompression,
+SQL query acceleration, and pattern matching. The major disadvantage of FPGAs
+is that they are more difficult to program than CPUs and GPUs, and that
+algorithms expressed imperatively in the CPU/GPU domain often need to be
+redesigned from the ground up to achieve competitive performance. Both the
+advantages and disadvantages are due to the spatial nature of an FPGA: instead
+of programming a number of processors, an FPGA designer &quot;programs&quot; millions of
+basic computational elements not much more complex than a single logic gate
+that all work parallel to each other, and describes how these elements are
+interconnected. This extreme programmability comes at a cost of roughly an
+order of magnitude in area and an order of magnitude in performance compared
+to the custom silicon used to make CPUs and GPUs. Therefore, while imperative
+algorithms can indeed be mapped to FPGAs more or less directly through
+high-level synthesis (HLS) techniques or the use of softcores, typically an
+algorithm needs at least two orders of magnitude of acceleration through clever
+use of the spatial nature of the FPGA to be competitive.</p>
+<p>Unfortunately, the industry-standard toolchains needed to program FPGAs only
+take VHDL, Verilog, SystemC, (more recently through HLS) a subset of C++,
+and/or visually designed data flow graphs as their input. The first three
+provide few abstractions above the level of a single wire: while they do allow
+the use of data types such as integers and structures to represent bundles of
+wires, all control of what the voltages on those bundles of wires represent at
+a certain point in time (if anything) remains up to the programmer. The latter
+two techniques raise the bar slightly by presenting the designer with streams
+and memory. However, they are vendor-specific, often require additional
+licensing fees over the more traditional design entry methods, and in some
+cases are even specific to a certain version of the vendor tool and/or a
+certain FPGA device family.</p>
+<p>This situation has given rise to a number of open-source projects that take
+higher-level languages and transform them to vendor-agnostic VHDL or Verilog.
+Examples of this are <a href="https://www.chisel-lang.org/">Chisel/FIRRTL</a> and
+<a href="https://clash-lang.org/">Clash</a>, using generative Scala code and a
+Haskell-like functional programming language as their respective inputs. Both
+tools come with their own standard libraries of hardware components that can be
+used to compose accelerators out of smaller primitives, similar to the data
+flow design method described earlier, but with textual input and the advantage
+of being vendor and device agnostic.</p>
+<p>With the advent of these data flow composition tools, it is increasingly
+important to have a common interface standard to allow the primitive blocks to
+connect to each other. The de-facto standard for this has become the AMBA AXI4
+interface, designed by ARM for their microcontrollers and processors. Roughly
+speaking, AXI4 specifies an interface for device-to-memory connections
+(<a href="https://static.docs.arm.com/ihi0022/d/IHI0022D_amba_axi_protocol_spec.pdf">AXI4 and AXI4-lite</a>),
+and a streaming interface
+(<a href="https://static.docs.arm.com/ihi0051/a/IHI0051A_amba4_axi4_stream_v1_0_protocol_spec.pdf">AXI4-stream</a>)
+for intra-device connections.</p>
+<p>While AXI4 and AXI4-lite are of primary importance to processors due to their
+memory-oriented nature, AXI4-stream is much more important for FPGAs due to
+their spatial nature. However, because AXI4-stream is not originally designed
+for FPGAs, parts of the specifications are awkward for this purpose. For
+instance, AXI4-stream is byte oriented: it requires its data signal to be
+divided into one or more byte lanes, and specifies (optional) control signals
+that indicate the significance of each lane. Since FPGA designs are not at all
+restricted to operating on byte elements, this part of the specification is
+often ignored, and as such, any stream with a <code>valid</code>, <code>ready</code>, and one or more
+<code>data</code> signals of any width has become the de-facto streaming standard. This is
+reflected for instance by Chisel's built-in <code>Decoupled</code> interface type.</p>
+<p>Within a single design this is of course not an issue — as long as both the
+stream source and sink blocks agree on the same noncompliant interface, the
+design will work. However, bearing in mind that there is an increasing number
+of independently developed data flow oriented tools, each with their own
+standard library, interoperability becomes an issue: whenever a designer needs
+to use components from different vendors, they must first ensure that the
+interfaces match, and if not, insert the requisite glue logic in between.</p>
+<p>A similar issue exists in the software domain, where different programming
+languages use different runtime environments and calling conventions. For
+instance, efficiently connecting a component written in Java to a component
+written in Python requires considerable effort. The keyword here is
+&quot;efficiently:&quot; because Java and Python have very different ways of representing
+abstract data in memory, one fundamentally has to convert from one
+representation to another for any communication between the two components.
+This serialization and deserialization overhead can and often does cost more
+CPU time than the execution of the algorithms themselves.</p>
+<p>The <a href="https://arrow.apache.org/">Apache Arrow</a> project attempts to solve this
+problem by standardizing a way to represent this abstract data in memory, and
+providing libraries for popular programming languages to interact with this
+data format. The goal is to make transferring data between two processes as
+efficient as sharing a pool of Arrow-formatted memory between them. Arrow also
+specifies efficient ways of serializing Arrow data structures for (temporary)
+storage in files or streaming structures over a network, and can also be used
+by GPUs through CUDA. However, FPGA-based acceleration is at the time of
+writing missing from the core project. The
+<a href="https://github.com/abs-tudelft/fletcher">Fletcher</a> project attempts to bridge
+this gap, by providing an interface layer between the Arrow in-memory format
+and FPGA accelerators, presenting the memory to the accelerator in an abstract,
+tabular form.</p>
+<p>In order to represent the complex, nested data types supported by Arrow, the
+Fletcher project had to devise its own data streaming format on top of the
+de-facto subset of AXI4-stream. Originally, this format was simply a means
+to an end, and therefore, not much thought was put into it. Particularly, as
+only Arrow-to-device interfaces (and back) were needed for the project, an
+interface designed specifically for intra-device streaming is lacking; in
+fact, depending on configuration, the reader and writer interfaces do not even
+match completely. Clearly, a standard for streaming complex data types between
+components is needed, both within the context of the Fletcher project, and
+outside of it.</p>
+<p>As far as the writers are aware, no such standard exists as of yet. Defining
+such a standard in an open, royalty-free way is the primary purpose of this
+document.</p>
+<h2><a class="header" href="#goals" id="goals">Goals</a></h2>
+<ul>
+<li>
+<p>Defining a streaming format for complex data types in the context of FPGAs
+and, potentially, ASICs, where &quot;complex data types&quot; include:</p>
+<ul>
+<li>multi-dimensional sequences of undefined length;</li>
+<li>unions (a.k.a. variants);</li>
+<li>structures such as tuples or records.</li>
+</ul>
+</li>
+<li>
+<p>Doing the above in as broad of a way as possible, without imposing
+unnecessary burdens on the development of simple components.</p>
+</li>
+<li>
+<p>Allowing for minimization of area and complexity through well-defined
+contracts between source and sink on top of the signal specification itself.</p>
+</li>
+<li>
+<p>Extensibility: this specification should be as usable as possible, even to
+those with use cases not foreseen by this specification.</p>
+</li>
+</ul>
+<h2><a class="header" href="#non-goals" id="non-goals">Non-goals</a></h2>
+<ul>
+<li>
+<p>In this specification, a &quot;streaming format&quot; refers to the way in which the
+voltages on a bundle of wires are used to communicate data. We expressly do
+NOT mean streaming over existing communication formats such as Ethernet, and
+certainly not over abstract streams such as POSIX pipes or other
+inter-process communication paradigms. If you're looking for the former,
+have a look at
+<a href="https://arrow.apache.org/blog/2019/10/13/introducing-arrow-flight/">Arrow Flight</a>.
+The latter is part of Apache Arrow itself through their
+<a href="https://arrow.apache.org/docs/ipc.html">IPC format specification</a>.</p>
+</li>
+<li>
+<p>We do not intend to compete with the AXI4(-stream) specification.
+AXI4-stream is designed for streaming unstructured byte-oriented data;
+Tydi streams are for streaming structured, complex data types.</p>
+</li>
+<li>
+<p>Tydi streams have no notion of multi-endpoint network-on-chip-like
+structures. Adding source and destination addressing or other routing
+information can be done through the <code>user</code> signal.</p>
+</li>
+<li>
+<p>The primitive data type in Tydi is a group of bits. We leave the mapping
+from these bits to higher-order types such as numbers, characters, or
+timestamps to existing specifications.</p>
+</li>
+</ul>
+<h1><a class="header" href="#physical-streams" id="physical-streams">Physical streams</a></h1>
 <p>A Tydi physical stream carries a stream of elements, dimensionality information
 for said elements, and (optionally) user-defined transfer information from a
 source to a sink. The contents of these three groups and to some extent the way
@@ -811,9 +974,7 @@ number of entries in the array.</p>
 <p>This is the more natural order for array-like structures, actually putting
 the first entry on the left-hand side.</p>
 </blockquote>
-<h1><a class="header" href="#logical-stream-specification" id="logical-stream-specification">Logical stream specification</a></h1>
-<p>(under construction)</p>
-<h1><a class="header" href="#streamlet" id="streamlet">Streamlet</a></h1>
+<h1><a class="header" href="#logical-streams" id="logical-streams">Logical streams</a></h1>
 <p>(under construction)</p>
 <h1><a class="header" href="#tools-2" id="tools-2">Tools</a></h1>
 <p>(under construction)</p>

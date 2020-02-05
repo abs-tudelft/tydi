@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Specification - Tydi</title>
+        <title>Tydi specification - Tydi</title>
         
 
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
@@ -84,7 +84,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div id="sidebar-scrollbox" class="sidebar-scrollbox">
-                <ol class="chapter"><li class="expanded affix "><a href="../index.html">Tydi</a></li><li class="spacer"></li><li class="expanded "><a href="../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="expanded "><a href="../specification/index.html" class="active"><strong aria-hidden="true">2.</strong> Specification</a></li><li><ol class="section"><li class="expanded "><a href="../specification/physical.html"><strong aria-hidden="true">2.1.</strong> Physical stream</a></li><li class="expanded "><a href="../specification/logical.html"><strong aria-hidden="true">2.2.</strong> Logical stream</a></li><li class="expanded "><a href="../specification/streamlet.html"><strong aria-hidden="true">2.3.</strong> Streamlet</a></li></ol></li><li class="expanded "><a href="../tools/index.html"><strong aria-hidden="true">3.</strong> Tools</a></li><li><ol class="section"><li class="expanded "><a href="../tools/generators.html"><strong aria-hidden="true">3.1.</strong> Generators</a></li><li class="expanded "><a href="../tools/compositors.html"><strong aria-hidden="true">3.2.</strong> Compositors</a></li></ol></li><li class="expanded "><a href="../faq.html">Frequently Asked Questions</a></li><li class="expanded affix "><a href="../references.html">References</a></li></ol>
+                <ol class="chapter"><li class="expanded affix "><a href="../index.html">Tydi</a></li><li class="spacer"></li><li class="expanded "><a href="../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="expanded "><a href="../specification/index.html" class="active"><strong aria-hidden="true">2.</strong> Tydi specification</a></li><li><ol class="section"><li class="expanded "><a href="../specification/intro.html"><strong aria-hidden="true">2.1.</strong> Introduction</a></li><li class="expanded "><a href="../specification/physical.html"><strong aria-hidden="true">2.2.</strong> Physical streams</a></li><li class="expanded "><a href="../specification/logical.html"><strong aria-hidden="true">2.3.</strong> Logical streams</a></li></ol></li><li class="expanded "><a href="../tools/index.html"><strong aria-hidden="true">3.</strong> Tools</a></li><li><ol class="section"><li class="expanded "><a href="../tools/generators.html"><strong aria-hidden="true">3.1.</strong> Generators</a></li><li class="expanded "><a href="../tools/compositors.html"><strong aria-hidden="true">3.2.</strong> Compositors</a></li></ol></li><li class="expanded "><a href="../faq.html">Frequently Asked Questions</a></li><li class="expanded affix "><a href="../references.html">References</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -155,7 +155,41 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#specification" id="specification">Specification</a></h1>
+                        <h1><a class="header" href="#tydi-specification" id="tydi-specification">Tydi specification</a></h1>
+<p>The Tydi specification, short for Typed dataflow interface specification,
+aims to provide a standardized way in which complex data types can be
+transferred from one circuit to another, within the context of FPGAs or
+ASICs.</p>
+<h2><a class="header" href="#how-to-read-this-document" id="how-to-read-this-document">How to read this document</a></h2>
+<p>The specification is comprised of the following sections.</p>
+<ul>
+<li>
+<p><a href="intro.html">Introduction</a>: defines the motivation and scope of this
+specification.</p>
+</li>
+<li>
+<p><a href="physical.html">Physical stream specification</a>. <strong>Physical streams</strong> are
+hardware streams with their own valid/ready handshaking interface,
+transporting elementary data and dimensionality information. Their exact
+bit-level representation and transfer behavior is defined through five
+parameters. These parameters are normally derived from logical streams.</p>
+</li>
+<li>
+<p><a href="logical.html">Logical stream specification</a>. <strong>Logical streams</strong> are bundles
+of one or multiple physical streams of some type from the Tydi type system.
+Types expressed in this type system determine which physical streams with
+which parameters make up the logical stream. This section also introduces
+<strong>streamlets</strong>, the Tydi name for components that have logical streams as
+inputs and/or outputs.</p>
+</li>
+</ul>
+<p>The two specification sections are written such that the first paragraph of
+each section <em>defines</em> a new concept, and the subsequent paragraphs <em>constrain</em>
+it.</p>
+<blockquote>
+<p>Additional information, such as examples, a more intuitive description, or
+motivation, is written in these kinds of blocks.</p>
+</blockquote>
 
                     </main>
 
@@ -168,7 +202,7 @@
                         
 
                         
-                            <a rel="next" href="../specification/physical.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="../specification/intro.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -186,7 +220,7 @@
                 
 
                 
-                    <a href="../specification/physical.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a href="../specification/intro.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                 

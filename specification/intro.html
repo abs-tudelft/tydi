@@ -1,0 +1,385 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Introduction - Tydi</title>
+        
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="An open specification for complex data structures over hardware streams">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+        <!-- MathJax -->
+        <script async type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div id="sidebar-scrollbox" class="sidebar-scrollbox">
+                <ol class="chapter"><li class="expanded affix "><a href="../index.html">Tydi</a></li><li class="spacer"></li><li class="expanded "><a href="../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="expanded "><a href="../specification/index.html"><strong aria-hidden="true">2.</strong> Tydi specification</a></li><li><ol class="section"><li class="expanded "><a href="../specification/intro.html" class="active"><strong aria-hidden="true">2.1.</strong> Introduction</a></li><li class="expanded "><a href="../specification/physical.html"><strong aria-hidden="true">2.2.</strong> Physical streams</a></li><li class="expanded "><a href="../specification/logical.html"><strong aria-hidden="true">2.3.</strong> Logical streams</a></li></ol></li><li class="expanded "><a href="../tools/index.html"><strong aria-hidden="true">3.</strong> Tools</a></li><li><ol class="section"><li class="expanded "><a href="../tools/generators.html"><strong aria-hidden="true">3.1.</strong> Generators</a></li><li class="expanded "><a href="../tools/compositors.html"><strong aria-hidden="true">3.2.</strong> Compositors</a></li></ol></li><li class="expanded "><a href="../faq.html">Frequently Asked Questions</a></li><li class="expanded affix "><a href="../references.html">References</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
+
+                        <h1 class="menu-title">Tydi</h1>
+
+                        <div class="right-buttons">
+                            <a href="../print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                            
+                            <a href="https://github.com/abs-tudelft/tydi" title="Git repository" aria-label="Git repository">
+                                <i id="git-repository-button" class="fa fa-github"></i>
+                            </a>
+                            
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#introduction" id="introduction">Introduction</a></h1>
+<p>This section describes the motivation and scope of the Tydi specification.</p>
+<h2><a class="header" href="#background-and-motivation" id="background-and-motivation">Background and motivation</a></h2>
+<p>As FPGAs become faster and larger, they are increasingly used within a
+data center context to accelerate computational workloads. FPGAs can already
+achieve greater compute density and power efficiency than CPUs and GPUs for
+certain types of workloads, particularly those that rely on high streaming
+throughput and branch-heavy computation. Examples of this are decompression,
+SQL query acceleration, and pattern matching. The major disadvantage of FPGAs
+is that they are more difficult to program than CPUs and GPUs, and that
+algorithms expressed imperatively in the CPU/GPU domain often need to be
+redesigned from the ground up to achieve competitive performance. Both the
+advantages and disadvantages are due to the spatial nature of an FPGA: instead
+of programming a number of processors, an FPGA designer &quot;programs&quot; millions of
+basic computational elements not much more complex than a single logic gate
+that all work parallel to each other, and describes how these elements are
+interconnected. This extreme programmability comes at a cost of roughly an
+order of magnitude in area and an order of magnitude in performance compared
+to the custom silicon used to make CPUs and GPUs. Therefore, while imperative
+algorithms can indeed be mapped to FPGAs more or less directly through
+high-level synthesis (HLS) techniques or the use of softcores, typically an
+algorithm needs at least two orders of magnitude of acceleration through clever
+use of the spatial nature of the FPGA to be competitive.</p>
+<p>Unfortunately, the industry-standard toolchains needed to program FPGAs only
+take VHDL, Verilog, SystemC, (more recently through HLS) a subset of C++,
+and/or visually designed data flow graphs as their input. The first three
+provide few abstractions above the level of a single wire: while they do allow
+the use of data types such as integers and structures to represent bundles of
+wires, all control of what the voltages on those bundles of wires represent at
+a certain point in time (if anything) remains up to the programmer. The latter
+two techniques raise the bar slightly by presenting the designer with streams
+and memory. However, they are vendor-specific, often require additional
+licensing fees over the more traditional design entry methods, and in some
+cases are even specific to a certain version of the vendor tool and/or a
+certain FPGA device family.</p>
+<p>This situation has given rise to a number of open-source projects that take
+higher-level languages and transform them to vendor-agnostic VHDL or Verilog.
+Examples of this are <a href="https://www.chisel-lang.org/">Chisel/FIRRTL</a> and
+<a href="https://clash-lang.org/">Clash</a>, using generative Scala code and a
+Haskell-like functional programming language as their respective inputs. Both
+tools come with their own standard libraries of hardware components that can be
+used to compose accelerators out of smaller primitives, similar to the data
+flow design method described earlier, but with textual input and the advantage
+of being vendor and device agnostic.</p>
+<p>With the advent of these data flow composition tools, it is increasingly
+important to have a common interface standard to allow the primitive blocks to
+connect to each other. The de-facto standard for this has become the AMBA AXI4
+interface, designed by ARM for their microcontrollers and processors. Roughly
+speaking, AXI4 specifies an interface for device-to-memory connections
+(<a href="https://static.docs.arm.com/ihi0022/d/IHI0022D_amba_axi_protocol_spec.pdf">AXI4 and AXI4-lite</a>),
+and a streaming interface
+(<a href="https://static.docs.arm.com/ihi0051/a/IHI0051A_amba4_axi4_stream_v1_0_protocol_spec.pdf">AXI4-stream</a>)
+for intra-device connections.</p>
+<p>While AXI4 and AXI4-lite are of primary importance to processors due to their
+memory-oriented nature, AXI4-stream is much more important for FPGAs due to
+their spatial nature. However, because AXI4-stream is not originally designed
+for FPGAs, parts of the specifications are awkward for this purpose. For
+instance, AXI4-stream is byte oriented: it requires its data signal to be
+divided into one or more byte lanes, and specifies (optional) control signals
+that indicate the significance of each lane. Since FPGA designs are not at all
+restricted to operating on byte elements, this part of the specification is
+often ignored, and as such, any stream with a <code>valid</code>, <code>ready</code>, and one or more
+<code>data</code> signals of any width has become the de-facto streaming standard. This is
+reflected for instance by Chisel's built-in <code>Decoupled</code> interface type.</p>
+<p>Within a single design this is of course not an issue — as long as both the
+stream source and sink blocks agree on the same noncompliant interface, the
+design will work. However, bearing in mind that there is an increasing number
+of independently developed data flow oriented tools, each with their own
+standard library, interoperability becomes an issue: whenever a designer needs
+to use components from different vendors, they must first ensure that the
+interfaces match, and if not, insert the requisite glue logic in between.</p>
+<p>A similar issue exists in the software domain, where different programming
+languages use different runtime environments and calling conventions. For
+instance, efficiently connecting a component written in Java to a component
+written in Python requires considerable effort. The keyword here is
+&quot;efficiently:&quot; because Java and Python have very different ways of representing
+abstract data in memory, one fundamentally has to convert from one
+representation to another for any communication between the two components.
+This serialization and deserialization overhead can and often does cost more
+CPU time than the execution of the algorithms themselves.</p>
+<p>The <a href="https://arrow.apache.org/">Apache Arrow</a> project attempts to solve this
+problem by standardizing a way to represent this abstract data in memory, and
+providing libraries for popular programming languages to interact with this
+data format. The goal is to make transferring data between two processes as
+efficient as sharing a pool of Arrow-formatted memory between them. Arrow also
+specifies efficient ways of serializing Arrow data structures for (temporary)
+storage in files or streaming structures over a network, and can also be used
+by GPUs through CUDA. However, FPGA-based acceleration is at the time of
+writing missing from the core project. The
+<a href="https://github.com/abs-tudelft/fletcher">Fletcher</a> project attempts to bridge
+this gap, by providing an interface layer between the Arrow in-memory format
+and FPGA accelerators, presenting the memory to the accelerator in an abstract,
+tabular form.</p>
+<p>In order to represent the complex, nested data types supported by Arrow, the
+Fletcher project had to devise its own data streaming format on top of the
+de-facto subset of AXI4-stream. Originally, this format was simply a means
+to an end, and therefore, not much thought was put into it. Particularly, as
+only Arrow-to-device interfaces (and back) were needed for the project, an
+interface designed specifically for intra-device streaming is lacking; in
+fact, depending on configuration, the reader and writer interfaces do not even
+match completely. Clearly, a standard for streaming complex data types between
+components is needed, both within the context of the Fletcher project, and
+outside of it.</p>
+<p>As far as the writers are aware, no such standard exists as of yet. Defining
+such a standard in an open, royalty-free way is the primary purpose of this
+document.</p>
+<h2><a class="header" href="#goals" id="goals">Goals</a></h2>
+<ul>
+<li>
+<p>Defining a streaming format for complex data types in the context of FPGAs
+and, potentially, ASICs, where &quot;complex data types&quot; include:</p>
+<ul>
+<li>multi-dimensional sequences of undefined length;</li>
+<li>unions (a.k.a. variants);</li>
+<li>structures such as tuples or records.</li>
+</ul>
+</li>
+<li>
+<p>Doing the above in as broad of a way as possible, without imposing
+unnecessary burdens on the development of simple components.</p>
+</li>
+<li>
+<p>Allowing for minimization of area and complexity through well-defined
+contracts between source and sink on top of the signal specification itself.</p>
+</li>
+<li>
+<p>Extensibility: this specification should be as usable as possible, even to
+those with use cases not foreseen by this specification.</p>
+</li>
+</ul>
+<h2><a class="header" href="#non-goals" id="non-goals">Non-goals</a></h2>
+<ul>
+<li>
+<p>In this specification, a &quot;streaming format&quot; refers to the way in which the
+voltages on a bundle of wires are used to communicate data. We expressly do
+NOT mean streaming over existing communication formats such as Ethernet, and
+certainly not over abstract streams such as POSIX pipes or other
+inter-process communication paradigms. If you're looking for the former,
+have a look at
+<a href="https://arrow.apache.org/blog/2019/10/13/introducing-arrow-flight/">Arrow Flight</a>.
+The latter is part of Apache Arrow itself through their
+<a href="https://arrow.apache.org/docs/ipc.html">IPC format specification</a>.</p>
+</li>
+<li>
+<p>We do not intend to compete with the AXI4(-stream) specification.
+AXI4-stream is designed for streaming unstructured byte-oriented data;
+Tydi streams are for streaming structured, complex data types.</p>
+</li>
+<li>
+<p>Tydi streams have no notion of multi-endpoint network-on-chip-like
+structures. Adding source and destination addressing or other routing
+information can be done through the <code>user</code> signal.</p>
+</li>
+<li>
+<p>The primitive data type in Tydi is a group of bits. We leave the mapping
+from these bits to higher-order types such as numbers, characters, or
+timestamps to existing specifications.</p>
+</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="../specification/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="../specification/physical.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a href="../specification/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="../specification/physical.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+        
+        
+        <script type="text/javascript">
+            window.playpen_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>
