@@ -31,12 +31,12 @@ use std::{
 /// use tydi::physical::BitCount;
 ///
 /// let bit_count = BitCount::new(7)?;
-/// assert_eq!(bit_count.width(), 7);
+/// assert_eq!(bit_count.bit_count(), 7);
 /// assert_eq!(bit_count, BitCount::try_from(7)?);
 ///
 /// assert_eq!(
 ///     BitCount::new(0).unwrap_err().to_string(),
-///     "Invalid argument: width cannot be zero"
+///     "Invalid argument: count cannot be zero"
 /// );
 ///
 /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -49,20 +49,20 @@ use std::{
 pub struct BitCount(usize);
 
 impl BitCount {
-    /// Returns a new BitCount with provided width as bit count. Returns an
-    /// error when the width is zero.
-    pub fn new(width: usize) -> Result<Self, Box<dyn error::Error>> {
-        if width == 0 {
+    /// Returns a new BitCount with provided count as bit count. Returns an
+    /// error when the count is zero.
+    pub fn new(count: usize) -> Result<Self, Box<dyn error::Error>> {
+        if count == 0 {
             Err(Box::new(Error::InvalidArgument(
-                "width cannot be zero".to_string(),
+                "count cannot be zero".to_string(),
             )))
         } else {
-            Ok(BitCount(width))
+            Ok(BitCount(count))
         }
     }
 
-    /// Returns the width (bit count).
-    pub fn width(self) -> usize {
+    /// Returns the bit count.
+    pub fn bit_count(self) -> usize {
         self.0
     }
 }
@@ -70,9 +70,9 @@ impl BitCount {
 impl TryFrom<usize> for BitCount {
     type Error = Box<dyn error::Error>;
 
-    /// Returns a new BitCount when the provided width is greater than zero.
-    fn try_from(width: usize) -> Result<Self, Self::Error> {
-        BitCount::new(width)
+    /// Returns a new BitCount when the provided count is greater than zero.
+    fn try_from(count: usize) -> Result<Self, Self::Error> {
+        BitCount::new(count)
     }
 }
 
@@ -225,9 +225,9 @@ impl fmt::Display for Complexity {
     }
 }
 
-/// Type safe identifiers.
+/// Type safe field names.
 ///
-/// Newtype for valid identifiers used as [`Field`] names.
+/// Newtype for valid name used as [`Field`] names.
 /// - The name of each field is a string consisting of letters, numbers, and/or underscores.
 /// - The name cannot start or end with an underscore.
 /// - The name cannot start with a digit.
@@ -238,69 +238,74 @@ impl fmt::Display for Complexity {
 /// [`Field`]: ./struct.Field.html
 /// [Reference]: https://abs-tudelft.github.io/tydi/specification/physical.html#field-name
 #[derive(Debug, Clone, PartialEq)]
-pub struct Identifier(String);
+pub struct FieldName(String);
 
-impl Identifier {
-    /// Returns a new valid Identifier if the provided identifier is valid.
-    pub fn new(identifier: impl Into<String>) -> Result<Self, Box<dyn error::Error>> {
-        let identifier = identifier.into();
-        if identifier.is_empty() {
-            Err(Box::new(Error::InvalidIdentifier(
+impl FieldName {
+    /// Returns a new valid FieldName if the provided name is valid.
+    pub fn new(name: impl Into<String>) -> Result<Self, Box<dyn error::Error>> {
+        let name = name.into();
+        if name.is_empty() {
+            Err(Box::new(Error::InvalidArgument(
                 "cannot be empty".to_string(),
             )))
-        } else if identifier.chars().next().unwrap().is_ascii_digit() {
-            Err(Box::new(Error::InvalidIdentifier(
+        } else if name.chars().next().unwrap().is_ascii_digit() {
+            Err(Box::new(Error::InvalidArgument(
                 "cannot start with a digit".to_string(),
             )))
-        } else if identifier.starts_with('_') | identifier.ends_with('_') {
-            Err(Box::new(Error::InvalidIdentifier(
+        } else if name.starts_with('_') | name.ends_with('_') {
+            Err(Box::new(Error::InvalidArgument(
                 "cannot start or end with an underscore".to_string(),
             )))
-        } else if !identifier.chars().all(|c| c.is_ascii_alphanumeric()) {
-            Err(Box::new(Error::InvalidIdentifier(
+        } else if !name.chars().all(|c| c.is_ascii_alphanumeric()) {
+            Err(Box::new(Error::InvalidArgument(
                 "only letters, numbers and/or underscores are allowed".to_string(),
             )))
         } else {
-            Ok(Identifier(identifier))
+            Ok(FieldName(name))
         }
+    }
+
+    /// Returns the name.
+    pub fn name(&self) -> &str {
+        self.as_ref()
     }
 }
 
-impl fmt::Display for Identifier {
+impl fmt::Display for FieldName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl FromStr for Identifier {
+impl FromStr for FieldName {
     type Err = Box<dyn error::Error>;
 
-    /// Returns a new valid Identifier if the provided identifier is valid.
-    fn from_str(identifier: &str) -> Result<Self, Self::Err> {
-        Identifier::new(identifier)
+    /// Returns a new valid FieldName if the provided name is valid.
+    fn from_str(name: &str) -> Result<Self, Self::Err> {
+        FieldName::new(name)
     }
 }
 
-impl TryFrom<String> for Identifier {
+impl TryFrom<String> for FieldName {
     type Error = Box<dyn error::Error>;
 
-    /// Returns a new valid Identifier if the provided identifier is valid.
-    fn try_from(identifier: String) -> Result<Self, Self::Error> {
-        Identifier::new(identifier)
+    /// Returns a new valid FieldName if the provided name is valid.
+    fn try_from(name: String) -> Result<Self, Self::Error> {
+        FieldName::new(name)
     }
 }
 
-impl TryFrom<&str> for Identifier {
+impl TryFrom<&str> for FieldName {
     type Error = Box<dyn error::Error>;
 
-    /// Returns a new valid Identifier if the provided identifier is valid.
-    fn try_from(identifier: &str) -> Result<Self, Self::Error> {
-        Identifier::new(identifier)
+    /// Returns a new valid FieldName if the provided name is valid.
+    fn try_from(name: &str) -> Result<Self, Self::Error> {
+        FieldName::new(name)
     }
 }
 
-impl AsRef<str> for Identifier {
-    /// Returns a string slice to the identifier.
+impl AsRef<str> for FieldName {
+    /// Returns a string slice to the name.
     fn as_ref(&self) -> &str {
         self.0.as_ref()
     }
@@ -379,14 +384,13 @@ impl Fields {
     /// unique.
     pub fn new(fields: impl IntoIterator<Item = Field>) -> Result<Self, Box<dyn error::Error>> {
         let fields: Vec<Field> = fields.into_iter().collect();
-        if HashSet::<String>::from_iter(fields.iter().map(|f| f.identifier().to_ascii_lowercase()))
-            .len()
+        if HashSet::<String>::from_iter(fields.iter().map(|f| f.name().to_ascii_lowercase())).len()
             != fields.len()
         {
             Err(Box::new(Error::InvalidArgument(
-                    "field identifiers must be case-insensitively unique within the set of named fields"
-                        .to_string(),
-                )))
+                "field names must be case-insensitively unique within the set of named fields"
+                    .to_string(),
+            )))
         } else {
             Ok(Fields(fields))
         }
@@ -407,9 +411,9 @@ impl Fields {
         self.len() == 0
     }
 
-    /// Returns the combined width of the fields in this container.
-    pub fn width(&self) -> usize {
-        self.0.iter().map(Field::width).sum()
+    /// Returns the combined bit count of the fields in this container.
+    pub fn bit_count(&self) -> usize {
+        self.0.iter().map(Field::bit_count).sum()
     }
 }
 
@@ -445,7 +449,7 @@ impl TryFrom<Vec<Field>> for Fields {
 
 /// Element content of a physical stream.
 ///
-/// A field has an identifier (name) and a width (bit count).
+/// A field has a name and a bit count.
 ///
 /// [Reference]
 ///
@@ -453,15 +457,14 @@ impl TryFrom<Vec<Field>> for Fields {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
     /// The name of this field.
-    identifier: Identifier,
+    name: FieldName,
     /// The bit count of this field.
-    width: BitCount,
+    bit_count: BitCount,
 }
 
 impl Field {
-    /// Constructs a Field with provided identifier as name and width as bit
-    /// count. Returns an error when an invalid identifier is provided or when
-    /// the bit count is zero.
+    /// Constructs a Field with provided name and bit count. Returns an error
+    /// when an invalid name is provided or when the bit count is zero.
     ///
     /// # Examples
     ///
@@ -469,49 +472,49 @@ impl Field {
     /// use tydi::physical::Field;
     ///
     /// let field = Field::new("count", 8)?;
-    /// assert_eq!(field.width(), 8);
-    /// assert_eq!(field.identifier(), "count");
+    /// assert_eq!(field.bit_count(), 8);
+    /// assert_eq!(field.name(), "count");
     ///
-    /// // Invalid identifiers
+    /// // Invalid names
     /// assert_eq!(
     ///     Field::new("", 1).unwrap_err().to_string(),
-    ///     "Invalid identifier: cannot be empty"
+    ///     "Invalid argument: cannot be empty"
     /// );
     /// assert_eq!(
     ///     Field::new("1count", 1).unwrap_err().to_string(),
-    ///     "Invalid identifier: cannot start with a digit"
+    ///     "Invalid argument: cannot start with a digit"
     /// );
     /// assert_eq!(
     ///     Field::new("_count", 1).unwrap_err().to_string(),
-    ///     "Invalid identifier: cannot start or end with an underscore"
+    ///     "Invalid argument: cannot start or end with an underscore"
     /// );
     /// assert_eq!(
     ///     Field::new("count_", 1).unwrap_err().to_string(),
-    ///     "Invalid identifier: cannot start or end with an underscore"
+    ///     "Invalid argument: cannot start or end with an underscore"
     /// );
     /// assert_eq!(
     ///     Field::new("a!@#", 1).unwrap_err().to_string(),
-    ///     "Invalid identifier: only letters, numbers and/or underscores are allowed"
+    ///     "Invalid argument: only letters, numbers and/or underscores are allowed"
     /// );
     ///
     /// // Invalid arguments
     /// assert_eq!(
-    ///     Field::new("count", 0).unwrap_err().to_string(),
-    ///     "Invalid argument: width cannot be zero"
+    ///     Field::new("a", 0).unwrap_err().to_string(),
+    ///     "Invalid argument: count cannot be zero"
     /// );
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn new(
-        identifier: impl TryInto<Identifier, Error = Box<dyn error::Error>>,
-        width: impl TryInto<BitCount, Error = Box<dyn error::Error>>,
+        name: impl TryInto<FieldName, Error = Box<dyn error::Error>>,
+        bit_count: impl TryInto<BitCount, Error = Box<dyn error::Error>>,
     ) -> Result<Self, Box<dyn error::Error>> {
         Ok(Field {
-            identifier: identifier.try_into()?,
-            width: width.try_into()?,
+            name: name.try_into()?,
+            bit_count: bit_count.try_into()?,
         })
     }
 
-    /// Returns the identifier (name) of this field.
+    /// Returns the name of this field.
     ///
     /// # Examples
     ///
@@ -519,14 +522,14 @@ impl Field {
     /// use tydi::physical::Field;
     ///
     /// let field = Field::new("count", 8)?;
-    /// assert_eq!(field.identifier(), "count");
+    /// assert_eq!(field.name(), "count");
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn identifier(&self) -> &str {
-        self.identifier.as_ref()
+    pub fn name(&self) -> &str {
+        self.name.as_ref()
     }
 
-    /// Returns the width (bit count) of this field.
+    /// Returns the bit count of this field.
     ///
     /// # Examples
     ///
@@ -534,11 +537,11 @@ impl Field {
     /// use tydi::physical::Field;
     ///
     /// let field = Field::new("count", 8)?;
-    /// assert_eq!(field.width(), 8);
+    /// assert_eq!(field.bit_count(), 8);
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn width(&self) -> usize {
-        self.width.width()
+    pub fn bit_count(&self) -> usize {
+        self.bit_count.bit_count()
     }
 }
 
@@ -609,28 +612,28 @@ impl PhysicalStream {
         self.user.as_ref()
     }
 
-    /// Returns the combined width of all signals in this physical stream. This
-    /// excludes the `valid` and `ready` signals.
-    pub fn width(&self) -> usize {
-        self.signal_map().width().unwrap_or(0)
+    /// Returns the combined bit_count of all signals in this physical stream.
+    /// This excludes the `valid` and `ready` signals.
+    pub fn bit_count(&self) -> usize {
+        self.signal_map().bit_count().unwrap_or(0)
     }
 
-    /// Returns the width of the data (element) fields in this physical stream.
-    /// The width is equal to the combined width of all fields multiplied by
-    /// the number of lanes.
-    pub fn data_width(&self) -> usize {
-        self.fields.width() * self.lanes.lanes()
+    /// Returns the bit_count of the data (element) fields in this physical
+    /// stream. The bit_count is equal to the combined bit_count of all fields
+    /// multiplied by the number of lanes.
+    pub fn data_bit_count(&self) -> usize {
+        self.fields.bit_count() * self.lanes.lanes()
     }
 
     /// Returns the number of last bits in this physical stream. The number of
     /// last bits equals the dimensionality.
-    pub fn last_width(&self) -> usize {
+    pub fn last_bit_count(&self) -> usize {
         self.dimensionality
     }
 
     /// Returns the number of `stai` (start index) bits in this physical
     /// stream.
-    pub fn stai_width(&self) -> usize {
+    pub fn stai_bit_count(&self) -> usize {
         if self.complexity.major() >= 6 && self.lanes.lanes() > 1 {
             // ⌈log2N⌉
             // TODO(jvstraten): fix this
@@ -641,7 +644,7 @@ impl PhysicalStream {
     }
 
     /// Returns the number of `endi` (end index) bits in this physical stream.
-    pub fn endi_width(&self) -> usize {
+    pub fn endi_bit_count(&self) -> usize {
         if (self.complexity.major() >= 5 || self.dimensionality >= 1) && self.lanes.lanes() > 1 {
             // ⌈log2N⌉
             // TODO(jvstraten): fix this
@@ -652,7 +655,7 @@ impl PhysicalStream {
     }
 
     /// Returns the number of `strb` (strobe) bits in this physical stream.
-    pub fn strb_width(&self) -> usize {
+    pub fn strb_bit_count(&self) -> usize {
         if self.complexity.major() >= 7 || self.dimensionality >= 1 {
             self.lanes.lanes()
         } else {
@@ -660,21 +663,21 @@ impl PhysicalStream {
         }
     }
 
-    /// Returns the width of the user fields in this physical stream.
-    pub fn user_width(&self) -> usize {
-        self.user.width()
+    /// Returns the bit_count of the user fields in this physical stream.
+    pub fn user_bit_count(&self) -> usize {
+        self.user.bit_count()
     }
 
     /// Returns the signal map for this physical stream.
     pub fn signal_map(&self) -> SignalMap {
         let opt = |x| if x == 0 { None } else { Some(x) };
         SignalMap {
-            data: opt(self.data_width()),
-            last: opt(self.last_width()),
-            stai: opt(self.stai_width()),
-            endi: opt(self.endi_width()),
-            strb: opt(self.strb_width()),
-            user: opt(self.user_width()),
+            data: opt(self.data_bit_count()),
+            last: opt(self.last_bit_count()),
+            stai: opt(self.stai_bit_count()),
+            endi: opt(self.endi_bit_count()),
+            strb: opt(self.strb_bit_count()),
+            user: opt(self.user_bit_count()),
         }
     }
 }
@@ -712,38 +715,38 @@ pub struct SignalMap {
 }
 
 impl SignalMap {
-    /// Returns the width of the `data` signal.
+    /// Returns the bit count of the `data` signal.
     pub fn data(&self) -> Option<usize> {
         self.data
     }
 
-    /// Returns the width of the `last` signal.
+    /// Returns the bit count of the `last` signal.
     pub fn last(&self) -> Option<usize> {
         self.last
     }
 
-    /// Returns the width of the `stai` signal.
+    /// Returns the bit count of the `stai` signal.
     pub fn stai(&self) -> Option<usize> {
         self.stai
     }
 
-    /// Returns the width of the `endi` signal.
+    /// Returns the bit count of the `endi` signal.
     pub fn endi(&self) -> Option<usize> {
         self.endi
     }
 
-    /// Returns the width of the `strb` signal.
+    /// Returns the bit count of the `strb` signal.
     pub fn strb(&self) -> Option<usize> {
         self.strb
     }
 
-    /// Returns the width of the `user` signal.
+    /// Returns the bit count of the `user` signal.
     pub fn user(&self) -> Option<usize> {
         self.user
     }
 
-    /// Returns the width of all combined signals in this map.
-    pub fn width(&self) -> Option<usize> {
+    /// Returns the bit count of all combined signals in this map.
+    pub fn bit_count(&self) -> Option<usize> {
         match self.data.unwrap_or(0)
             + self.last.unwrap_or(0)
             + self.stai.unwrap_or(0)
@@ -765,12 +768,12 @@ mod tests {
     #[test]
     fn bit_count() -> Result<(), Box<dyn std::error::Error>> {
         let bit_count = BitCount::new(7)?;
-        assert_eq!(bit_count.width(), 7);
+        assert_eq!(bit_count.bit_count(), 7);
         assert_eq!(bit_count, BitCount::try_from(7)?);
 
         assert_eq!(
             BitCount::new(0).unwrap_err().to_string(),
-            "Invalid argument: width cannot be zero"
+            "Invalid argument: count cannot be zero"
         );
         Ok(())
     }
@@ -825,33 +828,33 @@ mod tests {
     #[test]
     fn field() -> Result<(), Box<dyn error::Error>> {
         let field = Field::new("count", 8)?;
-        assert_eq!(field.width(), 8);
-        assert_eq!(field.identifier(), "count");
+        assert_eq!(field.bit_count(), 8);
+        assert_eq!(field.name(), "count");
         assert_eq!(field, field);
 
         assert_eq!(
             Field::new("", 1).unwrap_err().to_string(),
-            "Invalid identifier: cannot be empty"
+            "Invalid argument: cannot be empty"
         );
         assert_eq!(
             Field::new("1count", 1).unwrap_err().to_string(),
-            "Invalid identifier: cannot start with a digit"
+            "Invalid argument: cannot start with a digit"
         );
         assert_eq!(
             Field::new("_count", 1).unwrap_err().to_string(),
-            "Invalid identifier: cannot start or end with an underscore"
+            "Invalid argument: cannot start or end with an underscore"
         );
         assert_eq!(
             Field::new("count_", 1).unwrap_err().to_string(),
-            "Invalid identifier: cannot start or end with an underscore"
+            "Invalid argument: cannot start or end with an underscore"
         );
         assert_eq!(
             Field::new("a!@#", 1).unwrap_err().to_string(),
-            "Invalid identifier: only letters, numbers and/or underscores are allowed"
+            "Invalid argument: only letters, numbers and/or underscores are allowed"
         );
         assert_eq!(
-            Field::new("count", 0).unwrap_err().to_string(),
-            "Invalid argument: width cannot be zero"
+            Field::new("a", 0).unwrap_err().to_string(),
+            "Invalid argument: count cannot be zero"
         );
         Ok(())
     }
@@ -864,58 +867,62 @@ mod tests {
 
         let fields = Fields::new(vec![Field::new("a", 3)?])?;
         assert_eq!(fields.len(), 1);
-        assert_eq!(fields.width(), 3);
+        assert_eq!(fields.bit_count(), 3);
         assert_eq!(Fields::try_from(vec![Field::new("a", 3)?])?, fields);
 
         let fields = Fields::new(vec![Field::new("a", 3)?, Field::new("b", 5)?])?;
         assert_eq!(fields.len(), 2);
-        assert_eq!(fields.width(), 8);
+        assert_eq!(fields.bit_count(), 8);
         assert_eq!(fields.iter().len(), 2);
         assert_eq!(fields.fields(), &[Field::new("a", 3)?, Field::new("b", 5)?]);
         assert_eq!(
-            fields.into_iter().map(|field| field.width()).sum::<usize>(),
-            fields.width()
+            fields
+                .into_iter()
+                .map(|field| field.bit_count())
+                .sum::<usize>(),
+            fields.bit_count()
         );
 
         let fields = Fields::new(vec![Field::new("a", 3)?, Field::new("a", 3)?]);
         assert_eq!(
             fields.unwrap_err().to_string(),
-            "Invalid argument: field identifiers must be case-insensitively unique within the set of named fields"
+            "Invalid argument: field names must be case-insensitively unique within the set of named fields"
         );
 
         Ok(())
     }
 
     #[test]
-    fn identifier() -> Result<(), Box<dyn error::Error>> {
-        assert_eq!("asdf", Identifier::from_str("asdf")?.as_ref());
+    fn field_name() -> Result<(), Box<dyn error::Error>> {
+        assert_eq!("asdf", FieldName::from_str("asdf")?.as_ref());
+        assert_eq!(FieldName::from_str("asdf")?.name(), "asdf");
         assert_eq!(
-            Identifier::try_from("asdf".to_string())?,
-            Identifier::try_from("asdf")?
+            FieldName::try_from("asdf".to_string())?,
+            FieldName::try_from("asdf")?
         );
-        let identifier = Identifier::new("asdf")?;
-        assert_eq!(identifier.to_string(), "asdf");
-        assert_eq!(identifier, identifier);
+        let field_name = FieldName::new("asdf")?;
+        assert_eq!(field_name.to_string(), "asdf");
+        assert_eq!(field_name, field_name);
 
         assert_eq!(
-            Identifier::new("",).unwrap_err().to_string(),
-            "Invalid identifier: cannot be empty"
+            FieldName::new("",).unwrap_err().to_string(),
+            "Invalid argument: cannot be empty"
         );
         assert_eq!(
-            Identifier::new("1count").unwrap_err().to_string(),
-            "Invalid identifier: cannot start with a digit"
+            FieldName::new("1count").unwrap_err().to_string(),
+            "Invalid argument: cannot start with a digit"
         );
         assert_eq!(
-            Identifier::new("_count").unwrap_err().to_string(),
-            "Invalid identifier: cannot start or end with an underscore"
+            FieldName::new("_count").unwrap_err().to_string(),
+            "Invalid argument: cannot start or end with an underscore"
         );
         assert_eq!(
-            Identifier::new("count_").unwrap_err().to_string(),
-            "Invalid identifier: cannot start or end with an underscore"
+            FieldName::new("count_").unwrap_err().to_string(),
+            "Invalid argument: cannot start or end with an underscore"
         );
         assert_eq!(
-            Identifier::new("a!@#").unwrap_err().to_string(),
-            "Invalid identifier: only letters, numbers and/or underscores are allowed"
+            FieldName::new("a!@#").unwrap_err().to_string(),
+            "Invalid argument: only letters, numbers and/or underscores are allowed"
         );
 
         Ok(())
@@ -962,13 +969,13 @@ mod tests {
         assert_eq!(physical_stream.dimensionality(), 4);
         assert_eq!(physical_stream.complexity(), &Complexity::new_major(8));
         assert_eq!(physical_stream.user(), &[Field::new("user", 1)?]);
-        assert_eq!(physical_stream.width(), 87);
-        assert_eq!(physical_stream.data_width(), (8 + 16 + 1) * 3);
-        assert_eq!(physical_stream.last_width(), 4);
-        assert_eq!(physical_stream.stai_width(), 2);
-        assert_eq!(physical_stream.endi_width(), 2);
-        assert_eq!(physical_stream.strb_width(), 3);
-        assert_eq!(physical_stream.user_width(), 1);
+        assert_eq!(physical_stream.bit_count(), 87);
+        assert_eq!(physical_stream.data_bit_count(), (8 + 16 + 1) * 3);
+        assert_eq!(physical_stream.last_bit_count(), 4);
+        assert_eq!(physical_stream.stai_bit_count(), 2);
+        assert_eq!(physical_stream.endi_bit_count(), 2);
+        assert_eq!(physical_stream.strb_bit_count(), 3);
+        assert_eq!(physical_stream.user_bit_count(), 1);
         assert_eq!(
             physical_stream.signal_map(),
             SignalMap {
@@ -988,13 +995,13 @@ mod tests {
         assert_eq!(physical_stream.dimensionality(), 0);
         assert_eq!(physical_stream.complexity(), &Complexity::new_major(0));
         assert_eq!(physical_stream.user(), &[]);
-        assert_eq!(physical_stream.width(), 8);
-        assert_eq!(physical_stream.data_width(), 8);
-        assert_eq!(physical_stream.last_width(), 0);
-        assert_eq!(physical_stream.stai_width(), 0);
-        assert_eq!(physical_stream.endi_width(), 0);
-        assert_eq!(physical_stream.strb_width(), 0);
-        assert_eq!(physical_stream.user_width(), 0);
+        assert_eq!(physical_stream.bit_count(), 8);
+        assert_eq!(physical_stream.data_bit_count(), 8);
+        assert_eq!(physical_stream.last_bit_count(), 0);
+        assert_eq!(physical_stream.stai_bit_count(), 0);
+        assert_eq!(physical_stream.endi_bit_count(), 0);
+        assert_eq!(physical_stream.strb_bit_count(), 0);
+        assert_eq!(physical_stream.user_bit_count(), 0);
         assert_eq!(
             physical_stream.signal_map(),
             SignalMap {
@@ -1021,22 +1028,41 @@ mod tests {
         )?;
 
         let signal_map = SignalMap::from(&physical_stream);
-        assert_eq!(physical_stream.width(), 17);
-        assert_eq!(physical_stream.data_width(), 2 * (3 + 2));
-        assert_eq!(physical_stream.last_width(), 3);
-        assert_eq!(physical_stream.stai_width(), 1);
-        assert_eq!(physical_stream.endi_width(), 1);
-        assert_eq!(physical_stream.strb_width(), 2);
-        assert_eq!(physical_stream.user_width(), 0);
+        assert_eq!(physical_stream.bit_count(), 17);
+        assert_eq!(physical_stream.data_bit_count(), 2 * (3 + 2));
+        assert_eq!(physical_stream.last_bit_count(), 3);
+        assert_eq!(physical_stream.stai_bit_count(), 1);
+        assert_eq!(physical_stream.endi_bit_count(), 1);
+        assert_eq!(physical_stream.strb_bit_count(), 2);
+        assert_eq!(physical_stream.user_bit_count(), 0);
 
-        assert_eq!(physical_stream.data_width(), signal_map.data().unwrap_or(0));
-        assert_eq!(physical_stream.last_width(), signal_map.last().unwrap_or(0));
-        assert_eq!(physical_stream.stai_width(), signal_map.stai().unwrap_or(0));
-        assert_eq!(physical_stream.endi_width(), signal_map.endi().unwrap_or(0));
-        assert_eq!(physical_stream.strb_width(), signal_map.strb().unwrap_or(0));
-        assert_eq!(physical_stream.user_width(), signal_map.user().unwrap_or(0));
+        assert_eq!(
+            physical_stream.data_bit_count(),
+            signal_map.data().unwrap_or(0)
+        );
+        assert_eq!(
+            physical_stream.last_bit_count(),
+            signal_map.last().unwrap_or(0)
+        );
+        assert_eq!(
+            physical_stream.stai_bit_count(),
+            signal_map.stai().unwrap_or(0)
+        );
+        assert_eq!(
+            physical_stream.endi_bit_count(),
+            signal_map.endi().unwrap_or(0)
+        );
+        assert_eq!(
+            physical_stream.strb_bit_count(),
+            signal_map.strb().unwrap_or(0)
+        );
+        assert_eq!(
+            physical_stream.user_bit_count(),
+            signal_map.user().unwrap_or(0)
+        );
 
-        assert_eq!(signal_map.width(), Some(17));
+        assert_eq!(signal_map.bit_count(), Some(17));
+        assert_eq!(signal_map, SignalMap::from(physical_stream));
         Ok(())
     }
 }
