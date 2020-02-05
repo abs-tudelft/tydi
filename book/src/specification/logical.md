@@ -1,3 +1,3 @@
-# Logical stream specification
+# Logical streams
 
 (under construction)

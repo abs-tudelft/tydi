@@ -5,7 +5,7 @@
 ---
 
 - [Introduction](./README.md)
-- [Specification](./specification/README.md)
+- [Tydi specification](./specification/README.md)
   - [Introduction](./specification/intro.md)
   - [Physical streams](./specification/physical.md)
   - [Logical streams](./specification/logical.md)

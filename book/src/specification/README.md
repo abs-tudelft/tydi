@@ -13,11 +13,19 @@ The specification is comprised of the following sections.
 
  - [Introduction](intro.md): defines the motivation and scope of this
    specification.
- - [Physical stream specification](physical.md): defines physical streams,
-   carrying a stream of data and dimensionality information.
- - [Logical stream specification](logical.md): defines the building blocks
-   for transferring complex data types by means of one or more physical
-   streams.
+
+ - [Physical stream specification](physical.md). **Physical streams** are
+   hardware streams with their own valid/ready handshaking interface,
+   transporting elementary data and dimensionality information. Their exact
+   bit-level representation and transfer behavior is defined through five
+   parameters. These parameters are normally derived from logical streams.
+
+ - [Logical stream specification](logical.md). **Logical streams** are bundles
+   of one or multiple physical streams of some type from the Tydi type system.
+   Types expressed in this type system determine which physical streams with
+   which parameters make up the logical stream. This section also introduces
+   **streamlets**, the Tydi name for components that have logical streams as
+   inputs and/or outputs.
 
 The two specification sections are written such that the first paragraph of
 each section *defines* a new concept, and the subsequent paragraphs *constrain*
