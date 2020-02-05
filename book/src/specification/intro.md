@@ -42,7 +42,8 @@ certain FPGA device family.
 
 This situation has given rise to a number of open-source projects that take
 higher-level languages and transform them to vendor-agnostic VHDL or Verilog.
-Examples of this are Chisel/FIRRTL and Clash, using generative Scala code and a
+Examples of this are [Chisel/FIRRTL](https://www.chisel-lang.org/) and
+[Clash](https://clash-lang.org/), using generative Scala code and a
 Haskell-like functional programming language as their respective inputs. Both
 tools come with their own standard libraries of hardware components that can be
 used to compose accelerators out of smaller primitives, similar to the data
@@ -53,9 +54,11 @@ With the advent of these data flow composition tools, it is increasingly
 important to have a common interface standard to allow the primitive blocks to
 connect to each other. The de-facto standard for this has become the AMBA AXI4
 interface, designed by ARM for their microcontrollers and processors. Roughly
-speaking, AXI4 specifies an interface for device-to-memory connections (AXI4
-and AXI4-lite), and a streaming interface (AXI4-stream) for intra-device
-connections.
+speaking, AXI4 specifies an interface for device-to-memory connections
+([AXI4 and AXI4-lite](https://static.docs.arm.com/ihi0022/d/IHI0022D_amba_axi_protocol_spec.pdf)),
+and a streaming interface
+([AXI4-stream](https://static.docs.arm.com/ihi0051/a/IHI0051A_amba4_axi4_stream_v1_0_protocol_spec.pdf))
+for intra-device connections.
 
 While AXI4 and AXI4-lite are of primary importance to processors due to their
 memory-oriented nature, AXI4-stream is much more important for FPGAs due to
@@ -87,17 +90,19 @@ representation to another for any communication between the two components.
 This serialization and deserialization overhead can and often does cost more
 CPU time than the execution of the algorithms themselves.
 
-The Apache Arrow project attempts to solve this problem by standardizing a way
-to represent this abstract data in memory, and providing libraries for popular
-programming languages to interact with this data format. The goal is to make
-transferring data between two processes as efficient as sharing a pool of
-Arrow-formatted memory between them. Arrow also specifies efficient ways of
-serializing Arrow data structures for (temporary) storage in files or streaming
-structures over a network, and can also be used by GPUs through CUDA. However,
-FPGA-based acceleration is at the time of writing missing from the core
-project. The Fletcher project attempts to bridge this gap, by providing an
-interface layer between the Arrow in-memory format and FPGA accelerators,
-presenting the memory to the accelerator in an abstract, tabular form.
+The [Apache Arrow](https://arrow.apache.org/) project attempts to solve this
+problem by standardizing a way to represent this abstract data in memory, and
+providing libraries for popular programming languages to interact with this
+data format. The goal is to make transferring data between two processes as
+efficient as sharing a pool of Arrow-formatted memory between them. Arrow also
+specifies efficient ways of serializing Arrow data structures for (temporary)
+storage in files or streaming structures over a network, and can also be used
+by GPUs through CUDA. However, FPGA-based acceleration is at the time of
+writing missing from the core project. The
+[Fletcher](https://github.com/abs-tudelft/fletcher) project attempts to bridge
+this gap, by providing an interface layer between the Arrow in-memory format
+and FPGA accelerators, presenting the memory to the accelerator in an abstract,
+tabular form.
 
 In order to represent the complex, nested data types supported by Arrow, the
 Fletcher project had to devise its own data streaming format on top of the
@@ -141,8 +146,10 @@ Non-goals
    NOT mean streaming over existing communication formats such as Ethernet, and
    certainly not over abstract streams such as POSIX pipes or other
    inter-process communication paradigms. If you're looking for the former,
-   have a look at Arrow Flight. The latter is part of Apache Arrow itself
-   through their IPC format specification.
+   have a look at
+   [Arrow Flight](https://arrow.apache.org/blog/2019/10/13/introducing-arrow-flight/).
+   The latter is part of Apache Arrow itself through their
+   [IPC format specification](https://arrow.apache.org/docs/ipc.html).
 
  - We do not intend to compete with the AXI4(-stream) specification.
    AXI4-stream is designed for streaming unstructured byte-oriented data;
