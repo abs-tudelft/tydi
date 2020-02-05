@@ -5,10 +5,10 @@
 ---
 
 - [Introduction](./README.md)
-- [Specification](./specification/README.md)
-  - [Physical stream](./specification/physical.md)
-  - [Logical stream](./specification/logical.md)
-  - [Streamlet](./specification/streamlet.md)
+- [Tydi specification](./specification/README.md)
+  - [Introduction](./specification/intro.md)
+  - [Physical streams](./specification/physical.md)
+  - [Logical streams](./specification/logical.md)
 - [Tools](./tools/README.md)
   - [Generators](./tools/generators.md)
   - [Compositors](./tools/compositors.md)
