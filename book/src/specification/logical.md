@@ -1,7 +1,7 @@
 Logical streams
 ===============
 
-A Tydi logical stream consists of a bundle of physical streams and an group of
+A Tydi logical stream consists of a bundle of physical streams and a group of
 unsynchronized signals, parameterized by way of a logical stream type. The
 logical stream type, in turn, represents some representation of an abstract
 data type (in the same way that for instance `std::vector` and `std::list` both
