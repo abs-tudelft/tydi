@@ -612,14 +612,14 @@ impl PhysicalStream {
         self.user.as_ref()
     }
 
-    /// Returns the combined bit_count of all signals in this physical stream.
+    /// Returns the combined bit count of all signals in this physical stream.
     /// This excludes the `valid` and `ready` signals.
     pub fn bit_count(&self) -> usize {
         self.signal_map().bit_count().unwrap_or(0)
     }
 
-    /// Returns the bit_count of the data (element) fields in this physical
-    /// stream. The bit_count is equal to the combined bit_count of all fields
+    /// Returns the bit count of the data (element) fields in this physical
+    /// stream. The bit count is equal to the combined bit count of all fields
     /// multiplied by the number of lanes.
     pub fn data_bit_count(&self) -> usize {
         self.fields.bit_count() * self.lanes.lanes()
@@ -663,7 +663,7 @@ impl PhysicalStream {
         }
     }
 
-    /// Returns the bit_count of the user fields in this physical stream.
+    /// Returns the bit count of the user fields in this physical stream.
     pub fn user_bit_count(&self) -> usize {
         self.user.bit_count()
     }
