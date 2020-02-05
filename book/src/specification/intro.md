@@ -125,7 +125,7 @@ Goals
     * structures such as tuples or records.
 
  - Doing the above in as broad of a way as possible, without imposing
-   unnecessary burdens on the development of simpler components.
+   unnecessary burdens on the development of simple components.
 
  - Allowing for minimization of area and complexity through well-defined
    contracts between source and sink on top of the signal specification itself.
