@@ -1,5 +1,5 @@
-Logical stream specification
-============================
+Logical streams
+===============
 
 A Tydi logical stream consists of a bundle of one or more physical streams
 and an group of unsynchronized signals, parameterized by way of a logical

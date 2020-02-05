@@ -1,5 +1,5 @@
-Physical stream specification
-=============================
+Physical streams
+================
 
 A Tydi physical stream carries a stream of elements, dimensionality information
 for said elements, and (optionally) user-defined transfer information from a

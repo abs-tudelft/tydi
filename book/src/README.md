@@ -5,33 +5,15 @@
 Tydi is an open-source project that aims to standardize interfaces for 
 hardware components used in modern streaming dataflow designs.
 
-The project consists of two parts: a set of *specifications* and a set of 
+The project consists of two parts: the Tydi specification and a set of 
 reference implementations of useful tools.
 
 ## Specification
 
-Tydi contains a set of three specifications for the following, related 
-concepts:
-
-1. [Physical streams](./specification/physical.md)
-2. [Logical streams](./specification/logical.md) (under construction)
-3. [Streamlets](./specification/streamlet.md) (under construction)
-
-**Physical streams** are hardware streams with their own valid/ready 
-handshaking interface, transporting elementary data. Their exact bit-level 
-representation and transfer behavior is defined through five parameters. 
-These parameters are derived from logical streams.
-
-**Logical streams** are one or multiple physical streams of some type from 
-the Tydi type system. Types expressed in this type system determine which 
-physical streams with which parameters make up the logical stream.
-
-**Streamlets** are components that have Tydi logical streams as input and 
-output.
-
-The Tydi type system for logical streams allows the expression of data types 
-that represent *dynamically-sized, nested and multidimensional data 
-structures* in hardware.
+The Tydi (Typed dataflow interface) specification is at the core of the
+project: it defines what an interface should look like and constrains its
+behavior, based on a constructively defined, low-level data type. Start
+reading [here](./specification/index.md).
 
 ## Tools
 
