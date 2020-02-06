@@ -44,8 +44,8 @@ defined as \\(\mathrm{Stream}(T_d, n, d, s, c, r, T_u)\\), where:
    > It represents the minimum number of elements that should be transferrable
    > on the child stream per element in the parent stream without the child
    > stream becoming the bottleneck. As we'll see later, the \\(N\\) parameter
-   > for the resulting physical stream equals \\(\prod n\\) for all ancestral
-   > \\(\textrm{Stream}\\) nodes, including this node.
+   > for the resulting physical stream equals \\(\left\lceil\prod n\right\rceil\\)
+   > for all ancestral \\(\textrm{Stream}\\) nodes, including this node.
 
  - \\(d\\) is a nonnegative integer;
 
@@ -237,8 +237,8 @@ This section defines the function
 where \\(T_{source}\\) and \\(T_{sink}\\) are both logical stream types. The
 function returns true if and only if a source of type \\(T_{source}\\) can be
 connected to a sink of type \\(T_{sink}\\) without insertion of conversion
-logic. The function returns true if and only if one of the following rules
-matches:
+logic. The function returns true if and only if one or more of the following
+rules match:
 
  - \\(T_{source} = T_{sink}\\);
 
@@ -267,25 +267,31 @@ Split function
 --------------
 
 This section defines the function
-\\(\mathrm{split}(T) \rightarrow (T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_n : T_n)\\),
-where all \\(T\\) are logical stream types, T_{signals} consist of only
-element-manipulating nodes, all T_{1..n} are \\(\textrm{Stream}\\)s consisting
-of only element-manipulating nodes, and all \\(N\\) are case-insensitively
+\\(\mathrm{split}(T_{in}) \rightarrow \textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_n : T_n)\\),
+where \\(T\\) is any logical stream types, T_{signals} is a logical stream type
+consisting of only element-manipulating nodes, all \\(T_{1..n}\\) are
+\\(\textrm{Stream}\\) nodes with the data and user subtypes consisting
+of only element-manipulating nodes, all \\(N\\) are case-insensitively
 unique, emptyable strings consisting of letters, numbers, and/or underscores,
-not starting or ending in an underscore, and not starting with a digit.
+not starting or ending in an underscore, and not starting with a digit, and
+\\(n\\) is a nonnegative integer.
 
 > Intuitively, it splits a logical stream type up into simplified stream types,
 > where \\(T_{signals}\\) contains only the information for the user-defined
 > signals, and \\(T_i\\) contains only the information for the physical stream
 > with index \\(i\\) and name \\(N_i\\).
+>
+> The names can be emptyable, because if there are no \\(Group\\)s or
+> \\(Union\\)s, the one existing stream or signal will not have an intrinsic
+> name given by the type. Note that the names here can include double
+> underscores.
 
-To evaluate the function, perform depth-first, preorder traversal over \\(T\\).
-For each node \\(T_{node}\\):
+\\(\mathrm{split}(T_{in})\\) is evaluated as follows.
 
- - if \\(T_{node} = \mathrm{Stream}(T_d, n, d, s, c, r, T_u)\\), apply the
+ - If \\(T_{in} = \mathrm{Stream}(T_d, n, d, s, c, r, T_u)\\), apply the
    following algorithm.
 
-    - \\(T_{data} := \mathrm{split}(T_{node})\_{signals}\\) (i.e., the
+    - \\(T_{data} := \mathrm{split}(T_{in})\_{signals}\\) (i.e., the
       \\(T_{signals}\\) item of the tuple returned by the \\(\mathrm{split}\\)
       function)
     - \\(T_{main} := \mathrm{Stream}(T_{data}, n, d, s, c, r, T_u)\\)
@@ -303,16 +309,16 @@ For each node \\(T_{node}\\):
           - \\(n' := n' \cdot n\\).
           - Append \\(\mathrm{Stream}(T'\_d, n', d', s', c', r', T'\_u)\\) to
             \\(T\\).
-    - Return \\((\textrm{Null}, \varnothing : T_{main} : T_1, N_2 : T_2, ..., N_m : T_m)\\).
+    - Return \\(\textrm{SplitStreams}(\textrm{Null}, \varnothing : T_{main} : T_1, N_2 : T_2, ..., N_m : T_m)\\).
 
- - if \\(T_{node} = \textrm{Null}\\) or \\(T_{node} = \textrm{Bits}(b)\\),
-   return \\((T_{node})\\);
+ - If \\(T_{in} = \textrm{Null}\\) or \\(T_{in} = \textrm{Bits}(b)\\),
+   return \\(\textrm{SplitStreams}(T_{in})\\).
 
- - if \\(T_{node} = \textrm{Group}(N_{g,1} : T_{g,1}, N_{g,2} : T_{g,2}, ..., N_{g,n} : T_{g,n})\\)
-   or \\(T_{node} = \textrm{Union}(N_{g,1} : T_{g,1}, N_{g,2} : T_{g,2}, ..., N_{g,n} : T_{g,n})\\),
+ - If \\(T_{in} = \textrm{Group}(N_{g,1} : T_{g,1}, N_{g,2} : T_{g,2}, ..., N_{g,n} : T_{g,n})\\)
+   or \\(T_{in} = \textrm{Union}(N_{g,1} : T_{g,1}, N_{g,2} : T_{g,2}, ..., N_{g,n} : T_{g,n})\\),
    apply the following algorithm.
 
-    - \\(T_{signals} := \mathrm{split}(T_{node})\_{signals}\\) (i.e., the
+    - \\(T_{signals} := \mathrm{split}(T_{in})\_{signals}\\) (i.e., the
       \\(T_{signals}\\) item of the tuple returned by the \\(\mathrm{split}\\)
       function)
     - Initialize \\(N\\) and \\(T\\) to empty lists.
@@ -325,7 +331,9 @@ For each node \\(T_{node}\\):
             to the end of \\(N\\), separated by a double underscore.
        - Extend \\(T\\) with \\(\mathrm{split}(T_{g,i})\_{streams}\\) (i.e.,
          all named streams returned by the \\(\mathrm{split}\\) function).
-    - Return \\((T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_m : T_m)\\).
+    - Return \\(\textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_m : T_m)\\).
+
+# VERY MUCH TODO BELOW THIS POINT
 
 Signals
 -------
