@@ -568,9 +568,13 @@ below must be driven for the omitted signals.
 
 ### Interface conventions
 
-When there are name conflicts (for instance due to multiple physical streams
-existing on the hierarchical level of an interface) the signal names must be
-prefixed by a unique stream name, delimited using an underscore.
+Streams may be named, in order to prevent name conflicts due to multiple
+streams existing within the same namespace. Such a name is to be prefixed to
+the signal names using a double underscore.
+
+> Double underscores are used as a form of unambiguous hierarchy separation to
+> allow user-specified field names in the logical stream types (defined later)
+> to contain (non-consecutive) underscores without risk of name conflicts.
 
 The canonical representation for the `data` and `user` signals is the LSB-first
 concatenation of the contained fields. For \\(N > 1\\), the lanes are
@@ -599,28 +603,28 @@ for interoperability with other streamlets on the "outer" interfaces of an IP
 block.
 
  - `valid`, `data`, `last`, `stai`, `endi`, `strb`, and `user` may be bundled
-   in an aggregate type named `<stream-name>_dn_type` with signal name
-   `<stream-name>_dn` (`dn` is short for "downstream").
+   in an aggregate type named `<stream-name>__dn__type` with signal name
+   `<stream-name>__dn` (`dn` is short for "downstream").
 
- - `ready` may be "bundled" in an aggregate type named `<stream-name>_up_type`
-   with signal name `<stream-name>_up` for symmetry (`up` is short for
-   "upstream").
+ - `ready` may be "bundled" in an aggregate type named
+   `<stream-name>__up__type` with signal name `<stream-name>__up` for symmetry
+   (`up` is short for "upstream").
 
  - If the language allows for signal direction reversal within a bundle, all
    stream signals may also be bundled into a single type named
-   `<stream-name>_type`, with `ready` in the reverse direction.
+   `<stream-name>__type`, with `ready` in the reverse direction.
 
  - The data and user fields may be bundled in aggregate types named
-   `<stream-name>_data_type` and `<stream-name>_user_type` respectively. The
-   `data` signal becomes an array of `<stream-name>_data_type`s from 0 to
+   `<stream-name>__data__type` and `<stream-name>__user__type` respectively.
+   The `data` signal becomes an array of `<stream-name>__data__type`s from 0 to
    \\(N - 1\\) if \\(N > 1\\) or when otherwise desirable.
 
  - Data and user fields consisting of a single bit may be interpreted as either
    a bit vector of size one or a scalar bit depending on context.
 
- - Fields with a common underscore-delimited prefix may be aggregated
-   recursively using `<stream-name>_data_<common-prefix>_type`, in such a
-   way that the underscores in the canonical signal name are essentially
+ - Fields with a common double-underscore-delimited prefix may be aggregated
+   recursively using `<stream-name>__data__<common-prefix>__type`, in such a
+   way that the double underscores in the canonical signal name are essentially
    replaced with the hierarchy separator of the hardware definition language.
 
 #### Arrays, vectors, and concatenations

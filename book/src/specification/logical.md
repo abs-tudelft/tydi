@@ -175,6 +175,14 @@ defined as \\(\mathrm{Group}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\), where:
 > instances of *all* the contained types. This corresponds to a `struct` or
 > `record` in most programming languages.
 
+The names cannot contain two or more consecutive underscores.
+
+> Double underscores are used by Tydi as a hierarchy separator when flattening
+> structures for the canonical representation. If not for the above rule,
+> something of the form
+> \\(\textrm{Group}(\textrm{'a'}:\textrm{Group}(\textrm{'b__c'}:...),\textrm{'a__b'}:\textrm{Group}(\textrm{'c'}:...))\\)
+> would result in a name conflict: both signals would be named `a__b__c`.
+
 The names cannot start or end with an underscore.
 
 The names cannot start with a digit.
@@ -201,6 +209,14 @@ is defined as \\(\mathrm{Union}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\), where:
 > field that instance belongs to. This corresponds to a `union` or `enum` in
 > most programming languages. Mathematically, Tydi unions represent tagged
 > unions.
+
+The names cannot contain two or more consecutive underscores.
+
+> Double underscores are used by Tydi as a hierarchy separator when flattening
+> structures for the canonical representation. If not for the above rule,
+> something of the form
+> \\(\textrm{Union}(\textrm{'a'}:\textrm{Union}(\textrm{'b__c'}:\textrm{Stream}...),\textrm{'a__b'}:\textrm{Union}(\textrm{'c'}:\textrm{Stream}...))\\)
+> would result in a name conflict: both physical streams would be named `a__b__c`.
 
 The names cannot start or end with an underscore.
 
@@ -306,7 +322,7 @@ For each node \\(T_{node}\\):
           - If \\(\textrm{name} = \varnothing\\), append \\(N_{g,i}\\) to the end
             of \\(N\\).
           - Otherwise, append the concatenation \\(N_{g,i}\\) and \\(\textrm{name}\\)
-            to the end of \\(N\\), separated by an underscore.
+            to the end of \\(N\\), separated by a double underscore.
        - Extend \\(T\\) with \\(\mathrm{split}(T_{g,i})\_{streams}\\) (i.e.,
          all named streams returned by the \\(\mathrm{split}\\) function).
     - Return \\((T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_m : T_m)\\).
