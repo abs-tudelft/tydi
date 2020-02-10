@@ -549,8 +549,8 @@ Field conversion function
 
 This section defines the function
 \\(\mathrm{fields}(T_{in}) \rightarrow \textrm{Fields}(N_1 : b_1, N_2 : b_2, ..., N_n : b_n)\\),
-where \\(T_{in}\\) is any logical stream type, and the \textrm{Fields} node is
-as defined in the physical stream specification.
+where \\(T_{in}\\) is any logical stream type, and the \\(\textrm{Fields}\\)
+node is as defined in the physical stream specification.
 
 > Intuitively, this function flattens a logical stream type consisting of
 > \\(\textrm{Null}\\), \\(\textrm{Bits}\\), \\(\textrm{Group}\\) and
