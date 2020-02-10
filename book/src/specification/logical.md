@@ -17,115 +17,118 @@ specification consists of the formal definitions of the structures needed to
 describe a Tydi stream, and operations thereupon. The resulting constraints on
 the signal lists and behavior of the signals are then described based on these.
 
-Logical stream type structure
------------------------------
+Logical stream type
+-------------------
 
-The logical stream type is defined recursively by means of the nodes. Two
-classes of nodes are defined: stream-manipulating nodes, and
+This structure is at the heart of the logical stream specification. It is used
+both to specify the type of a logical stream and internally for the process of
+lowering the recursive structure down to physical streams and signals.
+
+### Structure
+
+The logical stream type is defined recursively by means of a number of node
+types. Two classes of nodes are defined: stream-manipulating nodes, and
 element-manipulating nodes. Only one stream-manipulating node exists
-(\\(\mathrm{Stream}\\)), which is defined in the first subsection. The
+(\\(\textrm{Stream}\\)), which is defined in the first subsection. The
 remainder of the subsections describe the element-manipulating nodes.
 
-### Stream
+#### Stream
 
-The \\(\mathrm{Stream}\\) node is used to define a new physical stream. It is
-defined as \\(\mathrm{Stream}(T_d, n, d, s, c, r, T_u, x)\\), where:
+The \\(\textrm{Stream}\\) node is used to define a new physical stream. It is
+defined as \\(\textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\), where:
 
- - \\(T_d\\) is any logical stream type;
+ - \\(T_e\\) is any logical stream type, representing the type of element
+   carried by the logical stream;
 
-   > It represents the data type carried by the logical stream. This may
-   > include additional \\(\textrm{Stream}\\) nodes to handle cases such as
-   > structures containing sequences, handled in Tydi by transferring the
-   > two different dimensions over two different physical streams, as well as
-   > to encode request-response patterns.
+   > This may include additional \\(\textrm{Stream}\\) nodes to handle cases
+   > such as structures containing sequences, handled in Tydi by transferring
+   > the two different dimensions over two different physical streams, as well
+   > as to encode request-response patterns.
 
- - \\(n\\) is a positive real number;
+ - \\(n\\) is a positive real number, representing the minimum number of
+   elements that should be transferrable on the child stream per element in the
+   parent stream without the child stream becoming the bottleneck;
 
-   > It represents the minimum number of elements that should be transferrable
-   > on the child stream per element in the parent stream without the child
-   > stream becoming the bottleneck. As we'll see later, the \\(N\\) parameter
-   > for the resulting physical stream equals \\(\left\lceil\prod n\right\rceil\\)
-   > for all ancestral \\(\textrm{Stream}\\) nodes, including this node.
+   > As we'll see later, the \\(N\\) parameter for the resulting physical
+   > stream equals \\(\left\lceil\prod n\right\rceil\\) for all ancestral
+   > \\(\textrm{Stream}\\) nodes, including this node.
 
- - \\(d\\) is a nonnegative integer;
+ - \\(d\\) is a nonnegative integer, representing the dimensionality of the
+   child stream with respect to the parent stream;
 
-   > It represents the dimensionality of the child stream with respect to the
-   > parent stream. As we'll see later, the \\(D\\) parameter for the resulting
-   > physical stream equals \\(\sum d\\) for all ancestral
+   > As we'll see later, the \\(D\\) parameter for the resulting physical
+   > stream equals \\(\sum d\\) for all ancestral
    > \\(\textrm{Stream}\\) nodes, including this node, up to and including the
-   > closest ancestor (or self) for which \\(s = \mathrm{Flatten}\\).
+   > closest ancestor (or self) for which \\(s = \textrm{Flatten}\\).
 
- - \\(s\\) must be one of \\(\mathrm{Sync}\\), \\(\mathrm{Flatten}\\),
-   \\(\mathrm{Desync}\\), or \\(\mathrm{FlatDesync}\\);
+ - \\(s\\) must be one of \\(\textrm{Sync}\\), \\(\textrm{Flatten}\\),
+   \\(\textrm{Desync}\\), or \\(\textrm{FlatDesync}\\), representing the
+   relation between the dimensionality information of the parent stream and the
+   child stream;
 
-   > This parameter specifies the relation between the dimensionality
-   > information of the parent stream and the child stream. The most common
-   > relation is \\(\mathrm{Sync}\\), which enforces that for each element in
-   > the parent stream, there must be one \\(d\\)-dimensional sequence in the
-   > child stream (if \\(d\\) is 0, that just means one element). Furthermore,
-   > it means that the `last` flags from the parent stream are repeated in the
-   > child stream.  This repetition is technically redundant; since the sink
-   > will have access to both streams, it only needs this information once to
-   > decode the data.
+   > The most common relation is \\(\textrm{Sync}\\), which enforces that for
+   > each element in the parent stream, there must be one \\(d\\)-dimensional
+   > sequence in the child stream (if \\(d\\) is 0, that just means one
+   > element). Furthermore, it means that the `last` flags from the parent
+   > stream are repeated in the child stream.  This repetition is technically
+   > redundant; since the sink will have access to both streams, it only needs
+   > this information once to decode the data.
    >
    > If this redundant repetition is not necessary for the sink or hard to
-   > generate for a source, \\(\mathrm{Flatten}\\) may be used instead. It is
+   > generate for a source, \\(\textrm{Flatten}\\) may be used instead. It is
    > defined in the same way, except the redundant information is not repeated
    > for the child stream.
    >
    > Consider for example the data `[(1, [2, 3]), (4, [5])], [(6, [7])]`. If
-   > encoded as \\(\mathrm{Stream}(d=1, T_d=\textrm{Group}(\textrm{Bits}(8), \mathrm{Stream}(d=1, s=\mathrm{Sync}, ...)), ...)\\),
+   > encoded as \\(\textrm{Stream}(d=1, T_e=\textrm{Group}(\textrm{Bits}(8), \textrm{Stream}(d=1, s=\textrm{Sync}, ...)), ...)\\),
    > the first physical stream will transfer `[1, 4], [6]`, and the second
    > physical stream will transfer `[[2, 3], [5]], [[7]]`. If
-   > \\(\mathrm{Flatten}\\) is used for the inner \\(\textrm{Stream}\\)
+   > \\(\textrm{Flatten}\\) is used for the inner \\(\textrm{Stream}\\)
    > instead, the data transferred by the second physical stream reduces to
    > `[2, 3], [5], [7]`; the structure of the outer sequence is implied by the
    > structure transferred by the first physical stream.
    >
-   > \\(\mathrm{Desync}\\) may be used if the relation between the elements in
+   > \\(\textrm{Desync}\\) may be used if the relation between the elements in
    > the child and parent stream is dependent on context rather than the `last`
    > flags in either stream. For example, for the type
-   > \\(\mathrm{Stream}(d=1, T_d=\textrm{Group}(\textrm{Bits}(8), \mathrm{Stream}(s=\mathrm{Desync}, ...)), ...)\\),
+   > \\(\textrm{Stream}(d=1, T_e=\textrm{Group}(\textrm{Bits}(8), \textrm{Stream}(s=\textrm{Desync}, ...)), ...)\\),
    > if the first stream carries `[1, 4], [6]` as before, the child stream may
    > carry anything of the form `[...], [...]`. That is, the dimensionality
    > information (if any) must still match, but the number of elements in the
    > innermost sequence is unrelated or only related by some user-defined
    > context.
    >
-   > \\(\mathrm{FlatDesync}\\), finally, does the same thing as
-   > \\(\mathrm{Desync}\\), but also strips the dimensionality information from
+   > \\(\textrm{FlatDesync}\\), finally, does the same thing as
+   > \\(\textrm{Desync}\\), but also strips the dimensionality information from
    > the parent. This means there the relation between the two streams, if any,
    > is fully user-defined.
 
  - \\(c\\) is a complexity number, as defined in the physical stream
-   specification;
+   specification, representing the complexity for the corresponding physical
+   stream interface;
 
-   > It specifies the complexity for the corresponding physical stream.
+ - \\(r\\) must be one of \\(\textrm{Forward}\\) or \\(\textrm{Reverse}\\),
+   representing the direction of the child stream with respect to the parent
+   stream, or if there is no parent stream, with respect to the direction of
+   the logical stream (source to sink);
 
- - \\(r\\) must be one of \\(\mathrm{Forward}\\) or \\(\mathrm{Reverse}\\);
-
-   > It specifies the direction of the child stream with respect to the parent
-   > stream, or if there is no parent stream, with respect to the natural
-   > direction of the logical stream (source to sink). \\(\mathrm{Forward}\\)
-   > indicates that the child stream flows in the same direction as its parent,
-   > complementing the data of its parent in some way. Conversely,
-   > \\(\mathrm{Reverse}\\) indicates that the child stream acts as a response
-   > channel for the parent stream.
+   > \\(\textrm{Forward}\\) indicates that the child stream flows in the same
+   > direction as its parent, complementing the data of its parent in some way.
+   > Conversely, \\(\textrm{Reverse}\\) indicates that the child stream acts as
+   > a response channel for the parent stream.
 
  - \\(T_u\\) is a logical stream type consisting of only element-manipulating
-   nodes.
+   nodes, representing the `user` signals of the physical stream; that is,
+   transfer-oriented data (versus element-oriented data); and
 
-   > It represents the `user` signals of the physical stream; that is,
-   > transfer-oriented data (versus element-oriented data).
-   >
    > Note that while \\(T_u\\) is called a "logical stream type" for
    > consistency, the \\(\textrm{Stream}\\) node being illegal implies that no
    > additional streams can be specified within this type.
 
- - \\(x\\) is a boolean.
+ - \\(x\\) is a boolean, representing whether the stream carries "extra"
+   information beyond the `data` and `user` signal payloads.
 
-   > It specifies whether the stream carries "extra" information beyond the
-   > `data` and `user` signal payloads. \\(x\\) is normally false, which
+   > \\(x\\) is normally false, which
    > implies that the \\(\textrm{Stream}\\) node will not result in a physical
    > stream if both its `data` and `user` signals would be empty according to
    > the rest of this specification; it is effectively optimized away. Setting
@@ -135,61 +138,47 @@ defined as \\(\mathrm{Stream}(T_d, n, d, s, c, r, T_u, x)\\), where:
    > type is recursively generated by tooling outside the scope of this layer
    > of the specification. It arises for instance for nested lists, which may
    > result in something of the form
-   > \\(\textrm{Stream}(d=1, T_d=\textrm{Stream}(d=1, s=\textrm{Sync}, T_d=...))\\).
+   > \\(\textrm{Stream}(d=1, T_e=\textrm{Stream}(d=1, s=\textrm{Sync}, T_e=...))\\).
    > The outer stream is not necessary here; all the dimensionality information
    > is carried by the inner stream.
    >
    > It could be argued that the above example should be reduced to
-   > \\(\textrm{Stream}(d=2, s=\textrm{Sync}, T_d=...)\\) by said external
+   > \\(\textrm{Stream}(d=2, s=\textrm{Sync}, T_e=...)\\) by said external
    > tool. Indeed, this description is equivalent. This reduction is however
    > very difficult to define or specify in a way that it handles all cases
    > intuitively, hence this more pragmatic solution was chosen.
 
-> The function is applied to the data type of \\(\textrm{Stream}\\) nodes by
-> \\(\textrm{Split}()\\) to determine whether the \\(\textrm{Stream}\\) node
-> carries information, or only serves to augment the contained streams. For
-> instance, \\(\textrm{Stream}(d=1, T_d=\textrm{Stream}(d=1, T_d=...)\\)
-> is likely to result from constructing the type for two nested lists, but the
-> inner stream carries all the required information, so the outer stream can
-> be removed.
->
-> A stream is said to carry significant data if it has a non-empty `data` or
-> `user` signal, if its data type contains a \\(\textrm{Null}\\) that is not
-> also a descendent of a descendent \\(\textrm{Stream}\\) node, or if its
-
-
-
-> As the \\(\mathrm{Stream}\\) node carries many parameters and can therefore
+> As the \\(\textrm{Stream}\\) node carries many parameters and can therefore
 > be hard to read, some abbreviations are in order:
 > 
->  - \\(\mathrm{Dim}(T_d, n, c, T_u) \ \rightarrow\ \mathrm{Stream}(T_d, n, 1, \mathrm{Sync},    c, \mathrm{Forward}, T_u, 0)\\)
->  - \\(\mathrm{New}(T_d, n, c, T_u) \ \rightarrow\ \mathrm{Stream}(T_d, n, 0, \mathrm{Sync},    c, \mathrm{Forward}, T_u, 0)\\)
->  - \\(\mathrm{Des}(T_d, n, c, T_u) \ \rightarrow\ \mathrm{Stream}(T_d, n, 0, \mathrm{Desync},  c, \mathrm{Forward}, T_u, 0)\\)
->  - \\(\mathrm{Flat}(T_d, n, c, T_u)\ \rightarrow\ \mathrm{Stream}(T_d, n, 0, \mathrm{Flatten}, c, \mathrm{Forward}, T_u, 0)\\)
->  - \\(\mathrm{Rev}(T_d, n, c, T_u) \ \rightarrow\ \mathrm{Stream}(T_d, n, 0, \mathrm{Sync},    c, \mathrm{Reverse}, T_u, 0)\\)
+>  - \\(\textrm{Dim}(T_e, n, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, n, 1, \textrm{Sync},    c, \textrm{Forward}, T_u, \textrm{false})\\)
+>  - \\(\textrm{New}(T_e, n, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, n, 0, \textrm{Sync},    c, \textrm{Forward}, T_u, \textrm{false})\\)
+>  - \\(\textrm{Des}(T_e, n, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, n, 0, \textrm{Desync},  c, \textrm{Forward}, T_u, \textrm{false})\\)
+>  - \\(\textrm{Flat}(T_e, n, c, T_u)\ \rightarrow\ \textrm{Stream}(T_e, n, 0, \textrm{Flatten}, c, \textrm{Forward}, T_u, \textrm{false})\\)
+>  - \\(\textrm{Rev}(T_e, n, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, n, 0, \textrm{Sync},    c, \textrm{Reverse}, T_u, \textrm{false})\\)
 > 
 > For the above abbreviations, the following defaults apply in addition:
 > 
->  - \\(T_u = \mathrm{Null}\\);
+>  - \\(T_u = \textrm{Null}\\);
 >  - \\(c =\\) complexity of parent stream (cannot be omitted if there is no
 >    parent);
 >  - \\(n = 1\\).
 
-### Null
+#### Null
 
-The \\(\mathrm{Null}\\) leaf node indicates the transferrence of one-valued
+The \\(\textrm{Null}\\) leaf node indicates the transferrence of one-valued
 data: it is only valid value is \\(\varnothing\\) (null).
 
-> This is useful primarily when used within a \\(\mathrm{Union}\\), where the
-> data type itself carries information. Furthermore, \\(\mathrm{Stream}\\)
-> nodes carrying a \\(\mathrm{Null}\\) will always result in a physical stream
-> (whereas \\(\mathrm{Stream}\\) nodes carrying only other streams will be
+> This is useful primarily when used within a \\(\textrm{Union}\\), where the
+> data type itself carries information. Furthermore, \\(\textrm{Stream}\\)
+> nodes carrying a \\(\textrm{Null}\\) will always result in a physical stream
+> (whereas \\(\textrm{Stream}\\) nodes carrying only other streams will be
 > "optimized out"), which may still carry dimensionality information, user
 > data, or even just transfer timing information.
 
-### Bits
+#### Bits
 
-The \\(\mathrm{Bits}\\) leaf node, defined as \\(\mathrm{Bits}(b)\\) indicates
+The \\(\textrm{Bits}\\) leaf node, defined as \\(\textrm{Bits}(b)\\), indicates
 the transferrence of \\(2^b\\)-valued data carried by means of a group of
 \\(b\\) bits, where \\(b\\) is a positive integer.
 
@@ -200,15 +189,15 @@ the transferrence of \\(2^b\\)-valued data carried by means of a group of
 
 ### Group
 
-The \\(\mathrm{Group}\\) node acts as a product type for composition. It is
-defined as \\(\mathrm{Group}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\), where:
+The \\(\textrm{Group}\\) node acts as a product type for composition. It is
+defined as \\(\textrm{Group}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\), where:
 
  - \\(N_i\\) is a string consisting of letters, numbers, and/or underscores,
    representing the name of the \\(i\\)th field;
  - \\(T_i\\) is the logical stream type for the \\(i\\)th field;
  - \\(n\\) is a nonnegative integer, representing the number of fields.
 
-> Intuitively, each instance of type \\(\mathrm{Group}(...)\\) consists of
+> Intuitively, each instance of type \\(\textrm{Group}(...)\\) consists of
 > instances of *all* the contained types. This corresponds to a `struct` or
 > `record` in most programming languages.
 
@@ -231,17 +220,17 @@ The names must be case-insensitively unique within the group.
 > The above requirements on the name mirror the requirements on the field names
 > for the physical streams.
 
-### Union
+#### Union
 
-The \\(\mathrm{Union}\\) node acts as a sum type for exclusive disjunction. It
-is defined as \\(\mathrm{Union}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\), where:
+The \\(\textrm{Union}\\) node acts as a sum type for exclusive disjunction. It
+is defined as \\(\textrm{Union}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\), where:
 
  - \\(N_i\\) is a string consisting of letters, numbers, and/or underscores,
    representing the name of the \\(i\\)th field;
  - \\(T_i\\) is the logical stream type for the \\(i\\)th field;
  - \\(n\\) is a positive integer, representing the number of fields.
 
-> Intuitively, each instance of type \\(\mathrm{Union}(...)\\) consists of
+> Intuitively, each instance of type \\(\textrm{Union}(...)\\) consists of
 > an instance of *one* the contained types, as well as a tag indicating which
 > field that instance belongs to. This corresponds to a `union` or `enum` in
 > most programming languages. Mathematically, Tydi unions represent tagged
@@ -266,7 +255,7 @@ The names must be case-insensitively unique within the group.
 > The above requirements on the name mirror the requirements on the field names
 > for the physical streams.
 
-#### Semantics
+##### Semantics
 
 When flattened into fields, a \\(\textrm{Union}\\) node consists of:
 
@@ -299,9 +288,9 @@ stream as defined by the \\(s\\) parameter of the child stream.
 > Consider the following example, keeping \\(x\\) generic for now:
 >
 > \\[B = \textrm{Group}(x: \textrm{Bits}(2), y: \textrm{Bits}(2))\\\\
-> C = \textrm{Stream}(d=1, s=x, T_d=\textrm{Bits}(4))\\\\
+> C = \textrm{Stream}(d=1, s=x, T_e=\textrm{Bits}(4))\\\\
 > U = \textrm{Union}(\textrm{a} : \textrm{Bits}(3), \textrm{b} : \textrm{Bits}(3), \textrm{c} : C)\\\\
-> \textrm{Stream}(d=1, T_d=U)\\]
+> \textrm{Stream}(d=1, T_e=U)\\]
 >
 > This results in two physical streams:
 >
@@ -388,66 +377,36 @@ stream as defined by the \\(s\\) parameter of the child stream.
 > would be used, in which case the length of the encoded inner sequence would
 > be transferred using the `union` field of the parent stream.
 
-Type compatibility function
----------------------------
+### Operations on logical stream
+
+This section defines some operations that may be performed on logical stream
+types, most importantly the \\(\textrm{synthesize}()\\) function, which returns
+the signals and physical streams for a given type.
+
+#### Null detection function
 
 This section defines the function
-\\(\mathrm{compatible}(T_{source}, T_{sink}) \rightarrow \textrm{Bool}\\),
-where \\(T_{source}\\) and \\(T_{sink}\\) are both logical stream types. The
-function returns true if and only if a source of type \\(T_{source}\\) can be
-connected to a sink of type \\(T_{sink}\\) without insertion of conversion
-logic. The function returns true if and only if one or more of the following
-rules match:
-
- - \\(T_{source} = T_{sink}\\);
-
- - \\(T_{source} = \mathrm{Stream}(T_d, n, d, s, c, r, T_u, x)\\),
-   \\(T_{sink} = \mathrm{Stream}(T'_d, n, d, s, c', r, T_u, x)\\),
-   \\(\mathrm{compatible}(T_d, T'_d) = \textrm{true}\\), and \\(c < c'\\);
-
- - \\(T_{source} = \mathrm{Group}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\),
-   \\(T_{sink} = \mathrm{Group}(N_1: T'_1, N_2: T'_2, ..., N_n: T'_n)\\),
-   and \\(\mathrm{compatible}(T_i, T'_i)\\) is true for all
-   \\(i \in (1, 2, ..., n)\\); or
-
- - \\(T_{source} = \mathrm{Union}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\),
-   \\(T_{sink} = \mathrm{Union}(N_1: T'_1, N_2: T'_2, ..., N_n: T'_n)\\),
-   and \\(\mathrm{compatible}(T_i, T'_i)\\) is true for all
-   \\(i \in (1, 2, ..., n)\\).
-
-The name matching is to be done case sensitively.
-
-> While two streams may be compatible in a case-insensitive language when only
-> the case of one or more of the names differ, this would still not hold for
-> case-sensitive languages. Therefore, for two streams to be compatible in all
-> cases, the matching must be case sensitive.
-
-Null detection function
------------------------
-
-This section defines the function
-\\(\mathrm{isNull}(T_{in}) \rightarrow \textrm{Bool}\\), which returns
+\\(\textrm{isNull}(T_{in}) \rightarrow \textrm{Bool}\\), which returns
 true if and only if \\(T_{in}\\) does not result in any signals.
 
 The function returns true if and only if one or more of the following
 rules match:
 
- - \\(T_{in} = \mathrm{Stream}(T_d, n, d, s, c, r, T_u, x)\\),
-   \\(\mathrm{isNull}(T_d)\\) is true, \\(\mathrm{isNull}(T_u)\\) is true,
+ - \\(T_{in} = \textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\),
+   \\(\textrm{isNull}(T_e)\\) is true, \\(\textrm{isNull}(T_u)\\) is true,
    and \\(x\\) is false;
 
- - \\(T_{in} = \mathrm{Null}\\);
+ - \\(T_{in} = \textrm{Null}\\);
 
- - \\(T_{source} = \mathrm{Group}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\) and
-   \\(\mathrm{isNull}(T_i)\\) is true for all \\(i \in (1, 2, ..., n)\\); or
+ - \\(T_{source} = \textrm{Group}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\) and
+   \\(\textrm{isNull}(T_i)\\) is true for all \\(i \in (1, 2, ..., n)\\); or
 
- - \\(T_{source} = \mathrm{Union}(N: T)\\) and \\(\mathrm{isNull}(T)\\) is true.
+ - \\(T_{source} = \textrm{Union}(N: T)\\) and \\(\textrm{isNull}(T)\\) is true.
 
-Split function
---------------
+#### Split function
 
 This section defines the function
-\\(\mathrm{split}(T_{in}) \rightarrow \textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_n : T_n)\\),
+\\(\textrm{split}(T_{in}) \rightarrow \textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_n : T_n)\\),
 where \\(T_{in}\\) is any logical stream type, \\(T_{signals}\\) is a logical
 stream type consisting of only element-manipulating nodes, all \\(T_{1..n}\\)
 are \\(\textrm{Stream}\\) nodes with the data and user subtypes consisting
@@ -466,25 +425,25 @@ not starting or ending in an underscore, and not starting with a digit, and
 > the type. Empty strings are represented here with \\(\varnothing\\). Note
 > that the names here can include double underscores.
 
-\\(\mathrm{split}(T_{in})\\) is evaluated as follows.
+\\(\textrm{split}(T_{in})\\) is evaluated as follows.
 
- - If \\(T_{in} = \mathrm{Stream}(T_d, n, d, s, c, r, T_u, x)\\), apply the
+ - If \\(T_{in} = \textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\), apply the
    following algorithm.
 
     - Initialize \\(N\\) and \\(T\\) to empty lists.
-    - \\(T_{data} := \mathrm{split}(T_d)\_{signals}\\) (i.e., the
-      \\(T_{signals}\\) item of the tuple returned by the \\(\mathrm{split}\\)
+    - \\(T_{element} := \textrm{split}(T_e)\_{signals}\\) (i.e., the
+      \\(T_{signals}\\) item of the tuple returned by the \\(\textrm{split}\\)
       function)
-    - If \\(\textrm{isNull}(T_{data})\\) is false, \\(\textrm{isNull}(T_u)\\)
+    - If \\(\textrm{isNull}(T_{element})\\) is false, \\(\textrm{isNull}(T_u)\\)
       is false, or \\(x\\) is true:
        - Append \\(\varnothing\\) (an empty name) to the end of \\(N\\).
-       - Append \\(\mathrm{Stream}(T_{data}, n, d, s, c, r, T_u, x)\\) to the end
+       - Append \\(\textrm{Stream}(T_{element}, n, d, s, c, r, T_u, x)\\) to the end
          of \\(T\\).
-    - Extend \\(N\\) with \\(\mathrm{split}(T_d)\_{names}\\) (i.e.,
-      all stream names returned by the \\(\mathrm{split}\\) function).
-    - For all \\(T' \in \mathrm{split}(T_d)\_{streams}\\) (i.e.,
-      for all named streams returned by the \\(\mathrm{split}\\) function):
-       - Unpack \\(T'\\) into \\(\mathrm{Stream}(T'\_d, n', d', s', c', r', T'\_u, x')\\).
+    - Extend \\(N\\) with \\(\textrm{split}(T_e)\_{names}\\) (i.e.,
+      all stream names returned by the \\(\textrm{split}\\) function).
+    - For all \\(T' \in \textrm{split}(T_e)\_{streams}\\) (i.e.,
+      for all named streams returned by the \\(\textrm{split}\\) function):
+       - Unpack \\(T'\\) into \\(\textrm{Stream}(T'\_d, n', d', s', c', r', T'\_u, x')\\).
          This is always possible due to the postconditions of
          \\(\textrm{split}\\).
        - If \\(r = \textrm{Reverse}\\), reverse the direction of \\(r'\\).
@@ -493,7 +452,7 @@ not starting or ending in an underscore, and not starting with a digit, and
        - If \\(s' \ne \textrm{Flatten}\\) and \\(s \ne \textrm{FlatDesync}\\),
          assign \\(d' := d' + d\\).
        - \\(n' := n' \cdot n\\).
-       - Append \\(\mathrm{Stream}(T'\_d, n', d', s', c', r', T'\_u, x')\\) to
+       - Append \\(\textrm{Stream}(T'\_d, n', d', s', c', r', T'\_u, x')\\) to
          \\(T\\).
     - Return \\(\textrm{SplitStreams}(\textrm{Null}, N_1 : T_1, N_2 : T_2, ..., N_m : T_m)\\).
 
@@ -503,40 +462,40 @@ not starting or ending in an underscore, and not starting with a digit, and
  - If \\(T_{in} = \textrm{Group}(N_{g,1} : T_{g,1}, N_{g,2} : T_{g,2}, ..., N_{g,n} : T_{g,n})\\),
    apply the following algorithm.
 
-    - \\(T_{signals} := \textrm{Group}(N_{g,1} : \mathrm{split}(T_{g,1})\_{signals}, ..., N_{g,n} : \mathrm{split}(T_{g,n})\_{signals})\\)
+    - \\(T_{signals} := \textrm{Group}(N_{g,1} : \textrm{split}(T_{g,1})\_{signals}, ..., N_{g,n} : \textrm{split}(T_{g,n})\_{signals})\\)
       (i.e., replace the types contained by the group with the
-      \\(T_{signals}\\) item of the tuple returned by the \\(\mathrm{split}\\)
+      \\(T_{signals}\\) item of the tuple returned by the \\(\textrm{split}\\)
       function applied to the original types).
     - Initialize \\(N\\) and \\(T\\) to empty lists.
     - For all \\(i \in 1..n\\):
-       - For all \\(\textrm{name} \in \mathrm{split}(T_{g,i})\_{names}\\) (i.e.,
-         for all stream names returned by the \\(\mathrm{split}\\) function),
+       - For all \\(\textrm{name} \in \textrm{split}(T_{g,i})\_{names}\\) (i.e.,
+         for all stream names returned by the \\(\textrm{split}\\) function),
           - If \\(\textrm{name} = \varnothing\\), append \\(N_{g,i}\\) to the end
             of \\(N\\).
           - Otherwise, append the concatenation \\(N_{g,i}\\) and \\(\textrm{name}\\)
             to the end of \\(N\\), separated by a double underscore.
-       - Extend \\(T\\) with \\(\mathrm{split}(T_{g,i})\_{streams}\\) (i.e.,
-         all named streams returned by the \\(\mathrm{split}\\) function).
+       - Extend \\(T\\) with \\(\textrm{split}(T_{g,i})\_{streams}\\) (i.e.,
+         all named streams returned by the \\(\textrm{split}\\) function).
     - Return \\(\textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_m : T_m)\\),
       where \\(m = |N| = |T|\\).
 
  - If \\(T_{in} = \textrm{Union}(N_{u,1} : T_{u,1}, N_{u,2} : T_{u,2}, ..., N_{u,n} : T_{u,n})\\),
    apply the following algorithm.
 
-    - \\(T_{signals} := \textrm{Union}(N_{u,1} : \mathrm{split}(T_{u,1})\_{signals}, ..., N_{u,n} : \mathrm{split}(T_{u,n})\_{signals})\\)
+    - \\(T_{signals} := \textrm{Union}(N_{u,1} : \textrm{split}(T_{u,1})\_{signals}, ..., N_{u,n} : \textrm{split}(T_{u,n})\_{signals})\\)
       (i.e., replace the types contained by the group with the
-      \\(T_{signals}\\) item of the tuple returned by the \\(\mathrm{split}\\)
+      \\(T_{signals}\\) item of the tuple returned by the \\(\textrm{split}\\)
       function applied to the original types).
     - Initialize \\(N\\) and \\(T\\) to empty lists.
     - For all \\(i \in 1..n\\):
-       - For all \\(\textrm{name} \in \mathrm{split}(T_{u,i})\_{names}\\) (i.e.,
-         for all stream names returned by the \\(\mathrm{split}\\) function),
+       - For all \\(\textrm{name} \in \textrm{split}(T_{u,i})\_{names}\\) (i.e.,
+         for all stream names returned by the \\(\textrm{split}\\) function),
           - If \\(\textrm{name} = \varnothing\\), append \\(N_{u,i}\\) to the end
             of \\(N\\).
           - Otherwise, append the concatenation \\(N_{u,i}\\) and \\(\textrm{name}\\)
             to the end of \\(N\\), separated by a double underscore.
-       - Extend \\(T\\) with \\(\mathrm{split}(T_{u,i})\_{streams}\\) (i.e.,
-         all named streams returned by the \\(\mathrm{split}\\) function).
+       - Extend \\(T\\) with \\(\textrm{split}(T_{u,i})\_{streams}\\) (i.e.,
+         all named streams returned by the \\(\textrm{split}\\) function).
     - Return \\(\textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_m : T_m)\\),
       where \\(m = |N| = |T|\\).
 
@@ -544,11 +503,10 @@ not starting or ending in an underscore, and not starting with a digit, and
 > the same, aside from returning \\(\textrm{Group}\\) vs \\(\textrm{Union}\\)
 > nodes for \\(T_{signals}\\).
 
-Field conversion function
--------------------------
+#### Field conversion function
 
 This section defines the function
-\\(\mathrm{fields}(T_{in}) \rightarrow \textrm{Fields}(N_1 : b_1, N_2 : b_2, ..., N_n : b_n)\\),
+\\(\textrm{fields}(T_{in}) \rightarrow \textrm{Fields}(N_1 : b_1, N_2 : b_2, ..., N_n : b_n)\\),
 where \\(T_{in}\\) is any logical stream type, and the \\(\textrm{Fields}\\)
 node is as defined in the physical stream specification.
 
@@ -565,10 +523,10 @@ node is as defined in the physical stream specification.
 > the type. Empty strings are represented here with \\(\varnothing\\). Note
 > that the names here can include double underscores.
 
-\\(\mathrm{fields}(T_{in})\\) is evaluated as follows.
+\\(\textrm{fields}(T_{in})\\) is evaluated as follows.
 
  - If \\(T_{in} = \textrm{Null}\\) or
-   \\(T_{in} = \mathrm{Stream}(T_d, n, d, s, c, r, T_u, x)\\), return
+   \\(T_{in} = \textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\), return
    \\(\textrm{Fields}()\\).
 
  - If \\(T_{in} = \textrm{Bits}(b)\\), return
@@ -579,7 +537,7 @@ node is as defined in the physical stream specification.
 
     - Initialize \\(N_o\\) and \\(b_o\\) to empty lists.
     - For all \\(i \in 1..n\\):
-       - Unpack \\(\mathrm{fields}(T_{g,i})\\) into
+       - Unpack \\(\textrm{fields}(T_{g,i})\\) into
          \\(\textrm{Fields}(N_{e,1} : b_{e,1}, N_{e,2} : b_{e,2}, ..., N_{e,m} : b_{e,m})\\).
        - For all \\(j \in 1..m\\):
           - If \\(N_{e,j} = \varnothing\\), append \\(N_{g,i}\\) to the end
@@ -599,7 +557,7 @@ node is as defined in the physical stream specification.
        - Append \\(\left\lceil\log_2 n\right\rceil\\) to the end of \\(b_o\\).
     - \\(b_d := 0\\)
     - For all \\(i \in 1..n\\):
-       - Unpack \\(\mathrm{fields}(T_{g,i})\\) into
+       - Unpack \\(\textrm{fields}(T_{g,i})\\) into
          \\(\textrm{Fields}(N_{e,1} : b_{e,1}, N_{e,2} : b_{e,2}, ..., N_{e,m} : b_{e,m})\\).
        - \\(b_d := \max\left(b_d, \sum_{j=1}^m b_{e,j}\right)\\)
     - If \\(b_d > 0\\):
@@ -608,11 +566,10 @@ node is as defined in the physical stream specification.
     - Return \\(\textrm{Fields}(N_{o,1} : b_{o,1}, N_{o,2} : b_{o,2}, ..., N_{o,p} : b_{o,p})\\),
       where \\(p = |N_o| = |b_o|\\).
 
-Synthesis function
-------------------
+#### Synthesis function
 
 This section defines the function
-\\(\mathrm{synthesize}(T_{in}) \rightarrow \textrm{Physical}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\\),
+\\(\textrm{synthesize}(T_{in}) \rightarrow \textrm{Physical}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\\),
 where:
 
  - \\(F_{signals}\\) is of the form
@@ -634,12 +591,45 @@ where:
 > Intuitively, this function synthesizes a logical stream type to its physical
 > representation.
 
-\\(\mathrm{fields}(T_{in})\\) is evaluated as follows.
+\\(\textrm{fields}(T_{in})\\) is evaluated as follows.
 
- - Unpack \\(\mathrm{split}(T_{in})\\) into
+ - Unpack \\(\textrm{split}(T_{in})\\) into
    \\(\textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_n : T_n)\\).
- - \\(F_{signals} := \mathrm{fields}(T_{signals})\\)
+ - \\(F_{signals} := \textrm{fields}(T_{signals})\\)
  - For all \\(i \in (1, 2, ..., n)\\):
-    - Unpack \\(T_i\\) into \\(\mathrm{Stream}(T_d, n, d, s, c, r, T_u, x)\\).
-    - \\(P_i := \textrm{PhysicalStream}(\mathrm{fields}(T_d), \lceil n\rceil, d, c, \mathrm{fields}(T_u))\\)
+    - Unpack \\(T_i\\) into \\(\textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\).
+    - \\(P_i := \textrm{PhysicalStream}(\textrm{fields}(T_e), \lceil n\rceil, d, c, \textrm{fields}(T_u))\\)
  - Return \\(\textrm{Physical}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\\).
+
+#### Type compatibility function
+
+This section defines the function
+\\(\textrm{compatible}(T_{source}, T_{sink}) \rightarrow \textrm{Bool}\\),
+where \\(T_{source}\\) and \\(T_{sink}\\) are both logical stream types. The
+function returns true if and only if a source of type \\(T_{source}\\) can be
+connected to a sink of type \\(T_{sink}\\) without insertion of conversion
+logic. The function returns true if and only if one or more of the following
+rules match:
+
+ - \\(T_{source} = T_{sink}\\);
+
+ - \\(T_{source} = \textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\),
+   \\(T_{sink} = \textrm{Stream}(T'_d, n, d, s, c', r, T_u, x)\\),
+   \\(\textrm{compatible}(T_e, T'_d) = \textrm{true}\\), and \\(c < c'\\);
+
+ - \\(T_{source} = \textrm{Group}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\),
+   \\(T_{sink} = \textrm{Group}(N_1: T'_1, N_2: T'_2, ..., N_n: T'_n)\\),
+   and \\(\textrm{compatible}(T_i, T'_i)\\) is true for all
+   \\(i \in (1, 2, ..., n)\\); or
+
+ - \\(T_{source} = \textrm{Union}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\),
+   \\(T_{sink} = \textrm{Union}(N_1: T'_1, N_2: T'_2, ..., N_n: T'_n)\\),
+   and \\(\textrm{compatible}(T_i, T'_i)\\) is true for all
+   \\(i \in (1, 2, ..., n)\\).
+
+The name matching is to be done case sensitively.
+
+> While two streams may be compatible in a case-insensitive language when only
+> the case of one or more of the names differ, this would still not hold for
+> case-sensitive languages. Therefore, for two streams to be compatible in all
+> cases, the matching must be case sensitive.
