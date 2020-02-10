@@ -4,437 +4,509 @@
 //!
 //! [Reference]: https://abs-tudelft.github.io/tydi/specification/logical.html
 
-use crate::physical::{Complexity, Field, PhysicalStream};
-use std::fmt;
+use crate::{
+    error::Error,
+    stream::{BitCount, Complexity, Direction, FieldName, Fields, FieldsBuilder, Name, Reversed},
+};
+use std::{convert::TryInto, error, num::NonZeroUsize};
 
-/// A potentially nested structure expressing a logical stream type tree.
-#[derive(Clone, Debug, PartialEq)]
+/// Specifies the synchronicity of the d-dimensional elements in the child
+/// stream with respect to the elements in the parent stream
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Synchronicity {
+    /// Indicating that there is a one-to-one relation between the parent and
+    /// child elements, and the dimensionality information of the parent stream
+    /// is redundantly carried by the child stream as well.
+    Sync,
+    /// Indicating that there is a one-to-one relation between the parent and
+    /// child elements, and the dimensionality information of the parent stream
+    /// is omitted in the child stream.
+    Flatten,
+    /// Indicating that there is no relation between the parent and child
+    /// elements. Carries no significance if there is no parent stream.
+    Desync,
+    FlatDesync,
+}
+
+/// Element content of a logical stream.
+///
+/// A field has a name and a inner stream.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Field {
+    /// The name of this field.
+    name: FieldName,
+    /// The stream of this field.
+    stream: LogicalStream,
+}
+
+impl Field {
+    pub fn new(
+        name: impl TryInto<FieldName, Error = Box<dyn error::Error>>,
+        stream: LogicalStream,
+    ) -> Result<Self, Box<dyn error::Error>> {
+        Ok(Field {
+            name: name.try_into()?,
+            stream,
+        })
+    }
+
+    pub fn is_stream(&self) -> bool {
+        match self.stream {
+            LogicalStream::Stream { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn stream(&self) -> &LogicalStream {
+        &self.stream
+    }
+}
+
+impl Name for Field {
+    fn name(&self) -> &str {
+        self.name.name()
+    }
+}
+
+impl BitCount for Field {
+    fn bit_count(&self) -> usize {
+        self.stream.bit_count()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NamedLogicalStream {
+    name: Option<FieldName>,
+    stream: LogicalStream,
+}
+
+impl NamedLogicalStream {
+    pub fn new(
+        name: Option<impl Into<String>>,
+        stream: LogicalStream,
+    ) -> Result<Self, Box<dyn error::Error>> {
+        Ok(NamedLogicalStream {
+            name: if let Some(name) = name {
+                Some(FieldName::new(name)?)
+            } else {
+                None
+            },
+            stream,
+        })
+    }
+}
+
+impl BitCount for NamedLogicalStream {
+    fn bit_count(&self) -> usize {
+        self.stream.bit_count()
+    }
+}
+
+impl Name for NamedLogicalStream {
+    fn name(&self) -> &str {
+        self.name.as_ref().map(|f| f.as_ref()).unwrap_or("")
+    }
+}
+
+// impl From<NamedLogicalStream> for LogicalStream {
+//     fn from(named_logical_stream: NamedLogicalStream) -> LogicalStream {
+//         named_logical_stream.stream
+//     }
+// }
+// impl From<&NamedLogicalStream> for LogicalStream {
+//     fn from(named_logical_stream: &NamedLogicalStream) -> LogicalStream {
+//         named_logical_stream.stream.clone()
+//     }
+// }
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum LogicalStream {
-    /// Bits is a primitive element with `width` bits.
-    Bits {
-        identifier: Option<String>,
-        width: usize,
+    Null,
+    Bits(NonZeroUsize),
+    Group(Fields<Field>),
+    Union(Fields<Field>),
+    Stream {
+        /// Any logical stream type representing the data type carried by the
+        /// logical stream.
+        data: Box<LogicalStream>,
+        /// Positive real number used to specify the minimum number of elements
+        /// that should be transferrable on the child stream per element in the
+        /// parent stream without the child stream becoming the bottleneck
+        /// (with no parent, it is the initial value).
+        lanes: NonZeroUsize,
+        /// Nonnegative integer specifying the dimensionality of the child
+        /// stream with respect to the parent stream (with no parent, it is the
+        /// initial value).
+        dimensionality: usize,
+        /// The synchronicity of the d-dimensional elements in the child stream
+        /// with respect to the elements in the parent stream.
+        synchronicity: Synchronicity,
+        /// The complexity number for the physical stream interface, as defined
+        /// in the physical stream specification.
+        complexity: Complexity,
+        /// The direction of the stream. If there is no parent stream, this
+        /// specifies the direction with respect to the natural direction of
+        /// the stream (source to sink).
+        direction: Direction,
+        /// An optional logical stream type consisting of only
+        /// element-manipulating nodes, representing the user data carried by
+        /// this logical stream.
+        user: Option<Box<LogicalStream>>,
+        /// Keep specifies whether the stream carries "extra" information
+        /// beyond the data and user signal payloads. x is normally false,
+        /// which implies that the Stream node will not result in a physical
+        /// stream if both its data and user signals would be empty according
+        /// to the rest of this specification; it is effectively optimized
+        /// away. Setting keep to true simply overrides this behavior.
+        keep: bool,
     },
-    /// Group concatenates all (nested) elements of inner `LogicalStream` types into a
-    /// single phys stream element.
-    Group {
-        identifier: Option<String>,
-        inner: Vec<LogicalStream>,
-    },
-    /// Union defines a `B`-bits element, where `B` is the maximum `width`
-    /// value of the `inner` LogicalStream types.
-    Union {
-        identifier: Option<String>,
-        inner: Vec<LogicalStream>,
-    },
-    /// Dim creates a streamspace of elements with inner `LogicalStream` type in the
-    /// next dimension w.r.t. its parent.
-    Dim {
-        identifier: Option<String>,
-        inner: Box<LogicalStream>,
-        parameters: LogicalStreamParameters,
-    },
-    /// Rev creates a new phys stream with inner `LogicalStream` types that flows
-    /// in reverse direction w.r.t. its parent.
-    Rev {
-        identifier: Option<String>,
-        inner: Box<LogicalStream>,
-        parameters: LogicalStreamParameters,
-    },
-    /// New creates a new phys stream of elements with inner `LogicalStream` type
-    /// in the parent space `D_{p}`.
-    New {
-        identifier: Option<String>,
-        inner: Box<LogicalStream>,
-        parameters: LogicalStreamParameters,
-    },
-    /// Root creates an initial streamspace `D_{0}`.
-    Root {
-        identifier: Option<String>,
-        inner: Box<LogicalStream>,
-        parameters: LogicalStreamParameters,
-    },
-}
-
-/// Apply elements-per-transfer and complexity from `params` to the first stream in a vector of
-/// streams.
-fn apply_params_to_first(streams: &mut Vec<PhysicalStream>, params: &LogicalStreamParameters) {
-    if !streams.is_empty() {
-        // First physical stream is the phys stream this Root is part of.
-        streams[0].elements_per_transfer = params.elements.unwrap_or(1);
-        streams[0].complexity = params.complexity.clone().unwrap_or_default();
-        streams[0].user_bits = params.user_bits.unwrap_or(0);
-    }
-}
-
-fn push_some<T: Clone>(v: &[T], e: &Option<T>) -> Vec<T> {
-    let mut result = v.to_owned();
-    match e {
-        None => (),
-        Some(s) => result.push(s.clone()),
-    }
-    result
 }
 
 impl LogicalStream {
-    /// Return the identifier of the LogicalStream.
-    pub fn identifier(&self) -> Option<String> {
+    pub fn bits(count: usize) -> Result<Self, Box<dyn error::Error>> {
+        Ok(LogicalStream::Bits(NonZeroUsize::new(count).ok_or_else(
+            || Error::InvalidArgument("count cannot be zero".to_string()),
+        )?))
+    }
+
+    pub(crate) fn direction(&self) -> Direction {
+        // todo level of indirection: add stream struct
         match self {
-            LogicalStream::Bits { identifier, .. }
-            | LogicalStream::Group { identifier, .. }
-            | LogicalStream::Union { identifier, .. }
-            | LogicalStream::Dim { identifier, .. }
-            | LogicalStream::Rev { identifier, .. }
-            | LogicalStream::New { identifier, .. }
-            | LogicalStream::Root { identifier, .. } => identifier.clone(),
+            LogicalStream::Stream { direction, .. } => *direction,
+            _ => panic!(),
+        }
+    }
+    pub(crate) fn synchronicity(&self) -> Synchronicity {
+        // todo level of indirection: add stream struct
+        match self {
+            LogicalStream::Stream { synchronicity, .. } => *synchronicity,
+            _ => panic!(),
+        }
+    }
+    pub(crate) fn dimensionality(&self) -> usize {
+        // todo level of indirection: add stream struct
+        match self {
+            LogicalStream::Stream { dimensionality, .. } => *dimensionality,
+            _ => panic!(),
+        }
+    }
+    pub(crate) fn lanes(&self) -> usize {
+        match self {
+            LogicalStream::Stream { lanes, .. } => lanes.get(),
+            _ => panic!(),
         }
     }
 
-    /// Returns the combined width of the LogicalStream types considering the
-    /// LogicalStreamParameters for number of elements and user bits.
-    pub fn width(&self) -> usize {
+    #[allow(clippy::too_many_arguments)]
+    pub fn stream(
+        data: LogicalStream,
+        lanes: usize,
+        dimensionality: usize,
+        synchronicity: Synchronicity,
+        complexity: impl Into<Complexity>,
+        direction: Direction,
+        user: Option<Box<LogicalStream>>,
+        keep: bool,
+    ) -> Result<Self, Box<dyn error::Error>> {
+        Ok(LogicalStream::Stream {
+            data: Box::new(data),
+            lanes: NonZeroUsize::new(lanes)
+                .ok_or_else(|| Error::InvalidArgument("lanes cannot be zero".to_string()))?,
+            dimensionality,
+            synchronicity,
+            complexity: complexity.into(),
+            direction,
+            user,
+            keep,
+        })
+    }
+
+    pub fn group(
+        inner: impl TryInto<Fields<Field>, Error = Box<dyn error::Error>>,
+    ) -> Result<Self, Box<dyn error::Error>> {
+        Ok(LogicalStream::Group(inner.try_into()?))
+    }
+
+    pub fn union(
+        inner: impl TryInto<Fields<Field>, Error = Box<dyn error::Error>>,
+    ) -> Result<Self, Box<dyn error::Error>> {
+        Ok(LogicalStream::Union(inner.try_into()?))
+    }
+
+    pub(crate) fn is_group(&self) -> bool {
         match self {
-            LogicalStream::Bits { width, .. } => *width,
-            LogicalStream::Group { inner, .. } => inner.iter().map(|inner| inner.width()).sum(),
-            LogicalStream::Union { inner, .. } => {
-                inner.iter().map(|inner| inner.width()).max().unwrap_or(0)
-            }
-            LogicalStream::Dim { .. }
-            | LogicalStream::Rev { .. }
-            | LogicalStream::New { .. }
-            | LogicalStream::Root { .. } => 0,
+            LogicalStream::Group(_) => true,
+            _ => false,
         }
     }
 
-    /// Obtain sub-element bit fields resulting from the LogicalStream type's immediate corresponding
-    /// physical stream only. Ignores potentially nested physical streams.
-    /// 'prefix' is used to prefix the bit fields.
-    pub fn bit_fields(&self, prefix: Option<String>) -> Option<BitField> {
-        match self {
-            LogicalStream::Group { identifier, inner } => {
-                let suffix = identifier.clone().unwrap_or_else(|| "data".to_string());
-                let id: String = match prefix {
-                    None => suffix,
-                    Some(pre) => format!("{}_{}", pre, suffix),
-                };
-
-                let mut result = BitField {
-                    identifier: Some(id),
-                    width: 0,
-                    children: vec![],
-                };
-                // Iterate over all child LogicalStream
-                for child_logical_stream in inner.iter().enumerate() {
-                    // Obtain child bitfields
-                    let child_bitfields = child_logical_stream.1.bit_fields(None);
-                    match child_bitfields {
-                        None => (),
-                        Some(child) => result.children.push(child),
+    /// Type compatibility function
+    pub fn compatible(&self, other: &LogicalStream) -> bool {
+        self == other
+            || match other {
+                LogicalStream::Stream {
+                    data, complexity, ..
+                } => {
+                    let (data_, complexity_) = (data, complexity);
+                    match self {
+                        LogicalStream::Stream {
+                            data, complexity, ..
+                        } => data.compatible(data_) && complexity < complexity_,
+                        _ => false,
                     }
                 }
-                Some(result)
+                _ => false,
             }
-            LogicalStream::Bits { identifier, width } => Some(BitField {
-                identifier: identifier.clone(),
-                width: *width,
-                children: vec![], // no children
-            }),
-            _ => None,
-        }
+            || match self {
+                LogicalStream::Group(source) | LogicalStream::Union(source) => match other {
+                    LogicalStream::Group(sink) | LogicalStream::Union(sink) => {
+                        source.len() == sink.len()
+                            && source.iter().zip(sink.iter()).all(|(f, f_)| {
+                                f.name() == f_.name() && f.stream().compatible(f_.stream())
+                            })
+                    }
+                    _ => false,
+                },
+                _ => false,
+            }
     }
 
-    /// Convert this LogicalStream to Physical Streams.
-    ///
-    /// This can potentially generate multiple physical streams.
-    pub fn as_phys(&self, name: Vec<String>) -> Vec<PhysicalStream> {
-        // TODO(johanpel):  this flattens the LogicalStream type structure but we could consider allowing
-        //                  physical streams to be nested.
+    /// Null detection function
+    pub fn is_null(&self) -> bool {
         match self {
-            LogicalStream::Root {
-                identifier,
-                inner,
-                parameters,
-            } => {
-                // Return resulting streams from inner
-                let mut result = inner.as_phys(push_some(&name, identifier));
-
-                apply_params_to_first(&mut result, parameters);
-                result
+            LogicalStream::Stream {
+                data, user, keep, ..
+            } => data.is_null() && user.is_some() && user.as_ref().unwrap().is_null() && !keep,
+            LogicalStream::Null => true,
+            LogicalStream::Group(fields) | LogicalStream::Union(fields) => {
+                fields.iter().all(|f| f.stream().is_null())
             }
-            LogicalStream::Dim {
-                identifier,
-                inner,
-                parameters,
-            } => {
-                // Increase dimensionality of resulting streams
-                let mut result = inner.as_phys(push_some(&name, identifier));
-                for r in result.iter_mut() {
-                    r.dimensionality += 1;
-                }
-                apply_params_to_first(&mut result, parameters);
-                result
-            }
-            LogicalStream::Rev {
-                identifier,
-                inner,
-                parameters,
-            } => {
-                // Reverse child streams
-                let mut result = inner.as_phys(push_some(&name, identifier));
-                for r in result.iter_mut() {
-                    r.dir.reverse()
-                }
-                apply_params_to_first(&mut result, parameters);
-                result
-            }
-            LogicalStream::New {
-                identifier,
-                inner,
-                parameters,
-            } => {
-                // Return resulting streams from inner
-                let mut result = inner.as_phys(push_some(&name, identifier));
-                apply_params_to_first(&mut result, parameters);
-                result
-            }
-            LogicalStream::Bits { identifier, width } => {
-                let new_stream = PhysicalStream {
-                    identifier: push_some(&name, identifier),
-                    fields: BitField {
-                        identifier: None,
-                        width: *width,
-                        children: vec![],
-                    },
-                    elements_per_transfer: 1,
-                    dir: Direction::Downstream,
-                    dimensionality: 0,
-                    complexity: Complexity::new_major(0),
-                    user_bits: 0,
-                };
-                vec![new_stream]
-            }
-            LogicalStream::Group { identifier, inner } => {
-                let mut result = vec![];
-                // Obtain all (nested) bit fields
-                let bit_fields = self.bit_fields(identifier.clone());
-                // If there are any bit fields, create a new stream
-                if bit_fields.is_some() {
-                    let new_stream = PhysicalStream {
-                        identifier: push_some(&name, identifier),
-                        fields: bit_fields.unwrap_or_else(BitField::new_empty),
-                        elements_per_transfer: 1,
-                        dir: Direction::Downstream,
-                        dimensionality: 0,
-                        complexity: Complexity::default(),
-                        user_bits: 0,
-                    };
-                    result.push(new_stream);
-                }
-                // Append the streams resulting from other fields.
-                for field in inner.iter() {
-                    match field {
-                        // Skip bits type, since they will be added through bit_fields()
-                        LogicalStream::Bits { .. } => {}
-                        // all other LogicalStream types.
-                        _ => result.extend(field.as_phys(name.clone()).into_iter()),
-                    }
-                }
-                result
-            }
-            _ => unimplemented!(),
+            _ => false,
         }
     }
 }
 
-/// Parameters of LogicalStream types.
-#[derive(Clone, Default, PartialEq)]
-pub struct LogicalStreamParameters {
-    /// N: number of elements per handshake.
-    pub elements: Option<usize>,
-    /// C: complexity level.
-    pub complexity: Option<Complexity>,
-    /// U: number of user bits.
-    pub user_bits: Option<usize>,
+impl BitCount for LogicalStream {
+    // TODO(mb) check
+    fn bit_count(&self) -> usize {
+        match self {
+            LogicalStream::Null => 0,
+            LogicalStream::Bits(bits) => bits.get(),
+            LogicalStream::Group(fields) => fields.bit_count(),
+            LogicalStream::Union(fields) => {
+                fields.iter().map(BitCount::bit_count).max().unwrap_or(0)
+            }
+            LogicalStream::Stream { .. } => {
+                // streams are virtual
+                // data.bit_count() + user.as_ref().map(|s| s.bit_count()).unwrap_or(0)
+                0
+            }
+        }
+    }
 }
 
-impl fmt::Debug for LogicalStreamParameters {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "(E={},C={},U={})",
-            self.elements.unwrap_or(1),
-            self.complexity.clone().unwrap_or_default(),
-            self.user_bits.unwrap_or(0)
-        )
+trait Split: Sized {
+    fn split(&self) -> (LogicalStream, Fields<NamedLogicalStream>);
+}
+
+impl Split for LogicalStream {
+    fn split(&self) -> (LogicalStream, Fields<NamedLogicalStream>) {
+        let t_in = self;
+        match t_in {
+            LogicalStream::Stream {
+                data,
+                lanes,
+                dimensionality,
+                synchronicity,
+                complexity,
+                direction,
+                user,
+                keep,
+            } => {
+                let t_d = data;
+                let t_u = user;
+
+                // Initialize N and T to empty lists.
+                let mut fields: FieldsBuilder<NamedLogicalStream> = FieldsBuilder::new();
+
+                let (t_data, extend) = t_d.split();
+
+                if !t_data.is_null() || t_u.is_some() && !t_u.as_ref().unwrap().is_null() || *keep {
+                    fields.add_field(
+                        NamedLogicalStream::new(
+                            None as Option<&str>,
+                            LogicalStream::stream(
+                                t_data,
+                                lanes.get(),
+                                *dimensionality,
+                                *synchronicity,
+                                complexity.clone(),
+                                *direction,
+                                t_u.clone(),
+                                *keep,
+                            )
+                            .unwrap(),
+                        )
+                        .unwrap(),
+                    );
+                }
+
+                // append names and streams.
+                fields.extend(extend.into_iter().map(|named_logical_stream| {
+                    match named_logical_stream.stream {
+                        LogicalStream::Stream {
+                            data,
+                            lanes,
+                            dimensionality,
+                            synchronicity,
+                            complexity,
+                            direction,
+                            user,
+                            keep,
+                        } => {
+                            let direction = if t_in.direction() == Direction::Reverse {
+                                t_in.direction().reversed()
+                            } else {
+                                direction
+                            };
+                            let synchronicity = if t_in.synchronicity() == Synchronicity::Flatten
+                                || t_in.synchronicity() == Synchronicity::FlatDesync
+                            {
+                                Synchronicity::FlatDesync
+                            } else {
+                                synchronicity
+                            };
+                            let dimensionality = if synchronicity != Synchronicity::Flatten
+                                && t_in.synchronicity() != Synchronicity::FlatDesync
+                            {
+                                dimensionality + t_in.dimensionality()
+                            } else {
+                                dimensionality
+                            };
+                            let lanes = lanes.get() * t_in.lanes();
+                            NamedLogicalStream::new(
+                                // todo fix this
+                                named_logical_stream.name.map(|f| f.name().to_string()),
+                                LogicalStream::stream(
+                                    *data,
+                                    lanes,
+                                    dimensionality,
+                                    synchronicity,
+                                    complexity,
+                                    direction,
+                                    user,
+                                    keep,
+                                )
+                                .unwrap(),
+                            )
+                            .unwrap()
+                        }
+                        _ => unreachable!(),
+                    }
+                }));
+                (LogicalStream::Null, fields.finish().unwrap())
+            }
+            LogicalStream::Null | LogicalStream::Bits(_) => {
+                (t_in.clone(), Fields::new(vec![]).unwrap())
+            }
+            LogicalStream::Group(inner) | LogicalStream::Union(inner) => {
+                let mut fields: FieldsBuilder<Field> = FieldsBuilder::new();
+                fields.extend(inner.into_iter().map(|named_logical_stream| {
+                    Field::new(
+                        named_logical_stream.name.to_string(),
+                        named_logical_stream.stream.split().0,
+                    )
+                    .unwrap()
+                }));
+                let fields = fields.finish().unwrap();
+                let t_signals = if t_in.is_group() {
+                    LogicalStream::Group(fields)
+                } else {
+                    LogicalStream::Union(fields)
+                };
+
+                let mut fields: FieldsBuilder<NamedLogicalStream> = FieldsBuilder::new();
+                inner.into_iter().for_each(|named_logical_stream| {
+                    fields.extend(
+                        named_logical_stream
+                            .stream
+                            .split()
+                            .1
+                            .into_iter()
+                            .map(|inner| {
+                                let name = match inner.name {
+                                    Some(name) => {
+                                        format!("{}__{}", named_logical_stream.name(), name)
+                                    }
+                                    None => named_logical_stream.name().to_string(),
+                                };
+                                NamedLogicalStream::new(Some(name), inner.stream).unwrap()
+                            }),
+                    );
+                });
+
+                (t_signals, fields.finish().unwrap())
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::error;
 
     #[test]
-    fn logical_stream_width() {
-        assert_eq!(
-            LogicalStream::Bits {
-                identifier: None,
-                width: 3,
-            }
-            .width(),
-            3
-        );
-        assert_eq!(
-            LogicalStream::Group {
-                identifier: None,
-                inner: vec![
-                    LogicalStream::Bits {
-                        identifier: None,
-                        width: 7,
-                    },
-                    LogicalStream::Bits {
-                        identifier: None,
-                        width: 16,
-                    }
-                ],
-            }
-            .width(),
-            23
-        );
-        assert_eq!(
-            LogicalStream::Group {
-                identifier: None,
-                inner: vec![
-                    LogicalStream::Bits {
-                        identifier: None,
-                        width: 3,
-                    },
-                    LogicalStream::Bits {
-                        identifier: None,
-                        width: 4,
-                    }
-                ],
-            }
-            .width(),
-            7
-        );
-        assert_eq!(
-            LogicalStream::Union {
-                identifier: None,
-                inner: vec![
-                    LogicalStream::Bits {
-                        identifier: None,
-                        width: 3,
-                    },
-                    LogicalStream::Bits {
-                        identifier: None,
-                        width: 4,
-                    },
-                    LogicalStream::Dim {
-                        identifier: None,
-                        inner: Box::new(LogicalStream::Bits {
-                            identifier: None,
-                            width: 10,
-                        }),
-                        parameters: Default::default(),
-                    }
-                ],
-            }
-            .width(),
-            4
-        );
-    }
+    fn split() -> Result<(), Box<dyn error::Error>> {
+        let logical_stream = LogicalStream::stream(
+            LogicalStream::group(vec![
+                Field::new("a", LogicalStream::bits(4)?)?,
+                Field::new("b", LogicalStream::bits(4)?)?,
+                Field::new(
+                    "c",
+                    LogicalStream::stream(
+                        LogicalStream::union(vec![
+                            Field::new("a", LogicalStream::bits(4)?)?,
+                            Field::new("b", LogicalStream::bits(4)?)?,
+                            Field::new(
+                                "d",
+                                LogicalStream::stream(
+                                    LogicalStream::union(vec![
+                                        Field::new("e", LogicalStream::bits(4)?)?,
+                                        Field::new("f", LogicalStream::bits(4)?)?,
+                                    ])?,
+                                    1,
+                                    1,
+                                    Synchronicity::Desync,
+                                    0,
+                                    Direction::Reverse,
+                                    None,
+                                    false,
+                                )?,
+                            )?,
+                        ])?,
+                        2,
+                        1,
+                        Synchronicity::Desync,
+                        0,
+                        Direction::Reverse,
+                        None,
+                        false,
+                    )?,
+                )?,
+            ])?,
+            1,
+            0,
+            Synchronicity::Desync,
+            0,
+            Direction::Forward,
+            None,
+            false,
+        )?;
 
-    #[test]
-    fn test_logical_stream_bitfields() {
-        // LogicalStream of just bits.
-        let r = LogicalStream::Bits {
-            identifier: Some("test".to_string()),
-            width: 1,
-        };
-        let bf = r.bit_fields(None);
-        assert!(bf.is_some());
-        let bfu = bf.unwrap();
-        assert_eq!(bfu.identifier, Some("test".to_string()));
-        assert_eq!(bfu.width(), 1);
-        assert_eq!(bfu.width_recursive(), 1);
-    }
+        let split = logical_stream.split();
+        println!("{:#?}", split);
 
-    #[test]
-    fn test_logical_stream_bitfields_group() {
-        let r = LogicalStream::Group {
-            identifier: Some("x".to_string()),
-            inner: vec![
-                LogicalStream::Bits {
-                    identifier: Some("a".to_string()),
-                    width: 1,
-                },
-                LogicalStream::Bits {
-                    identifier: Some("b".to_string()),
-                    width: 2,
-                },
-            ],
-        };
-
-        let bf = r.bit_fields(None);
-        let bfu = &bf.unwrap();
-
-        assert_eq!(bfu.children.len(), 2);
-        assert_eq!(bfu.children[0].identifier, Some("a".to_string()));
-        assert_eq!(bfu.children[0].width(), 1);
-        assert_eq!(bfu.children[0].children.len(), 0);
-        assert_eq!(bfu.children[1].identifier, Some("b".to_string()));
-        assert_eq!(bfu.children[1].width(), 2);
-        assert_eq!(bfu.children[1].children.len(), 0);
-        assert_eq!(bfu.width_recursive(), 3);
-    }
-
-    #[test]
-    fn test_logical_stream_bitfields_group_nested() {
-        let r = LogicalStream::Group {
-            identifier: Some("x".to_string()),
-            inner: vec![
-                LogicalStream::Bits {
-                    identifier: Some("a".to_string()),
-                    width: 1,
-                },
-                LogicalStream::Group {
-                    identifier: Some("b".to_string()),
-                    inner: vec![
-                        LogicalStream::Bits {
-                            identifier: Some("c".to_string()),
-                            width: 2,
-                        },
-                        LogicalStream::Bits {
-                            identifier: Some("d".to_string()),
-                            width: 3,
-                        },
-                    ],
-                },
-            ],
-        };
-
-        let bf = r.bit_fields(None);
-        let bfu = bf.unwrap();
-
-        assert_eq!(bfu.children.len(), 2);
-        assert_eq!(bfu.children[0].identifier, Some("a".to_string()));
-        assert_eq!(bfu.children[0].width(), 1);
-        assert_eq!(bfu.children[0].children.len(), 0);
-        assert_eq!(bfu.children[1].identifier, Some("b".to_string()));
-        assert_eq!(bfu.children[1].width(), 0);
-        assert_eq!(bfu.children[1].children.len(), 2);
-        assert_eq!(
-            bfu.children[1].children[0].identifier,
-            Some("c".to_string())
-        );
-        assert_eq!(bfu.children[1].children[0].width(), 2);
-        assert_eq!(bfu.children[1].children[0].children.len(), 0);
-        assert_eq!(
-            bfu.children[1].children[1].identifier,
-            Some("d".to_string())
-        );
-        assert_eq!(bfu.children[1].children[1].width(), 3);
-        assert_eq!(bfu.children[1].children[1].children.len(), 0);
-        assert_eq!(bfu.width_recursive(), 6);
+        Ok(())
     }
 }
