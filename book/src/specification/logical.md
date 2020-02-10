@@ -549,22 +549,16 @@ Field conversion function
 
 This section defines the function
 \\(\mathrm{fields}(T_{in}) \rightarrow \textrm{Fields}(N_1 : b_1, N_2 : b_2, ..., N_n : b_n)\\),
-where \\(T_{in}\\) is any logical stream type, all \\(N\\) are
-case-insensitively unique, emptyable strings consisting of letters, numbers,
-and/or underscores, not starting or ending in an underscore, and not starting
-with a digit, all \\(b\\) are positive integers, and \\(n\\) is a nonnegative
-integer.
+where \\(T_{in}\\) is any logical stream type, and the \textrm{Fields} node is
+as defined in the physical stream specification.
 
 > Intuitively, this function flattens a logical stream type consisting of
 > \\(\textrm{Null}\\), \\(\textrm{Bits}\\), \\(\textrm{Group}\\) and
 > \\(\textrm{Union}\\) nodes into a list of named bitfields. It is used for
 > constructing the data and user field lists of the physical streams and the
-> asynchronous signal list from the logical stream types preprocessed by
+> user-defined signal list from the logical stream types preprocessed by
 > \\(\textrm{split}()\\). This function is normally only applied to logical
 > stream types that only carry element-manipulating nodes.
->
-> Note that the definition for \\(\textrm{Fields}) here matches the definition
-> in the physical stream specification.
 >
 > The names can be empty, because if there are no \\(Group\\)s or \\(Union\\)s,
 > the one existing stream or signal will not have an intrinsic name given by
@@ -614,66 +608,38 @@ integer.
     - Return \\(\textrm{Fields}(N_{o,1} : b_{o,1}, N_{o,2} : b_{o,2}, ..., N_{o,p} : b_{o,p})\\),
       where \\(p = |N_o| = |b_o|\\).
 
+Synthesis function
+------------------
 
-# VERY MUCH TODO BELOW THIS POINT
+This section defines the function
+\\(\mathrm{synthesize}(T_{in}) \rightarrow \textrm{Physical}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\\),
+where:
 
-Signals
--------
+ - \\(F_{signals}\\) is of the form
+   \\(\textrm{Fields}(N_{s,1} : b_{s,1}, N_{s,2} : b_{s,2}, ..., N_{s,m} : b_{s,m})\\),
+   as defined in the physical stream specification;
 
-Given a logical stream type and a logical stream name (defined below), a list
-of signals/ports can be constructed.
+   > This represents the list of user-defined signals flowing in parallel to
+   > the physical streams.
 
-### Logical stream name
+ - all \\(P\\) are of the form \\(\textrm{PhysicalStream}(E, N, D, C, U)\\), as
+   defined in the physical stream speficiation;
 
-The logical stream name is a string consisting of letters, numbers, and/or
-underscores, used to identify the logical stream.
+ - all \\(N\\) are case-insensitively unique, emptyable strings consisting of
+   letters, numbers, and/or underscores, not starting or ending in an
+   underscore, and not starting with a digit; and
 
-The name cannot start or end with an underscore.
+ - \\(n\\) is a nonnegative integer.
 
-The name cannot start with a digit.
+> Intuitively, this function synthesizes a logical stream type to its physical
+> representation.
 
-The name cannot be empty.
+\\(\mathrm{fields}(T_{in})\\) is evaluated as follows.
 
-### Signal list construction
-
-This section describes algorithmically how to convert from a logical stream
-type and name to a list of \\(\textrm{Signal}\\)s (as defined below).
-
-n ordered set of signals, defined as
-\\(\textrm{Signal}(N : b, r, d)\\), where:
-
- - a name, guaranteed to:
-    - consist of only letters, numbers, and underscores,
-    - not start or end with an underscore,
-    - not start with a digit,
-    - not be empty, and
-    - be case-insensitively unique;
- - a direction, either \\(\textrm{Forward}\\) or \\(\textrm{Reverse}\\);
- - a bit count, being either a positive integer, or \\(\varnothing\\) to
-   indicate a scalar signal;
- - a default value, to be used when the opposite end of the interface (having a
-   \\(\textrm{compatible}\\) logical stream type) does not define the signal.
-
-#### Flattened logical stream type
-
-Before describing the conversion from a logical stream type and name to its
-corresponding signal list, we first define an intermediate representation,
-referred to as the *flattened* logical stream type. This consists of:
-
- - an emptyable, ordered set of named asynchronous signals, where each signal
-   has a positive bit count, and
- - an emptyable, ordered set of named, direction-annotated physical streams, as
-   defined in the section on physical streams.
-
-The signal/stream names cannot start or end with an underscore.
-
-The signal/stream names cannot start with a digit.
-
-The signal/stream names cannot be empty unless there is only one signal/stream.
-
-The signal/stream names must be case-insensitively unique.
-
-#### Conversion step one
-
-
-
+ - Unpack \\(\mathrm{split}(T_{in})\\) into
+   \\(\textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_n : T_n)\\).
+ - \\(F_{signals} := \mathrm{fields}(T_{signals})\\)
+ - For all \\(i \in (1, 2, ..., n)\\):
+    - Unpack \\(T_i\\) into \\(\mathrm{Stream}(T_d, n, d, s, c, r, T_u, x)\\).
+    - \\(P_i := \textrm{PhysicalStream}(\mathrm{fields}(T_d), \lceil n\rceil, d, c, \mathrm{fields}(T_u))\\)
+ - Return \\(\textrm{Physical}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\\).
