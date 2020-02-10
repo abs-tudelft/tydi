@@ -1,9 +1,8 @@
-//! Stream-related traits, methods and types.
+//! Stream-related traits, types and functions.
 
 use crate::error::Error;
 use std::{
-    collections::HashSet, convert::TryFrom, error, fmt, iter::FromIterator, ops::Deref,
-    slice::Iter, str::FromStr,
+    collections::HashSet, convert::TryFrom, error, fmt, iter::FromIterator, ops::Deref, slice::Iter,
 };
 
 /// A direction of a stream.
@@ -18,6 +17,22 @@ pub enum Direction {
 }
 
 impl Reverse for Direction {
+    /// Reverse this direction.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use tydi::stream::{Reverse, Reversed, Direction};
+    ///
+    /// let mut forward = Direction::Forward;
+    /// let mut reverse = Direction::Reverse;
+    ///
+    /// forward.reverse();
+    /// assert_eq!(forward, reverse);
+    ///
+    /// forward.reverse();
+    /// assert_eq!(forward, reverse.reversed());
+    /// ```
     fn reverse(&mut self) {
         *self = match self {
             Direction::Forward => Direction::Reverse,
@@ -160,111 +175,29 @@ impl Complexity {
 }
 
 impl fmt::Display for Complexity {
+    /// Display a complexity level as a version number. The levels are
+    /// separated by periods.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use tydi::stream::Complexity;
+    ///
+    /// let c = Complexity::new(vec![3, 14])?;
+    /// assert_eq!(c.to_string(), "3.14");
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut result = String::new();
-        let mut level = self.level.iter();
+        let mut level = self.level.iter().map(|x| x.to_string());
         if let Some(x) = level.next() {
-            result.push_str(&x.to_string());
-
-            for x in level {
+            result.push_str(&x);
+            level.for_each(|x| {
                 result.push('.');
-                result.push_str(&x.to_string());
-            }
+                result.push_str(&x);
+            });
         }
         write!(f, "{}", result)
-    }
-}
-
-/// Type safe field names.
-///
-/// Newtype for valid name used as [`Field`] names.
-/// - The name of each field is a string consisting of letters, numbers, and/or underscores.
-/// - The name cannot contain two or more consecutive underscores.
-/// - The name cannot start or end with an underscore.
-/// - The name cannot start with a digit.
-/// - The name cannot be empty.
-///
-/// [Reference]
-///
-/// [`Field`]: ./struct.Field.html
-/// [Reference]: https://abs-tudelft.github.io/tydi/specification/physical.html#field-name
-#[derive(Debug, Clone, PartialEq)]
-pub struct FieldName(String);
-
-impl FieldName {
-    /// Returns a new valid FieldName if the provided name is valid.
-    pub fn new(name: impl Into<String>) -> Result<Self, Box<dyn error::Error>> {
-        let name = name.into();
-        if name.is_empty() {
-            Err(Box::new(Error::InvalidArgument(
-                "cannot be empty".to_string(),
-            )))
-        } else if name.chars().next().unwrap().is_ascii_digit() {
-            Err(Box::new(Error::InvalidArgument(
-                "cannot start with a digit".to_string(),
-            )))
-        } else if name.starts_with('_') | name.ends_with('_') {
-            Err(Box::new(Error::InvalidArgument(
-                "cannot start or end with an underscore".to_string(),
-            )))
-        // } else if name.contains("__") {
-        //     Err(Box::new(Error::InvalidArgument(
-        //         "cannot contain two or more consecutive underscores".to_string(),
-        //     )))
-        // } else if !name.chars().all(|c| c.is_ascii_alphanumeric()) {
-        //     Err(Box::new(Error::InvalidArgument(
-        //         "only letters, numbers and/or underscores are allowed".to_string(),
-        //     )))
-        } else {
-            Ok(FieldName(name))
-        }
-    }
-}
-
-impl Name for FieldName {
-    /// Returns the name.
-    fn name(&self) -> &str {
-        self.as_ref()
-    }
-}
-
-impl fmt::Display for FieldName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl FromStr for FieldName {
-    type Err = Box<dyn error::Error>;
-
-    /// Returns a new valid FieldName if the provided name is valid.
-    fn from_str(name: &str) -> Result<Self, Self::Err> {
-        FieldName::new(name)
-    }
-}
-
-impl TryFrom<String> for FieldName {
-    type Error = Box<dyn error::Error>;
-
-    /// Returns a new valid FieldName if the provided name is valid.
-    fn try_from(name: String) -> Result<Self, Self::Error> {
-        FieldName::new(name)
-    }
-}
-
-impl TryFrom<&str> for FieldName {
-    type Error = Box<dyn error::Error>;
-
-    /// Returns a new valid FieldName if the provided name is valid.
-    fn try_from(name: &str) -> Result<Self, Self::Error> {
-        FieldName::new(name)
-    }
-}
-
-impl AsRef<str> for FieldName {
-    /// Returns a string slice to the name.
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
     }
 }
 
@@ -466,6 +399,52 @@ where
     }
 }
 
+/// Function for validation of field names.
+///
+/// The following rules apply to field names, with double underscores being optional.
+///
+/// - The name of each field is a string consisting of letters, numbers, and/or underscores.
+/// - The name cannot contain two or more consecutive underscores. [optional]
+/// - The name cannot start or end with an underscore.
+/// - The name cannot start with a digit.
+/// - The name cannot be empty.
+///
+/// Returns an error when the provided name is an invalid field name.
+/// Consecutive underscores are allowed when `double_underscores_allowed` is
+/// set.
+pub(crate) fn to_field_name(
+    name: impl Into<String>,
+    double_underscores_allowed: bool,
+) -> Result<String, Box<dyn error::Error>> {
+    let name = name.into();
+    if name.is_empty() {
+        Err(Box::new(Error::InvalidArgument(
+            "name cannot be empty".to_string(),
+        )))
+    } else if name.chars().next().unwrap().is_ascii_digit() {
+        Err(Box::new(Error::InvalidArgument(
+            "name cannot start with a digit".to_string(),
+        )))
+    } else if name.starts_with('_') || name.ends_with('_') {
+        Err(Box::new(Error::InvalidArgument(
+            "name cannot start or end with an underscore".to_string(),
+        )))
+    } else if !double_underscores_allowed && name.contains("__") {
+        Err(Box::new(Error::InvalidArgument(
+            "name cannot contain two or more consecutive underscores".to_string(),
+        )))
+    } else if !name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c.eq(&'_'))
+    {
+        Err(Box::new(Error::InvalidArgument(
+            "name must consist of letters, numbers, and/or underscores".to_string(),
+        )))
+    } else {
+        Ok(name)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -545,42 +524,6 @@ mod tests {
             fields.unwrap_err().to_string(),
             "Invalid argument: field names must be case-insensitively unique within the set of named fields"
         );
-
-        Ok(())
-    }
-
-    #[test]
-    fn field_name() -> Result<(), Box<dyn error::Error>> {
-        assert_eq!("asdf", FieldName::from_str("asdf")?.as_ref());
-        assert_eq!(FieldName::from_str("asdf")?.name(), "asdf");
-        assert_eq!(
-            FieldName::try_from("asdf".to_string())?,
-            FieldName::try_from("asdf")?
-        );
-        let field_name = FieldName::new("asdf")?;
-        assert_eq!(field_name.to_string(), "asdf");
-        assert_eq!(field_name, field_name);
-
-        assert_eq!(
-            FieldName::new("",).unwrap_err().to_string(),
-            "Invalid argument: cannot be empty"
-        );
-        assert_eq!(
-            FieldName::new("1count").unwrap_err().to_string(),
-            "Invalid argument: cannot start with a digit"
-        );
-        assert_eq!(
-            FieldName::new("_count").unwrap_err().to_string(),
-            "Invalid argument: cannot start or end with an underscore"
-        );
-        assert_eq!(
-            FieldName::new("count_").unwrap_err().to_string(),
-            "Invalid argument: cannot start or end with an underscore"
-        );
-        // assert_eq!(
-        //     FieldName::new("a!@#").unwrap_err().to_string(),
-        //     "Invalid argument: only letters, numbers and/or underscores are allowed"
-        // );
 
         Ok(())
     }

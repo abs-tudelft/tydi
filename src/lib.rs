@@ -23,6 +23,6 @@ pub mod stream;
 
 // #[cfg(feature = "data")]
 // pub use data::Data;
-// pub use logical::LoicalStream;
+pub use logical::LogicalStream;
 pub use physical::PhysicalStream;
 // pub use streamlet::Streamlet;

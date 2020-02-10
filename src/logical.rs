@@ -6,12 +6,14 @@
 
 use crate::{
     error::Error,
-    stream::{BitCount, Complexity, Direction, FieldName, Fields, FieldsBuilder, Name, Reversed},
+    stream::{
+        to_field_name, BitCount, Complexity, Direction, Fields, FieldsBuilder, Name, Reversed,
+    },
 };
 use std::{convert::TryInto, error, num::NonZeroUsize};
 
 /// Specifies the synchronicity of the d-dimensional elements in the child
-/// stream with respect to the elements in the parent stream
+/// stream with respect to the elements in the parent stream.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Synchronicity {
     /// Indicating that there is a one-to-one relation between the parent and
@@ -31,30 +33,32 @@ pub enum Synchronicity {
 /// Element content of a logical stream.
 ///
 /// A field has a name and a inner stream.
+///
+/// - The name of each field is a string consisting of letters, numbers, and/or underscores.
+/// - The name cannot contain two or more consecutive underscores.
+/// - The name cannot start or end with an underscore.
+/// - The name cannot start with a digit.
+/// - The name cannot be empty.
+///
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
     /// The name of this field.
-    name: FieldName,
+    name: String,
     /// The stream of this field.
     stream: LogicalStream,
 }
 
 impl Field {
+    /// Returns a new Field. Returns an error when the provided name is
+    /// invalid.
     pub fn new(
-        name: impl TryInto<FieldName, Error = Box<dyn error::Error>>,
+        name: impl Into<String>,
         stream: LogicalStream,
     ) -> Result<Self, Box<dyn error::Error>> {
         Ok(Field {
-            name: name.try_into()?,
+            name: to_field_name(name, false)?,
             stream,
         })
-    }
-
-    pub fn is_stream(&self) -> bool {
-        match self.stream {
-            LogicalStream::Stream { .. } => true,
-            _ => false,
-        }
     }
 
     pub fn stream(&self) -> &LogicalStream {
@@ -64,7 +68,7 @@ impl Field {
 
 impl Name for Field {
     fn name(&self) -> &str {
-        self.name.name()
+        self.name.as_ref()
     }
 }
 
@@ -76,7 +80,7 @@ impl BitCount for Field {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NamedLogicalStream {
-    name: Option<FieldName>,
+    name: Option<String>,
     stream: LogicalStream,
 }
 
@@ -87,7 +91,7 @@ impl NamedLogicalStream {
     ) -> Result<Self, Box<dyn error::Error>> {
         Ok(NamedLogicalStream {
             name: if let Some(name) = name {
-                Some(FieldName::new(name)?)
+                Some(to_field_name(name, true)?)
             } else {
                 None
             },
@@ -104,7 +108,7 @@ impl BitCount for NamedLogicalStream {
 
 impl Name for NamedLogicalStream {
     fn name(&self) -> &str {
-        self.name.as_ref().map(|f| f.as_ref()).unwrap_or("")
+        self.name.as_ref().map(|name| name.as_str()).unwrap_or("")
     }
 }
 
@@ -165,7 +169,7 @@ pub enum LogicalStream {
 impl LogicalStream {
     pub fn bits(count: usize) -> Result<Self, Box<dyn error::Error>> {
         Ok(LogicalStream::Bits(NonZeroUsize::new(count).ok_or_else(
-            || Error::InvalidArgument("count cannot be zero".to_string()),
+            || Error::InvalidArgument("bit count cannot be zero".to_string()),
         )?))
     }
 
@@ -385,8 +389,7 @@ impl Split for LogicalStream {
                             };
                             let lanes = lanes.get() * t_in.lanes();
                             NamedLogicalStream::new(
-                                // todo fix this
-                                named_logical_stream.name.map(|f| f.name().to_string()),
+                                named_logical_stream.name,
                                 LogicalStream::stream(
                                     *data,
                                     lanes,
@@ -504,9 +507,7 @@ mod tests {
             false,
         )?;
 
-        let split = logical_stream.split();
-        println!("{:#?}", split);
-
+        let _ = logical_stream.split();
         Ok(())
     }
 }

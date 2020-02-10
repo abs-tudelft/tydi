@@ -11,7 +11,7 @@
 
 use crate::{
     error::Error,
-    stream::{BitCount, Complexity, FieldName, Fields, Name},
+    stream::{to_field_name, BitCount, Complexity, Fields, Name},
 };
 use std::{convert::TryInto, error, num::NonZeroUsize};
 
@@ -19,13 +19,21 @@ use std::{convert::TryInto, error, num::NonZeroUsize};
 ///
 /// A field has a name and a bit count.
 ///
+/// - The bit count cannot be zero.
+///
+/// - The name of each field is a string consisting of letters, numbers, and/or underscores.
+/// - The name cannot contain two or more consecutive underscores.
+/// - The name cannot start or end with an underscore.
+/// - The name cannot start with a digit.
+/// - The name cannot be empty.
+///
 /// [Reference]
 ///
 /// [Reference]: https://abs-tudelft.github.io/tydi/specification/physical.html#element-content
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
     /// The name of this field.
-    name: FieldName,
+    name: String,
     /// The bit count of this field.
     bit_count: NonZeroUsize,
 }
@@ -46,40 +54,37 @@ impl Field {
     /// // Invalid names
     /// assert_eq!(
     ///     Field::new("", 1).unwrap_err().to_string(),
-    ///     "Invalid argument: cannot be empty"
+    ///     "Invalid argument: name cannot be empty"
     /// );
     /// assert_eq!(
     ///     Field::new("1count", 1).unwrap_err().to_string(),
-    ///     "Invalid argument: cannot start with a digit"
+    ///     "Invalid argument: name cannot start with a digit"
     /// );
     /// assert_eq!(
     ///     Field::new("_count", 1).unwrap_err().to_string(),
-    ///     "Invalid argument: cannot start or end with an underscore"
+    ///     "Invalid argument: name cannot start or end with an underscore"
     /// );
     /// assert_eq!(
     ///     Field::new("count_", 1).unwrap_err().to_string(),
-    ///     "Invalid argument: cannot start or end with an underscore"
+    ///     "Invalid argument: name cannot start or end with an underscore"
     /// );
     /// //assert_eq!(
     /// //    Field::new("a!@#", 1).unwrap_err().to_string(),
-    /// //    "Invalid argument: only letters, numbers and/or underscores are allowed"
+    /// //    "Invalid argument: only letters, numbers and/or underscores are allowed for name"
     /// //);
     ///
     /// // Invalid arguments
     /// assert_eq!(
     ///     Field::new("a", 0).unwrap_err().to_string(),
-    ///     "Invalid argument: count cannot be zero"
+    ///     "Invalid argument: bit count cannot be zero"
     /// );
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn new(
-        name: impl TryInto<FieldName, Error = Box<dyn error::Error>>,
-        bit_count: usize,
-    ) -> Result<Self, Box<dyn error::Error>> {
+    pub fn new(name: impl Into<String>, bit_count: usize) -> Result<Self, Box<dyn error::Error>> {
         Ok(Field {
-            name: name.try_into()?,
+            name: to_field_name(name, false)?,
             bit_count: NonZeroUsize::new(bit_count)
-                .ok_or_else(|| Error::InvalidArgument("count cannot be zero".to_string()))?,
+                .ok_or_else(|| Error::InvalidArgument("bit count cannot be zero".to_string()))?,
         })
     }
 }
@@ -358,27 +363,27 @@ mod tests {
 
         assert_eq!(
             Field::new("", 1).unwrap_err().to_string(),
-            "Invalid argument: cannot be empty"
+            "Invalid argument: name cannot be empty"
         );
         assert_eq!(
             Field::new("1count", 1).unwrap_err().to_string(),
-            "Invalid argument: cannot start with a digit"
+            "Invalid argument: name cannot start with a digit"
         );
         assert_eq!(
             Field::new("_count", 1).unwrap_err().to_string(),
-            "Invalid argument: cannot start or end with an underscore"
+            "Invalid argument: name cannot start or end with an underscore"
         );
         assert_eq!(
             Field::new("count_", 1).unwrap_err().to_string(),
-            "Invalid argument: cannot start or end with an underscore"
+            "Invalid argument: name cannot start or end with an underscore"
         );
-        // assert_eq!(
-        //     Field::new("a!@#", 1).unwrap_err().to_string(),
-        //     "Invalid argument: only letters, numbers and/or underscores are allowed"
-        // );
+        assert_eq!(
+            Field::new("a!@#", 1).unwrap_err().to_string(),
+            "Invalid argument: name must consist of letters, numbers, and/or underscores"
+        );
         assert_eq!(
             Field::new("a", 0).unwrap_err().to_string(),
-            "Invalid argument: count cannot be zero"
+            "Invalid argument: bit count cannot be zero"
         );
         Ok(())
     }

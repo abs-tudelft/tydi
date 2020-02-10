@@ -10,6 +10,7 @@ pub enum Error {
 }
 
 impl fmt::Display for Error {
+    /// Display the error variants.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Error::InvalidArgument(ref msg) => write!(f, "Invalid argument: {}", msg),
