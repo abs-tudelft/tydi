@@ -549,7 +549,7 @@ Field conversion function
 
 This section defines the function
 \\(\mathrm{fields}(T_{in}) \rightarrow \textrm{Fields}(N_1 : b_1, N_2 : b_2, ..., N_n : b_n)\\),
-where \\(T_{in}\\) is a any logical stream type, all \\(N\\) are
+where \\(T_{in}\\) is any logical stream type, all \\(N\\) are
 case-insensitively unique, emptyable strings consisting of letters, numbers,
 and/or underscores, not starting or ending in an underscore, and not starting
 with a digit, all \\(b\\) are positive integers, and \\(n\\) is a nonnegative
@@ -562,6 +562,9 @@ integer.
 > asynchronous signal list from the logical stream types preprocessed by
 > \\(\textrm{split}()\\). This function is normally only applied to logical
 > stream types that only carry element-manipulating nodes.
+>
+> Note that the definition for \\(\textrm{Fields}) here matches the definition
+> in the physical stream specification.
 >
 > The names can be empty, because if there are no \\(Group\\)s or \\(Union\\)s,
 > the one existing stream or signal will not have an intrinsic name given by

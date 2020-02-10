@@ -13,29 +13,37 @@ interface, and the significance of these signals.
 Parameters
 ----------
 
-A physical stream interface has five parameters, described in the following
+A physical stream is parameterized as \\(\textrm{PhysicalStream}(E, N, D, C, U)\\),
+where. The significance of these parameters is defined in the following
 subsections.
 
 > The parameters are defined on the interfaces of the source and the sink
 > rather than the stream between them, because the complexity parameter need
 > not be the same on the source and sink. The others do.
 
-### Element content
+### Element content (E) and user/transfer content (U)
 
-This describes the physical layout of the elementary data being transferred by
-the stream. It is an emptyable, ordered set of named fields, where each field
-has a name and a bit count.
+\\(E\\) and \\(U\\) are of the form
+\\(\textrm{Fields}(N_1 : b_1, N_2 : b_2, ..., N_n : b_n)\\), where \\(N\\) are
+names, \\(b\\) are bit counts, and \\(n\\) is a nonnegative integer, describing
+a list of \\(n\\) named bit vector signals.
 
 > The element type can be given zero fields to make a "null" stream. Such
 > streams can still be useful, as physical streams also carry metadata.
 
-\\(E\\) is used as a shorthand for the total number of bits in the element;
-that is, the sum of the field bit count over all fields in the element.
+The difference between the element content and the user/transfer content of
+a stream, is that a transfer may encode zero or more elements, but always
+encodes one instance of the user/transfer content.
 
-#### Field name
+> The user/transfer signals are intended for adding lower-level user-defined
+> protocol signals to the stream, similar to the use of the `*USER` signals in
+> AXI4. For instance, physical streams could be transferred over a
+> network-on-chip-like structure by attaching routing information such as
+> source and destination addresses through this method.
 
 The name of each field is a string consisting of letters, numbers, and/or
-underscores.
+underscores. It may be empty, represented in this specification as
+\\(\varnothing\\).
 
 The name cannot start or end with an underscore.
 
@@ -45,32 +53,30 @@ The name cannot start with a digit.
 > prevent confusion when the name is prefixed to form the signal name, and
 > for compatibility with VHDL.
 
-The name cannot be empty.
-
-> Fields may be auto-named by the next layer of the spec based on the abstract
-> type if necessary.
-
 The name must be case-insensitively unique within the set of named fields.
 
 > The identifier is case-insensitive because compatibility with VHDL is
 > desired.
 
-#### Bit count
-
-The bit count cannot be zero.
+The bit count of each field cannot be zero.
 
 > A lot of synthesis tools out there do not handle null ranges very well.
 
+\\(|\textrm{Fields}(N_1 : b_1, N_2 : b_2, ..., N_n : b_n)|\\) is a shorthand
+defined to equal \\(\sum_{i=1}^{n} b_i\\); that is, the sum of the field bit
+count over all fields in the element.
+
 ### Number of element lanes (N)
 
-The signals used for describing a data element are replicated this many times,
-allowing multiple elements to be transferred per stream handshake. \\(N\\) must
-be an integer greater than or equal to one.
+\\(N\\) must be an integer greater than or equal to one. The signals used for
+describing a data element are replicated this many times, allowing multiple
+elements to be transferred per stream handshake. Each replication is called a
+lane.
 
 ### Dimensionality (D)
 
-This parameter specifies the number of `last` bits needed to represent the
-data. It must be an integer greater than or equal to zero.
+\\(D\\) must be an integer greater than or equal to zero. It specifies the
+number of `last` bits needed to represent the data.
 
 > Intuitively, each sequence nesting level adds one to this number. For
 > instance, to stream two-dimensional sequences, two `last` bits are needed:
@@ -79,25 +85,37 @@ data. It must be an integer greater than or equal to zero.
 
 ### Complexity (C)
 
-This parameter specifies the guarantees a source makes about how elements
-are transferred. Equivalently, it specifies the assumptions a sink can safely
-make.
+\\(C\\) must be a nonempty, period-separated list of nonnegative integers.
+It encodes the guarantees a source makes about how elements are transferred.
+Equivalently, it encodes the assumptions a sink can safely make.
 
-| Higher C                        | Lower C                        |
-|---------------------------------|--------------------------------|
-| Fewer guarantees made by source | More guarantees made by source |
-| Source is easier to implement   | Source is harder to implement  |
-| Sink can make fewer assumptions | Sink can make more assumptions |
-| Sink is harder to implement     | Sink is easier to implement    |
+> | Higher C                        | Lower C                        |
+> |---------------------------------|--------------------------------|
+> | Fewer guarantees made by source | More guarantees made by source |
+> | Source is easier to implement   | Source is harder to implement  |
+> | Sink can make fewer assumptions | Sink can make more assumptions |
+> | Sink is harder to implement     | Sink is easier to implement    |
+>
+> The complexity number carries the following intuitive significance.
+>
+> | \\(C\\) | Description                                                                         |
+> |---------|-------------------------------------------------------------------------------------|
+> | < 8     | Only one sequence can be terminated per transfer.                                   |
+> | < 7     | The indices of the active data lanes can be described with a simple range.          |
+> | < 6     | The range of active data lanes must always start with lane zero.                    |
+> | < 5     | All lanes must be active for all but the last transfer of the innermost sequence.   |
+> | < 4     | The `last` flag cannot be postponed until after the transfer of the last element.   |
+> | < 3     | Innermost sequences must be transferred in consecutive cycles.                      |
+> | < 2     | Whole outermost instances must be transferred in consecutive cycles.                |
+>
+> The exact requirements imposed for each \\(C\\) can be found along with the
+> unconditional signal requirements in later sections.
 
 The complexity levels and signals are defined such that a source with
 complexity \\(C_a\\) can be connected to a sink with complexity
-\\(C_b \ge C_a\\).
-
-The complexity number is defined as a nonempty, period-separated list of
-nonnegative integers. A complexity number is higher than another when the
-leftmost integer is greater, and lower when the leftmost integer is lower. If
-the leftmost integer is equal, the next integer is checked recursively. If one
+\\(C_b \ge C_a\\). A complexity number is higher than another when the
+leftmost integer of either is greater, and lower when the leftmost integer is
+lower. If the leftmost integer is equal, the next integer is checked. If one
 complexity number has more entries than another, the shorter number is padded
 with zeros on the right.
 
@@ -106,72 +124,10 @@ with zeros on the right.
 > later) to insert new complexity levels between the ones defined here. For
 > instance, 3 < 3.1 < 3.1.1 < 3.2 < 4.
 
-The complexity number carries the following intuitive significance.
-
-| \\(C\\) | Description                                                                         |
-|---------|-------------------------------------------------------------------------------------|
-| < 8     | Only one sequence can be terminated per transfer.                                   |
-| < 7     | The indices of the active data lanes can be described with a simple range.          |
-| < 6     | The range of active data lanes must always start with lane zero.                    |
-| < 5     | All lanes must be active for all but the last transfer of the innermost sequence.   |
-| < 4     | The `last` flag cannot be postponed until after the transfer of the last element.   |
-| < 3     | Innermost sequences must be transferred in consecutive cycles.                      |
-| < 2     | Whole outermost instances must be transferred in consecutive cycles.                |
-
-The exact requirements imposed for each \\(C\\) can be found along with the
-unconditional signal requirements in later sections.
-
 A stream is considered to be normalized when \\(C < 4\\). At this complexity
 level, there is a one-to-one mapping between the transferred data and the
 actual transfers for any given \\(N\\). This is called the canonical
 representation of the data for a given \\(N\\).
-
-### User-defined transfer content
-
-This describes the physical layout of the user-defined transfer content of the
-stream. It is an emptyable, ordered set of named fields, where each field has a
-name and a bit count.
-
-> These fields are like the fields in the element content, but are associated
-> to the physical stream transfers rather than the abstract data being
-> transferred. They are intended for adding lower-level user-defined protocol
-> signals to the stream, similar to the use of the `*USER` signals in AXI4.
-> For instance, physical streams could be transferred over a
-> network-on-chip-like structure by attaching routing information through this
-> method.
-
-The letter \\(U\\) is used as a shorthand for the total number of bits in the
-transfer content; that is, the sum of the field bit count over all fields in
-the transfer content.
-
-#### Field name
-
-The name of each field is a string consisting of letters, numbers, and/or
-underscores.
-
-The name cannot start or end with an underscore.
-
-The name cannot start with a digit.
-
-> It is illegal to start or end with an underscore or start with a number to
-> prevent confusion when the name is prefixed to form the signal name, and
-> for compatibility with VHDL.
-
-The name cannot be empty.
-
-> Fields may be auto-named by the next layer of the spec based on the abstract
-> type if necessary.
-
-The name must be case-insensitively unique within the set of named fields.
-
-> The identifier is case-insensitive because compatibility with VHDL is
-> desired.
-
-#### Bit count
-
-The bit count cannot be zero.
-
-> A lot of synthesis tools out there do not handle null ranges very well.
 
 Signals
 -------
@@ -182,7 +138,7 @@ A physical stream is comprised of the following signals.
 |---------|--------|----------------------------------------------------------------------------------------|
 | `valid` | Source | Stalling the data stream due to the source not being ready.                            |
 | `ready` | Sink   | Stalling the data stream due to the sink not being ready.                              |
-| `data`  | Source | Data transfer of \\(N\\) \\(E\\)-bit elements.                                         |
+| `data`  | Source | Data transfer of \\(N\\) \\(|E|\\)-bit elements.                                       |
 | `last`  | Source | Indicating the last transfer for \\(D\\) levels of nested sequences.                   |
 | `stai`  | Source | Start index; encodes the index of the first valid lane.                                |
 | `endi`  | Source | End index; encodes the index of the last valid lane.                                   |
@@ -196,12 +152,12 @@ bit vectors with the following widths.
 |---------|-------------------------------|
 | `valid` | *scalar*                      |
 | `ready` | *scalar*                      |
-| `data`  | \\(N \times E\\)              |
+| `data`  | \\(N \times |E|\\)            |
 | `last`  | \\(N \times D\\)              |
 | `stai`  | \\(\lceil \log_2{N} \rceil\\) |
 | `endi`  | \\(\lceil \log_2{N} \rceil\\) |
 | `strb`  | \\(N\\)                       |
-| `user`  | \\(U\\)                       |
+| `user`  | \\(|U|\\)                     |
 
 ### Clock
 
@@ -284,8 +240,8 @@ and the sink.
 
 #### `data` signal description
 
-The `data` signal consists of `N` concatenated lanes, each carrying a number of
-data element fields, totaling to `E` bits per lane.
+The `data` signal consists of \\(N\\) concatenated lanes, each carrying a
+number of data element fields, totaling to \\(|E|\\) bits per lane.
 
 The state of lane \\(i\\) in the `data` signal is significant only while
 `valid` is asserted and data lane \\(i\\) is *active*. Data lane \\(i\\) is
@@ -337,7 +293,7 @@ is defined to be 0 for the outermost sequence, 1 for its inner sequence, up to
 > For example, one way to represent the value
 > `["Hello", "World"], ["Tydi", "is", "nice"], [""], []` with
 > \\(N = 6, C \ge 8\\) is as follows. Note that \\(D = 2\\) follows
-> from the data type, \\(E\\) depends on the character encoding, and the
+> from the data type, \\(|E|\\) depends on the character encoding, and the
 > example does not depend on \\(U\\).
 > ```text
 > reset released here
@@ -549,12 +505,12 @@ below must be driven for the omitted signals.
 |---------|---------------------------------------------|-----------|
 | `valid` | *see below*                                 | `'1'`     |
 | `ready` | *see below*                                 | `'1'`     |
-| `data`  | \\(E > 0\\)                                 | all `'0'` |
+| `data`  | \\(|E| > 0\\)                               | all `'0'` |
 | `last`  | \\(D \ge 1\\)                               | all `'1'` |
 | `stai`  | \\(C \ge 6 \wedge N > 1\\)                  | 0         |
 | `endi`  | \\((C \ge 5 \vee D \ge 1) \wedge N > 1\\)   | \\(N-1\\) |
 | `strb`  | \\(C \ge 7 \vee D \ge 1\\)                  | all `'1'` |
-| `user`  | \\(U > 0\\)                                 | all `'0'` |
+| `user`  | \\(|U| > 0\\)                               | all `'0'` |
 
 `valid` may be omitted for sources that are always valid.
 
