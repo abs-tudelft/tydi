@@ -230,11 +230,33 @@ is defined as \\(\textrm{Union}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\), where:
  - \\(T_i\\) is the logical stream type for the \\(i\\)th field;
  - \\(n\\) is a positive integer, representing the number of fields.
 
-> Intuitively, each instance of type \\(\textrm{Union}(...)\\) consists of
-> an instance of *one* the contained types, as well as a tag indicating which
-> field that instance belongs to. This corresponds to a `union` or `enum` in
-> most programming languages. Mathematically, Tydi unions represent tagged
-> unions.
+> Intuitively, each instance of type \\(\textrm{Union}\\) consists of
+> an instance of *one* the contained types (also known as variants), as well
+> as a tag indicating which field that instance belongs to. This corresponds
+> to a `union` or `enum` in most programming languages. Mathematically, Tydi
+> unions represent tagged unions.
+>
+> One might argue that unions could also be specified without the
+> \\(\textrm{Union}\\) node, by simply grouping the variants together along
+> with a manually specified \\(\textrm{Bits}\\) field for the union tag, and
+> using don't-cares for the variants not selected through the tag field.
+> However, there are a number of downsides to such a sparse union approach.
+>
+>  - For unions with many variants, the `data` signal of the corresponding
+>    stream becomes very wide.
+>  - Any streams nested inside the union variants would need to be stuffed
+>    with don't-care *transfers* as well, which may result in additional
+>    control logic, delay, area, etc..
+>
+> While such sparse unions have their place, dense unions can be more suitable
+> for a given application. These could also be represented without a
+> \\(\textrm{Union}\\) node, but not in a nicely recursive manner without loss
+> of information about the variant types. Therefore, (dense) unions were made a
+> first-class type through \\(\textrm{Union}\\).
+>
+> \\(\textrm{Union}\\)s can also be used to elegantly describe nullable types.
+> The pattern for that is simply \\(\textrm{Union}(\textrm{Null}, T)\\). In
+> this case, the union's tag field acts like a validity bit.
 
 The names cannot contain two or more consecutive underscores.
 
@@ -254,128 +276,6 @@ The names must be case-insensitively unique within the group.
 
 > The above requirements on the name mirror the requirements on the field names
 > for the physical streams.
-
-##### Semantics
-
-When flattened into fields, a \\(\textrm{Union}\\) node consists of:
-
- - if there are two or more variants, an `"tag"` field of size
-   \\(\left\lceil\log_2{n}\right\rceil\\), where \\(n\\) is the number of
-   variants; and
- - if any variant carries data in the same stream as the union itself, a
-   `"union"` field of size\
-   \\(\max_{\textrm{variants}} \sum_{\textrm{subfields}} b_{\textrm{subfield}}\\).
-
-The `"tag"` field is used to represent which variant is being represented, by
-means of a zero-based index encoded as an unsigned binary number.
-
-It is illegal for a source to drive the `"tag"` field of a \\(\textrm{Union}\\)
-with \\(n\\) variants to \\(n\\) or higher.
-
-> The above would otherwise be possible if \\(n\\) is not a power of two.
-
-The `"union"` field of a \\(\textrm{Union}\\) is used to represent variant
-data existing in the same stream as the union itself. It consists of the
-LSB-first, LSB-aligned concatenation of the fields of the variant.
-
-> No constraint is placed on the value that the source drives on the pad bits.
-
-The physical streams represented by \\(\textrm{Stream}\\) nodes nested inside
-\\(\textrm{Union}\\) variant types behave as if any other variants carried by
-the parent stream do not exist, but are otherwise synchronized to the parent
-stream as defined by the \\(s\\) parameter of the child stream.
-
-> Consider the following example, keeping \\(x\\) generic for now:
->
-> \\[B = \textrm{Group}(x: \textrm{Bits}(2), y: \textrm{Bits}(2))\\\\
-> C = \textrm{Stream}(d=1, s=x, T_e=\textrm{Bits}(4))\\\\
-> U = \textrm{Union}(\textrm{a} : \textrm{Bits}(3), \textrm{b} : \textrm{Bits}(3), \textrm{c} : C)\\\\
-> \textrm{Stream}(d=1, T_e=U)\\]
->
-> This results in two physical streams:
->
->  - the unnamed stream carrying the union with \\(D = 1\\), consisting of a
->    two-bit field named `tag` and a four-bit field named `union`; and
->  - a stream named `c`, consisting of a single unnamed four-bit field.
->
-> Let's say that we need to represent the data `[a:0, b:(x:1, y:2)], [c:[3, 4, 5], a:6]`.
-> The unnamed stream then carries the following four transfers, regardless of
-> the value for \\(x\\):
->
-> ```text
-> [ (tag: "00", union: "-000"),     (1)
->   (tag: "01", union: "1001") ],   (2)
-> [ (tag: "10", union: "----"),     (3)
->   (tag: "00", union: "-110") ]    (4)
-> ```
->
-> In transfer 1 and 4, the MSB of the `union` is don't-care, because variant
-> `a` uses only three bits. In transfer 2, `x` is represented by the two LSB
-> of the `union` field, while `y` is represented by the MSBs. Finally, in
-> transfer 3, all bits of `union` are don't-care, as stream `c` is used to
-> carry the data. Note that a `tag` value of `"11"` is illegal in this example.
->
-> When \\(x = \textrm{Sync}\\), stream `c` has \\(D = 2\\) and carries the
-> following transfers:
->
-> ```text
-> [              ],   (1)
-> [ [ ("0011"),       (2)
->     ("0100"),       (3)
->     ("0101") ] ]    (4)
-> ```
->
-> Transfer 1 carries an empty outer sequence, corresponding to
-> `[a:0, b:(x:1, y:2)]` of the represented data. There are no inner sequences
-> because variant `c` never occurs in the first sequence, but the outer
-> sequence must still be represented to correctly copy the dimensionality
-> information of the parent stream, as mandated by the \\(\textrm{Sync}\\) tag.
-> The second outer sequence represents `[c:[3, 4, 5], a:6]`; it carries one
-> inner sequence, because variant `c` occurs once. The inner sequence directly
-> corresponds to `[3, 4, 5]`.
->
-> When \\(x = \textrm{Flatten}\\), the outer sequence is flattened away.
-> Therefore, stream `c` has \\(D = 1\\) and carries only the following
-> transfers:
->
-> ```text
-> [ ("0011"),     (1)
->   ("0100"),     (2)
->   ("0101") ]    (3)
-> ```
->
-> It is then up to the sink to recover the outer dimension if it needs it.
->
-> When \\(x = \textrm{Desync}\\), \\(D = 2\\) as before. For the example data,
-> the transfers would be exactly the same as for \\(x = \textrm{Sync}\\), but
-> the zero-or-more relationship defined by the \\(\textrm{Desync}\\) means that
-> a `c` variant in the parent stream may correspond with any number of inner
-> sequences on the `c` stream. That does however still mean that the first
-> outer sequence must be empty, as follows:
->
-> ```text
-> [         ],
-> [ [ ... ]
->     ...
->   [ ... ] ]
-> ```
->
-> After all, there are no `c` variants in the first sequence to apply the
-> zero-or-more relationship to.
->
-> Finally, \\(x = \textrm{FlatDesync}\\) flattens the outer sequence away
-> compared to \\(x = \textrm{Desync}\\), allowing for any number of transfers
-> to occur on the `c` stream, all corresponding to the `c` variant in transfer
-> 3 of the parent stream.
->
-> If you're confused as to how a sink is to determine which transfers on the
-> `c` stream correspond to which `c` variant in the parent stream, recall that
-> the purpose of \\(\textrm{Desync}\\) and \\(\textrm{FlatDesync}\\) is to
-> allow the user of this layer of the specification to define this relation as
-> they see fit. Usually, a pattern of the form
-> \\(\textrm{Group}(\textrm{len}: \textrm{Bits}(...), \textrm{data}: \textrm{Stream}(s=\textrm{Desync}, ...))\\)
-> would be used, in which case the length of the encoded inner sequence would
-> be transferred using the `union` field of the parent stream.
 
 ### Operations on logical stream
 
@@ -633,3 +533,185 @@ The name matching is to be done case sensitively.
 > the case of one or more of the names differ, this would still not hold for
 > case-sensitive languages. Therefore, for two streams to be compatible in all
 > cases, the matching must be case sensitive.
+
+Union semantics
+---------------
+
+When flattened into fields, a \\(\textrm{Union}\\) node consists of:
+
+ - if there are two or more variants, an `"tag"` field of size
+   \\(\left\lceil\log_2{n}\right\rceil\\), where \\(n\\) is the number of
+   variants; and
+ - if any variant carries data in the same stream as the union itself, a
+   `"union"` field of size\
+   \\(\max_{\textrm{variants}} \sum_{\textrm{subfields}} b_{\textrm{subfield}}\\).
+
+The `"tag"` field is used to represent which variant is being represented, by
+means of a zero-based index encoded as an unsigned binary number.
+
+It is illegal for a source to drive the `"tag"` field of a \\(\textrm{Union}\\)
+with \\(n\\) variants to \\(n\\) or higher.
+
+> The above would otherwise be possible if \\(n\\) is not a power of two.
+
+The `"union"` field of a \\(\textrm{Union}\\) is used to represent variant
+data existing in the same stream as the union itself. It consists of the
+LSB-first, LSB-aligned concatenation of the fields of the variant.
+
+> No constraint is placed on the value that the source drives on the pad bits.
+
+The physical streams represented by \\(\textrm{Stream}\\) nodes nested inside
+\\(\textrm{Union}\\) variant types behave as if any other variants carried by
+the parent stream do not exist, but are otherwise synchronized to the parent
+stream as defined by the \\(s\\) parameter of the child stream.
+
+> Consider the following example, keeping \\(x\\) generic for now:
+>
+> \\[B = \textrm{Group}(x: \textrm{Bits}(2), y: \textrm{Bits}(2))\\\\
+> C = \textrm{Stream}(d=1, s=x, T_e=\textrm{Bits}(4))\\\\
+> U = \textrm{Union}(\textrm{a} : \textrm{Bits}(3), \textrm{b} : \textrm{Bits}(3), \textrm{c} : C)\\\\
+> \textrm{Stream}(d=1, T_e=U)\\]
+>
+> This results in two physical streams:
+>
+>  - the unnamed stream carrying the union with \\(D = 1\\), consisting of a
+>    two-bit field named `tag` and a four-bit field named `union`; and
+>  - a stream named `c`, consisting of a single unnamed four-bit field.
+>
+> Let's say that we need to represent the data `[a:0, b:(x:1, y:2)], [c:[3, 4, 5], a:6]`.
+> The unnamed stream then carries the following four transfers, regardless of
+> the value for \\(x\\):
+>
+> ```text
+> [ (tag: "00", union: "-000"),     (1)
+>   (tag: "01", union: "1001") ],   (2)
+> [ (tag: "10", union: "----"),     (3)
+>   (tag: "00", union: "-110") ]    (4)
+> ```
+>
+> In transfer 1 and 4, the MSB of the `union` is don't-care, because variant
+> `a` uses only three bits. In transfer 2, `x` is represented by the two LSB
+> of the `union` field, while `y` is represented by the MSBs. Finally, in
+> transfer 3, all bits of `union` are don't-care, as stream `c` is used to
+> carry the data. Note that a `tag` value of `"11"` is illegal in this example.
+>
+> When \\(x = \textrm{Sync}\\), stream `c` has \\(D = 2\\) and carries the
+> following transfers:
+>
+> ```text
+> [              ],   (1)
+> [ [ ("0011"),       (2)
+>     ("0100"),       (3)
+>     ("0101") ] ]    (4)
+> ```
+>
+> Transfer 1 carries an empty outer sequence, corresponding to
+> `[a:0, b:(x:1, y:2)]` of the represented data. There are no inner sequences
+> because variant `c` never occurs in the first sequence, but the outer
+> sequence must still be represented to correctly copy the dimensionality
+> information of the parent stream, as mandated by the \\(\textrm{Sync}\\) tag.
+> The second outer sequence represents `[c:[3, 4, 5], a:6]`; it carries one
+> inner sequence, because variant `c` occurs once. The inner sequence directly
+> corresponds to `[3, 4, 5]`.
+>
+> When \\(x = \textrm{Flatten}\\), the outer sequence is flattened away.
+> Therefore, stream `c` has \\(D = 1\\) and carries only the following
+> transfers:
+>
+> ```text
+> [ ("0011"),     (1)
+>   ("0100"),     (2)
+>   ("0101") ]    (3)
+> ```
+>
+> It is then up to the sink to recover the outer dimension if it needs it.
+>
+> When \\(x = \textrm{Desync}\\), \\(D = 2\\) as before. For the example data,
+> the transfers would be exactly the same as for \\(x = \textrm{Sync}\\), but
+> the zero-or-more relationship defined by the \\(\textrm{Desync}\\) means that
+> a `c` variant in the parent stream may correspond with any number of inner
+> sequences on the `c` stream. That does however still mean that the first
+> outer sequence must be empty, as follows:
+>
+> ```text
+> [         ],
+> [ [ ... ]
+>     ...
+>   [ ... ] ]
+> ```
+>
+> After all, there are no `c` variants in the first sequence to apply the
+> zero-or-more relationship to.
+>
+> Finally, \\(x = \textrm{FlatDesync}\\) flattens the outer sequence away
+> compared to \\(x = \textrm{Desync}\\), allowing for any number of transfers
+> to occur on the `c` stream, all corresponding to the `c` variant in transfer
+> 3 of the parent stream.
+>
+> If you're confused as to how a sink is to determine which transfers on the
+> `c` stream correspond to which `c` variant in the parent stream, recall that
+> the purpose of \\(\textrm{Desync}\\) and \\(\textrm{FlatDesync}\\) is to
+> allow the user of this layer of the specification to define this relation as
+> they see fit. Usually, a pattern of the form
+> \\(\textrm{Group}(\textrm{len}: \textrm{Bits}(...), \textrm{data}: \textrm{Stream}(s=\textrm{Desync}, ...))\\)
+> would be used, in which case the length of the encoded inner sequence would
+> be transferred using the `union` field of the parent stream.
+
+Inter-stream dependencies
+-------------------------
+
+TODO
+
+User-defined signal constraints
+-------------------------------
+
+Tydi places the following constraints on the user-defined signals.
+
+The user-defined signals flow exclusively in the source to sink direction.
+
+> While physical streams can be reversed in order to transfer metadata in the
+> sink to source direction, logical streams fundamentally describe dataflow in
+> the source to sink direction. Therefore, if data needs to flow in the
+> opposite direction as well, you should use a second logical stream.
+>
+> The reasoning behind this design choice is mostly practical in nature.
+> Firstly, with the way the logical stream type is currently defined,
+> unidirectional signals emerge naturally before the first stream node is
+> opened, but reverse-direction signals do not. Therefore, additional nodes
+> would be needed to describe this. Secondly, allowing signals to flow in both
+> directions might be interpreted by users as a way for them to implement their
+> own handshake method to use instead of or in addition to the handshakes of
+> the Tydi physical streams. Most handshake methods break however when
+> registers or clock domain crossings not specifically tailored for that
+> particular handshake are inserted in between. With a purely unidirectional
+> approach, latency bounds are not necessary for correctness, allowing tooling
+> to automatically generate interconnect IP. Tydi does pose some constraints
+> on such IP, however.
+
+Interconnect components such as register slices and clock domain crossings may
+interpret the signals as being asynchronous. Thus, a sink may not rely upon bit
+flips driven in the same cycle by the source from occurring in the same cycle
+at the sink.
+
+> This allows clock domain crossings for the user-defined signals to reduce to
+> simple synchronization registers.
+
+The latency of any signal travelling from source to sink must be less than or
+equal to the latency of the streams.
+
+> This allows the user-defined signals to be used as a way to transfer
+> quasi-constant values, such as the control register inputs for some kernel.
+> As long as the constants are only mutated before the source sends the first
+> stream transfer, the signals received by the sink are guaranteed to be stable
+> by the time it receives the first transfer.
+>
+> Handshaking in the reverse direction may be done using a reversed stream.
+> When the sink is done processing, it sends a transfer on this stream. This
+> will necessarily be received by the source at a later point in time, which
+> is then free to modify the user signals again.
+>
+> Note that slow-changing counter values (those that only increment or
+> decrement slowly with respect to the involved clock domains) can be
+> safely transferred using Gray code. Pulse/strobe signals can be safely
+> transferred by the source toggling a user-defined signal whenever the
+> strobe occurs, and the sink detecting the transitions in this signal.
