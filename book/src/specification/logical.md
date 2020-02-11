@@ -47,11 +47,24 @@ defined as \\(\textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\), where:
 
  - \\(n\\) is a positive real number, representing the minimum number of
    elements that should be transferrable on the child stream per element in the
-   parent stream without the child stream becoming the bottleneck;
+   parent stream, or if there is no parent stream, the minimum number of
+   elements that should be transferrable per clock cycle;
 
    > As we'll see later, the \\(N\\) parameter for the resulting physical
    > stream equals \\(\left\lceil\prod n\right\rceil\\) for all ancestral
    > \\(\textrm{Stream}\\) nodes, including this node.
+   >
+   > This significance is as follows. Let's say that you have a structure like
+   > \\(\textrm{Stream}(T_e = \textrm{Group}(\textrm{a}: \textrm{Bits}(16),
+   > \textrm{b}: \textrm{Stream}(d = 1, T_e = \textrm{Bits}(8), ...)), ...)\\),
+   > you're expecting that you'll be transferring about one of those groups
+   > every three cycles, and you're expecting that the list size of `b` will
+   > be about 8 on average. In this case, \\(n = 1/3\\) for the outer stream
+   > node, and \\(n = 8\\) for the inner stream node. That'll give you
+   > \\(\lceil 1/3\rceil = 1\\) element lane on the outer stream (used at
+   > ~33% efficiency) and \\(\lceil 1/3 \cdot 8\rceil = 3\\) element lanes
+   > for the inner `b` stream (used at ~88% efficiency), such that neither
+   > stream will on average be slowing down the design.
 
  - \\(d\\) is a nonnegative integer, representing the dimensionality of the
    child stream with respect to the parent stream;
