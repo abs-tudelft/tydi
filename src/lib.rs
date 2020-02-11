@@ -12,7 +12,7 @@
 pub mod error;
 // #[cfg(feature = "generator")]
 // pub mod generator;
-// pub mod logical;
+pub mod logical;
 // #[cfg(feature = "parser")]
 // pub mod parser;
 pub mod physical;
@@ -20,6 +20,7 @@ pub mod stream;
 // pub mod streamlet;
 pub(crate) mod util;
 
-// pub use logical::LogicalStream;
-pub use physical::PhysicalStream;
+// TODO(mb): add prelude mod
+// pub use logical::{LogicalStream, Stream};
+// pub use physical::PhysicalStream;
 // pub use streamlet::Streamlet;

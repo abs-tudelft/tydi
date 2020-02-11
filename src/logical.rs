@@ -6,7 +6,9 @@
 
 use crate::{
     error::Error,
-    stream::{Complexity, Direction},
+    physical::PhysicalStream,
+    stream::{Complexity, Direction, Reverse},
+    util::log2_ceil,
 };
 use indexmap::IndexMap;
 use std::{error, num::NonZeroUsize};
@@ -70,7 +72,14 @@ pub struct Stream {
     keep: bool,
 }
 
+impl Reverse for Stream {
+    fn reverse(&mut self) {
+        self.direction.reverse();
+    }
+}
+
 impl Stream {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         data: LogicalStream,
         lanes: usize,
@@ -98,6 +107,7 @@ impl Stream {
     pub fn direction(&self) -> Direction {
         self.direction
     }
+
     pub fn synchronicity(&self) -> Synchronicity {
         self.synchronicity
     }
@@ -109,14 +119,32 @@ impl Stream {
     pub fn element_lanes(&self) -> usize {
         self.element_lanes.get()
     }
+
+    pub fn is_null(&self) -> bool {
+        self.data.is_null()
+            && (self.user.is_some() && self.user.as_ref().unwrap().is_null())
+            && !self.keep
+    }
+
+    fn set_element_lanes(&mut self, element_lanes: NonZeroUsize) {
+        self.element_lanes = element_lanes;
+    }
+
+    fn set_synchronicity(&mut self, synchronicity: Synchronicity) {
+        self.synchronicity = synchronicity;
+    }
+
+    fn set_dimensionality(&mut self, dimensionality: usize) {
+        self.dimensionality = dimensionality;
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogicalStream {
     Null,
     Bits(NonZeroUsize),
-    Group(IndexMap<Vec<String>, LogicalStream>),
-    Union(IndexMap<Vec<String>, LogicalStream>),
+    Group(IndexMap<Option<String>, LogicalStream>),
+    Union(IndexMap<Option<String>, LogicalStream>),
     Stream(Stream),
 }
 
@@ -131,288 +159,254 @@ impl LogicalStream {
         )?))
     }
 
-    pub fn new_group(
-        inner: impl IntoIterator<Item = (Vec<String>, LogicalStream)>,
-    ) -> Result<Self, Box<dyn error::Error>> {
+    pub fn new_group<T, U>(inner: T) -> Result<Self, Box<dyn error::Error>>
+    where
+        T: IntoIterator<Item = (Option<String>, LogicalStream)>,
+    {
         // todo: validation
         Ok(LogicalStream::Group(inner.into_iter().collect()))
     }
 
     pub fn new_union(
-        inner: impl IntoIterator<Item = (Vec<String>, LogicalStream)>,
+        inner: impl IntoIterator<Item = (Option<String>, LogicalStream)>,
     ) -> Result<Self, Box<dyn error::Error>> {
         // todo: validation
         Ok(LogicalStream::Union(inner.into_iter().collect()))
     }
 
     pub fn new_stream(inner: Stream) -> Self {
+        // todo: validation
         LogicalStream::Stream(inner)
     }
 
-    // /// Type compatibility function
-    // pub fn compatible(&self, other: &LogicalStream) -> bool {
-    //     self == other
-    //         || match other {
-    //             LogicalStream::Stream {
-    //                 data, complexity, ..
-    //             } => {
-    //                 let (data_, complexity_) = (data, complexity);
-    //                 match self {
-    //                     LogicalStream::Stream {
-    //                         data, complexity, ..
-    //                     } => data.compatible(data_) && complexity < complexity_,
-    //                     _ => false,
-    //                 }
-    //             }
-    //             _ => false,
-    //         }
-    //         || match self {
-    //             LogicalStream::Group(source) | LogicalStream::Union(source) => match other {
-    //                 LogicalStream::Group(sink) | LogicalStream::Union(sink) => {
-    //                     source.len() == sink.len()
-    //                         && source.iter().zip(sink.iter()).all(|(f, f_)| {
-    //                             f.name() == f_.name() && f.stream().compatible(f_.stream())
-    //                         })
-    //                 }
-    //                 _ => false,
-    //             },
-    //             _ => false,
-    //         }
-    // }
+    /// Returns true if and only if this logical stream does not result in any
+    /// signals.
+    pub fn is_null(&self) -> bool {
+        match self {
+            LogicalStream::Stream(stream) => stream.is_null(),
+            LogicalStream::Null => true,
+            LogicalStream::Group(map) | LogicalStream::Union(map) => {
+                map.values().all(|stream| stream.is_null())
+            }
+            _ => false,
+        }
+    }
 
-    // /// Null detection function
-    // pub fn is_null(&self) -> bool {
-    //     match self {
-    //         LogicalStream::Stream {
-    //             data, user, keep, ..
-    //         } => data.is_null() && user.is_some() && user.as_ref().unwrap().is_null() && !keep,
-    //         LogicalStream::Null => true,
-    //         LogicalStream::Group(fields) | LogicalStream::Union(fields) => {
-    //             fields.iter().all(|f| f.stream().is_null())
-    //         }
-    //         _ => false,
-    //     }
-    // }
+    pub fn split(&self) -> (LogicalStream, IndexMap<Option<String>, LogicalStream>) {
+        match self {
+            LogicalStream::Stream(stream_in) => {
+                let mut map: IndexMap<Option<String>, LogicalStream> = IndexMap::new();
+
+                let (element, rest) = stream_in.data.split();
+                if !element.is_null()
+                    || (stream_in.user.is_some() && stream_in.user.as_ref().unwrap().is_null())
+                    || stream_in.keep
+                {
+                    map.insert(
+                        None,
+                        LogicalStream::new_stream(
+                            // todo: add method
+                            Stream::new(
+                                element,
+                                stream_in.element_lanes.get(),
+                                stream_in.dimensionality,
+                                stream_in.synchronicity,
+                                stream_in.complexity.clone(),
+                                stream_in.direction,
+                                stream_in.user.clone(),
+                                stream_in.keep,
+                            )
+                            .unwrap(),
+                        ),
+                    );
+                }
+
+                map.extend(rest.into_iter().map(|(name, stream)| match stream {
+                    LogicalStream::Stream(mut stream) => {
+                        if stream_in.direction == Direction::Reverse {
+                            stream.reverse();
+                        }
+                        if stream_in.synchronicity == Synchronicity::Flatten
+                            || stream_in.synchronicity == Synchronicity::FlatDesync
+                        {
+                            stream.set_synchronicity(Synchronicity::FlatDesync);
+                        }
+                        if stream.synchronicity != Synchronicity::Flatten
+                            && stream_in.synchronicity != Synchronicity::FlatDesync
+                        {
+                            stream.set_dimensionality(
+                                stream.dimensionality + stream_in.dimensionality,
+                            );
+                        };
+                        stream.set_element_lanes(
+                            NonZeroUsize::new(
+                                stream.element_lanes.get() * stream_in.element_lanes.get(),
+                            )
+                            .unwrap(),
+                        );
+                        (name, LogicalStream::Stream(stream))
+                    }
+                    _ => unreachable!(),
+                }));
+
+                (LogicalStream::Null, map)
+            }
+            LogicalStream::Null | LogicalStream::Bits(_) => (self.clone(), IndexMap::new()),
+            LogicalStream::Group(fields) | LogicalStream::Union(fields) => {
+                let signals = fields
+                    .into_iter()
+                    .map(|(name, stream)| (name.clone(), stream.split().0))
+                    .collect();
+
+                (
+                    match self {
+                        LogicalStream::Group(_) => LogicalStream::Group(signals),
+                        LogicalStream::Union(_) => LogicalStream::Union(signals),
+                        _ => unreachable!(),
+                    },
+                    fields
+                        .into_iter()
+                        .map(|(name, stream)| {
+                            stream.split().1.into_iter().map(move |(name_, stream_)| {
+                                (
+                                    name_
+                                        .map(|name_| {
+                                            format!("{}__{}", name.as_ref().unwrap(), name_)
+                                        })
+                                        .or_else(|| name.clone()),
+                                    stream_,
+                                )
+                            })
+                        })
+                        .flatten()
+                        .collect(),
+                )
+            }
+        }
+    }
+
+    pub fn fields(&self) -> IndexMap<Option<String>, NonZeroUsize> {
+        let mut map = IndexMap::new();
+        match self {
+            LogicalStream::Null | LogicalStream::Stream(_) => map,
+            LogicalStream::Bits(b) => {
+                map.insert(None, *b);
+                map
+            }
+            LogicalStream::Group(fields) => {
+                map.extend(
+                    fields
+                        .iter()
+                        .map(|(name, stream)| {
+                            stream.fields().into_iter().map(move |(name_, count)| {
+                                (
+                                    name_
+                                        .map(|name_| {
+                                            format!("{}__{}", name.as_ref().unwrap(), name_)
+                                        })
+                                        .or_else(|| name.clone()),
+                                    count,
+                                )
+                            })
+                        })
+                        .flatten(),
+                );
+                map
+            }
+            LogicalStream::Union(fields) => {
+                if fields.len() > 1 {
+                    map.insert(
+                        Some("tag".to_string()),
+                        NonZeroUsize::new(log2_ceil(NonZeroUsize::new(fields.len()).unwrap()))
+                            .unwrap(),
+                    );
+                }
+                let b = fields.iter().fold(0, |acc, (_, stream)| {
+                    acc.max(
+                        stream
+                            .fields()
+                            .values()
+                            .fold(0, |acc, count| acc.max(count.get())),
+                    )
+                });
+                if b > 0 {
+                    map.insert(Some("union".to_string()), NonZeroUsize::new(b).unwrap());
+                }
+                map
+            }
+        }
+    }
+
+    pub fn synthesize(
+        &self,
+    ) -> (
+        IndexMap<Option<String>, NonZeroUsize>,
+        IndexMap<Option<String>, PhysicalStream>,
+    ) {
+        let (signals, rest) = self.split();
+        let signals = signals.fields();
+        (
+            signals,
+            rest.into_iter()
+                .map(|(name, stream)| match stream {
+                    LogicalStream::Stream(stream) => (name, PhysicalStream::from(stream)),
+                    _ => unreachable!(),
+                })
+                .collect(),
+        )
+    }
+
+    pub fn compatible(&self, other: &LogicalStream) -> bool {
+        self == other
+            || match other {
+                LogicalStream::Stream(other) => match self {
+                    LogicalStream::Stream(stream) => {
+                        stream.data.compatible(&other.data) && stream.complexity < other.complexity
+                    }
+                    _ => false,
+                },
+                _ => false,
+            }
+            || match self {
+                LogicalStream::Group(source) | LogicalStream::Union(source) => match other {
+                    LogicalStream::Group(sink) | LogicalStream::Union(sink) => {
+                        source.len() == sink.len()
+                            && source.iter().zip(sink.iter()).all(
+                                |((name, stream), (name_, stream_))| {
+                                    name == name_ && stream.compatible(&stream_)
+                                },
+                            )
+                    }
+                    _ => false,
+                },
+                _ => false,
+            }
+    }
 }
 
-// impl BitCount for LogicalStream {
-//     // TODO(mb) check
-//     fn bit_count(&self) -> usize {
-//         match self {
-//             LogicalStream::Null => 0,
-//             LogicalStream::Bits(bits) => bits.get(),
-//             LogicalStream::Group(fields) => fields.bit_count(),
-//             LogicalStream::Union(fields) => {
-//                 fields.iter().map(BitCount::bit_count).max().unwrap_or(0)
-//             }
-//             LogicalStream::Stream { .. } => {
-//                 // streams are virtual
-//                 // data.bit_count() + user.as_ref().map(|s| s.bit_count()).unwrap_or(0)
-//                 0
-//             }
-//         }
-//     }
-// }
-
-// trait Split: Sized {
-//     fn split(&self) -> (LogicalStream, Fields<Field>);
-// }
-
-// impl Split for LogicalStream {
-//     fn split(&self) -> (LogicalStream, Fields<Field>) {
-//         let t_in = self;
-//         match t_in {
-//             LogicalStream::Stream {
-//                 data,
-//                 lanes,
-//                 dimensionality,
-//                 synchronicity,
-//                 complexity,
-//                 direction,
-//                 user,
-//                 keep,
-//             } => {
-//                 let t_d = data;
-//                 let t_u = user;
-
-//                 // Initialize N and T to empty lists.
-//                 let mut fields: FieldsBuilder<Field> = FieldsBuilder::new();
-
-//                 let (t_data, extend) = t_d.split();
-
-//                 if !t_data.is_null() || t_u.is_some() && !t_u.as_ref().unwrap().is_null() || *keep {
-//                     fields.add_field(
-//                         Field::new(
-//                             None as Option<&str>,
-//                             LogicalStream::stream(
-//                                 t_data,
-//                                 lanes.get(),
-//                                 *dimensionality,
-//                                 *synchronicity,
-//                                 complexity.clone(),
-//                                 *direction,
-//                                 t_u.clone(),
-//                                 *keep,
-//                             )
-//                             .unwrap(),
-//                         )
-//                         .unwrap(),
-//                     );
-//                 }
-
-//                 // append names and streams.
-//                 fields.extend(extend.into_iter().map(|named_logical_stream| {
-//                     match named_logical_stream.stream {
-//                         LogicalStream::Stream {
-//                             data,
-//                             lanes,
-//                             dimensionality,
-//                             synchronicity,
-//                             complexity,
-//                             direction,
-//                             user,
-//                             keep,
-//                         } => {
-//                             let direction = if t_in.direction() == Direction::Reverse {
-//                                 t_in.direction().reversed()
-//                             } else {
-//                                 direction
-//                             };
-//                             let synchronicity = if t_in.synchronicity() == Synchronicity::Flatten
-//                                 || t_in.synchronicity() == Synchronicity::FlatDesync
-//                             {
-//                                 Synchronicity::FlatDesync
-//                             } else {
-//                                 synchronicity
-//                             };
-//                             let dimensionality = if synchronicity != Synchronicity::Flatten
-//                                 && t_in.synchronicity() != Synchronicity::FlatDesync
-//                             {
-//                                 dimensionality + t_in.dimensionality()
-//                             } else {
-//                                 dimensionality
-//                             };
-//                             let lanes = lanes.get() * t_in.lanes();
-//                             NamedLogicalStream::new(
-//                                 named_logical_stream.name,
-//                                 LogicalStream::stream(
-//                                     *data,
-//                                     lanes,
-//                                     dimensionality,
-//                                     synchronicity,
-//                                     complexity,
-//                                     direction,
-//                                     user,
-//                                     keep,
-//                                 )
-//                                 .unwrap(),
-//                             )
-//                             .unwrap()
-//                         }
-//                         _ => unreachable!(),
-//                     }
-//                 }));
-//                 (LogicalStream::Null, fields.finish().unwrap())
-//             }
-//             LogicalStream::Null | LogicalStream::Bits(_) => {
-//                 (t_in.clone(), Fields::new(vec![]).unwrap())
-//             }
-//             LogicalStream::Group(inner) | LogicalStream::Union(inner) => {
-//                 let mut fields: FieldsBuilder<Field> = FieldsBuilder::new();
-//                 fields.extend(inner.into_iter().map(|named_logical_stream| {
-//                     Field::new(
-//                         named_logical_stream.name.to_string(),
-//                         named_logical_stream.stream.split().0,
-//                     )
-//                     .unwrap()
-//                 }));
-//                 let fields = fields.finish().unwrap();
-//                 let t_signals = if t_in.is_group() {
-//                     LogicalStream::Group(fields)
-//                 } else {
-//                     LogicalStream::Union(fields)
-//                 };
-
-//                 let mut fields: FieldsBuilder<Field> = FieldsBuilder::new();
-//                 inner.into_iter().for_each(|named_logical_stream| {
-//                     fields.extend(
-//                         named_logical_stream
-//                             .stream
-//                             .split()
-//                             .1
-//                             .into_iter()
-//                             .map(|inner| {
-//                                 let name = match inner.name {
-//                                     Some(name) => {
-//                                         format!("{}__{}", named_logical_stream.name(), name)
-//                                     }
-//                                     None => named_logical_stream.name().to_string(),
-//                                 };
-//                                 Field::new(Some(name), inner.stream).unwrap()
-//                             }),
-//                     );
-//                 });
-
-//                 (t_signals, fields.finish().unwrap())
-//             }
-//         }
-//     }
-// }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use std::error;
-
-//     #[test]
-//     fn split() -> Result<(), Box<dyn error::Error>> {
-//         let logical_stream = LogicalStream::stream(
-//             LogicalStream::group(vec![
-//                 Field::new("a", LogicalStream::bits(4)?)?,
-//                 Field::new("b", LogicalStream::bits(4)?)?,
-//                 Field::new(
-//                     "c",
-//                     LogicalStream::stream(
-//                         LogicalStream::union(vec![
-//                             Field::new("a", LogicalStream::bits(4)?)?,
-//                             Field::new("b", LogicalStream::bits(4)?)?,
-//                             Field::new(
-//                                 "d",
-//                                 LogicalStream::stream(
-//                                     LogicalStream::union(vec![
-//                                         Field::new("e", LogicalStream::bits(4)?)?,
-//                                         Field::new("f", LogicalStream::bits(4)?)?,
-//                                     ])?,
-//                                     1,
-//                                     1,
-//                                     Synchronicity::Desync,
-//                                     0,
-//                                     Direction::Reverse,
-//                                     None,
-//                                     false,
-//                                 )?,
-//                             )?,
-//                         ])?,
-//                         2,
-//                         1,
-//                         Synchronicity::Desync,
-//                         0,
-//                         Direction::Reverse,
-//                         None,
-//                         false,
-//                     )?,
-//                 )?,
-//             ])?,
-//             1,
-//             0,
-//             Synchronicity::Desync,
-//             0,
-//             Direction::Forward,
-//             None,
-//             false,
-//         )?;
-
-//         let _ = logical_stream.split();
-//         Ok(())
-//     }
-// }
+impl From<Stream> for PhysicalStream {
+    fn from(stream: Stream) -> Self {
+        PhysicalStream::new(
+            stream
+                .data
+                .fields()
+                .iter_mut()
+                .map(|(name, value)| (name.clone(), value.get()))
+                .collect(),
+            stream.element_lanes(),
+            stream.dimensionality(),
+            stream.complexity,
+            stream
+                .user
+                .map(|stream| {
+                    stream
+                        .fields()
+                        .iter_mut()
+                        .map(|(name, value)| (name.clone(), value.get()))
+                        .collect::<IndexMap<_, _>>()
+                })
+                .unwrap_or_else(IndexMap::new),
+        )
+        .unwrap()
+    }
+}

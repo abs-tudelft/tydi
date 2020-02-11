@@ -266,52 +266,6 @@ where
     }
 }
 
-// /// Function for validation of field names.
-// ///
-// /// The following rules apply to field names, with double underscores being optional.
-// ///
-// /// - The name of each field is a string consisting of letters, numbers, and/or underscores.
-// /// - The name cannot contain two or more consecutive underscores. [optional]
-// /// - The name cannot start or end with an underscore.
-// /// - The name cannot start with a digit.
-// ///
-// /// Returns an error when the provided name is an invalid field name.
-// /// Consecutive underscores are allowed when `double_underscores_allowed` is
-// /// set.
-// pub(crate) fn to_field_name(
-//     name: impl Into<String>,
-//     empty_allowed: bool,
-//     double_underscores_allowed: bool,
-// ) -> Result<String, Box<dyn error::Error>> {
-//     let name = name.into();
-//     if !empty_allowed && name.is_empty() {
-//         Err(Box::new(Error::InvalidArgument(
-//             "name cannot be empty".to_string(),
-//         )))
-//     } else if name.chars().next().unwrap().is_ascii_digit() {
-//         Err(Box::new(Error::InvalidArgument(
-//             "name cannot start with a digit".to_string(),
-//         )))
-//     } else if name.starts_with('_') || name.ends_with('_') {
-//         Err(Box::new(Error::InvalidArgument(
-//             "name cannot start or end with an underscore".to_string(),
-//         )))
-//     } else if !double_underscores_allowed && name.contains("__") {
-//         Err(Box::new(Error::InvalidArgument(
-//             "name cannot contain two or more consecutive underscores".to_string(),
-//         )))
-//     } else if !name
-//         .chars()
-//         .all(|c| c.is_ascii_alphanumeric() || c.eq(&'_'))
-//     {
-//         Err(Box::new(Error::InvalidArgument(
-//             "name must consist of letters, numbers, and/or underscores".to_string(),
-//         )))
-//     } else {
-//         Ok(name)
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
