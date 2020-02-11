@@ -657,10 +657,81 @@ stream as defined by the \\(s\\) parameter of the child stream.
 > would be used, in which case the length of the encoded inner sequence would
 > be transferred using the `union` field of the parent stream.
 
-Inter-stream dependencies
--------------------------
+Natural ordering and inter-stream dependencies
+----------------------------------------------
 
-TODO
+The natural ordering of a datum transferred over a logical stream is defined
+as follows:
+
+ - for \\(\textrm{Group}\\) nodes, the elements are ordered by left-to-right
+   group order; and
+
+ - for \\(\textrm{Stream}\\) nodes with a parent stream, for every element
+   transferred on the parent stream, transfer the parent element first, then
+   transfer the corresponding data on the child stream. This data depends on
+   the \\(s\\) and \\(d\\) parameters of the \\(\textrm{Stream}\\) node:
+
+    - \\(s \in (\textrm{Sync}, \textrm{Flatten})\\), \\(d = 0\\): one element
+      on the parent stream corresponds to one element on the child stream;
+    - \\(s = \textrm{Sync}\\), \\(d > 0\\): one element on the parent stream
+      corresponds to one \\(d\\)-dimensional sequence on the child stream,
+      delimited by the most significant `last` bit added on top of the `last`
+      bits replicated from the parent stream;
+    - \\(s = \textrm{Flatten}\\), \\(d > 0\\): one element on the parent stream
+      corresponds to one \\(d\\)-dimensional sequence on the child stream,
+      delimited by the most significant `last` bit;
+    - \\(s \in (\textrm{Desync}, \textrm{FlatDesync})\\), \\(d = 0\\): one
+      element on the parent stream corresponds to a user/context-defined number
+      of elements on the child stream (zero or more); and
+    - \\(s \in (\textrm{Desync}, \textrm{FlatDesync})\\), \\(d > 0\\): one
+      element on the parent stream corresponds to a user/context-defined number
+      of \\(d\\)-dimensional sequences on the child stream (zero or more).
+
+> This corresponds to depth-first preorder traversal of the logical stream type
+> tree. It also corresponds to the order in which you would naturally write the
+> data down.
+
+Sources may not assume that sinks will be able to handshake data in an order
+differing from the natural order defined above.
+
+Sinks may not assume that sources will be able to handshake data in an order
+differing from the natural order defined above.
+
+> The above two rules, if adhered to by both source and sink, prevent
+> inter-physical-stream deadlocks.
+>
+> Consider the following simple example:
+>
+> \\[C = \textrm{Stream}(s = \textrm{Sync}, d = 0, ...)\\\\
+> \textrm{Group}(\textrm{a}: C, \textrm{b}: C)\\]
+>
+> `[(a: 1, b: 2), (a: 3, b: 4)]`
+>
+> Let's say the source follows the natural ordering rule and can't buffer
+> anything. That is, it drives `1` on physical stream `a`, waits for the
+> transfer to be acknowledged before driving `2` on physical stream `b`, then
+> waits for that to be acknowledged before driving `3`, and so on. If the
+> natural-ordering rule for sinks did not exist, the sink may try to wait for
+> stream `b` to be validated before it will acknowledge `a`, which would in
+> this case cause a deadlock.
+>
+> The reasoning also works the other way around. That is, if a sink will only
+> acknowledge in the natural order, but the source is allowed to drive `2` on
+> `b` and wait for its acknowledgement before driving `1` on `a`, a similar
+> deadlock will occur.
+>
+> The above does *not* mean that a source isn't allowed to drive data on the
+> two streams independently as fast as it can. The same thing goes for
+> acknowledgement by a sink. If both source and sink support full out-of-order
+> transferral of both streams, the elements can be transferred in any order.
+> It just means that sources and sinks must be compatible with an opposite end
+> that does not support out-of-order transferral.
+>
+> The above reasoning is particularly important for streams flowing in opposing
+> directions. In this case, for a physical stream `x` naturally-ordered before
+> another stream `y` flowing in the opposing direction, `x` acts as a request
+> stream and `y` acts as its response. That is, the source of `x` may not
+> assume that the response will come before it sends the request.
 
 User-defined signal constraints
 -------------------------------
