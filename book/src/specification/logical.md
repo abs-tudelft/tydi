@@ -544,7 +544,7 @@ When flattened into fields, a \\(\textrm{Union}\\) node consists of:
    variants; and
  - if any variant carries data in the same stream as the union itself, a
    `"union"` field of size\
-   \\(\max_{\textrm{variants}} \sum_{\textrm{subfields}} b_{\textrm{subfield}}\\).
+   \\(\max\limits_{\textrm{variants}} \sum\limits_{\textrm{subfields}} b_{\textrm{subfield}}\\).
 
 The `"tag"` field is used to represent which variant is being represented, by
 means of a zero-based index encoded as an unsigned binary number.
