@@ -1,7 +1,7 @@
 //! Stream-related traits, types and functions.
 
 use crate::error::Error;
-use std::{convert::TryFrom, error, fmt};
+use std::{cmp::Ordering, convert::TryFrom, error, fmt};
 
 /// A direction of a stream.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -66,7 +66,7 @@ impl Reverse for Direction {
 /// [Reference]
 ///
 /// [Reference]: https://abs-tudelft.github.io/tydi/specification/physical.html#complexity-c
-#[derive(Debug, Clone, PartialOrd, Ord)]
+#[derive(Debug, Clone)]
 pub struct Complexity {
     /// The complexity level.
     level: Vec<usize>,
@@ -85,6 +85,40 @@ impl PartialEq for Complexity {
 }
 
 impl Eq for Complexity {}
+
+impl PartialOrd for Complexity {
+    fn partial_cmp(&self, other: &Complexity) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Complexity {
+    /// A complexity number is higher than another when the leftmost integer is
+    /// greater, and lower when the leftmost integer is lower. If the leftmost
+    /// integer is equal, the next integer is checked recursively. If one
+    /// complexity number has more entries than another, the shorter number is
+    /// padded with zeros on the right.
+    fn cmp(&self, other: &Complexity) -> Ordering {
+        (0..self.level.len().max(other.level.len()))
+            .map(|idx| {
+                (
+                    self.level.get(idx).unwrap_or(&0),
+                    other.level.get(idx).unwrap_or(&0),
+                )
+            })
+            .fold(None, |ord, (i, j)| match ord {
+                Some(ord) => Some(ord),
+                None => {
+                    if i == j {
+                        None
+                    } else {
+                        Some(i.cmp(j))
+                    }
+                }
+            })
+            .unwrap_or(Ordering::Equal)
+    }
+}
 
 impl From<usize> for Complexity {
     /// Convert a usize into complexity with the usize as major version.
@@ -307,6 +341,8 @@ mod tests {
         let c401 = Complexity::new(vec![4, 0, 1])?;
         assert!(c < c3);
         assert!(c3 < c31);
+        assert!(!(c3 < c30));
+        assert!(!(c3 > c30));
         assert_eq!(c3, c30);
         assert!(c31 < c311);
         assert!(c311 < c32);
@@ -314,6 +350,8 @@ mod tests {
         assert_eq!(c4, c4);
         assert_eq!(c4, c400);
         assert_eq!(c400, c4);
+        assert!(!(c400 > c4));
+        assert!(!(c400 < c4));
         assert!(c400 < c401);
         assert!(c4 < c401);
         assert_eq!(c3, 3.into());
