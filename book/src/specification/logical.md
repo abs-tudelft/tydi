@@ -196,13 +196,11 @@ the transferrence of \\(2^b\\)-valued data carried by means of a group of
 \\(b\\) bits, where \\(b\\) is a positive integer.
 
 > Tydi does not specify how the bits should be interpreted: such interpretation
-> is explicitly out of scope. Where necessary for examples, this specification
-> will usually use unsigned binary numbers or ASCII characters expressed using
-> 8 bits.
+> is explicitly out of scope.
 
-### Group
+#### Group
 
-The \\(\textrm{Group}\\) node acts as a product type for composition. It is
+The \\(\textrm{Group}\\) node acts as a product type (composition). It is
 defined as \\(\textrm{Group}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\), where:
 
  - \\(N_i\\) is a string consisting of letters, numbers, and/or underscores,
@@ -235,7 +233,7 @@ The names must be case-insensitively unique within the group.
 
 #### Union
 
-The \\(\textrm{Union}\\) node acts as a sum type for exclusive disjunction. It
+The \\(\textrm{Union}\\) node acts as a sum type (exclusive disjunction). It
 is defined as \\(\textrm{Union}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\), where:
 
  - \\(N_i\\) is a string consisting of letters, numbers, and/or underscores,
@@ -552,7 +550,7 @@ Union semantics
 
 When flattened into fields, a \\(\textrm{Union}\\) node consists of:
 
- - if there are two or more variants, an `"tag"` field of size
+ - if there are two or more variants, a `"tag"` field of size
    \\(\left\lceil\log_2{n}\right\rceil\\), where \\(n\\) is the number of
    variants; and
  - if any variant carries data in the same stream as the union itself, a
