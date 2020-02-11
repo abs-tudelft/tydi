@@ -7,6 +7,8 @@ use std::{error, fmt};
 pub enum Error {
     /// Indicates an invalid argument is provided.
     InvalidArgument(String),
+    /// Indicates an unexpected duplicate is provided.
+    UnexpectedDuplicate,
 }
 
 impl fmt::Display for Error {
@@ -14,6 +16,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Error::InvalidArgument(ref msg) => write!(f, "Invalid argument: {}", msg),
+            Error::UnexpectedDuplicate => write!(f, "Unexpected duplicate"),
         }
     }
 }

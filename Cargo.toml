@@ -9,7 +9,7 @@ edition = "2018"
 default = ["parser", "generator"]
 parser = ["nom"]
 generator = []
-data = []
 
 [dependencies]
+indexmap = "1.3"
 nom = { version = "5", optional = true }
