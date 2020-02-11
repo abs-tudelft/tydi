@@ -317,6 +317,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::cognitive_complexity)]
     fn complexity() -> Result<(), Box<dyn error::Error>> {
         use std::convert::TryInto;
 
