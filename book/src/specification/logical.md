@@ -482,7 +482,7 @@ node is as defined in the physical stream specification.
 #### Synthesis function
 
 This section defines the function
-\\(\textrm{synthesize}(T_{in}) \rightarrow \textrm{Physical}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\\),
+\\(\textrm{synthesize}(T_{in}) \rightarrow \textrm{LogicalStream}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\\),
 where:
 
  - \\(F_{signals}\\) is of the form
@@ -512,7 +512,7 @@ where:
  - For all \\(i \in (1, 2, ..., n)\\):
     - Unpack \\(T_i\\) into \\(\textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\).
     - \\(P_i := \textrm{PhysicalStream}(\textrm{fields}(T_e), \lceil n\rceil, d, c, \textrm{fields}(T_u))\\)
- - Return \\(\textrm{Physical}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\\).
+ - Return \\(\textrm{LogicalStream}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\\).
 
 #### Type compatibility function
 
