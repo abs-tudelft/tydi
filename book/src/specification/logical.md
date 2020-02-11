@@ -35,7 +35,7 @@ remainder of the subsections describe the element-manipulating nodes.
 #### Stream
 
 The \\(\textrm{Stream}\\) node is used to define a new physical stream. It is
-defined as \\(\textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\), where:
+defined as \\(\textrm{Stream}(T_e, t, d, s, c, r, T_u, x)\\), where:
 
  - \\(T_e\\) is any logical stream type, representing the type of element
    carried by the logical stream;
@@ -45,13 +45,14 @@ defined as \\(\textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\), where:
    > the two different dimensions over two different physical streams, as well
    > as to encode request-response patterns.
 
- - \\(n\\) is a positive real number, representing the minimum number of
+ - \\(t\\) is a positive real number, representing the minimum number of
    elements that should be transferrable on the child stream per element in the
    parent stream, or if there is no parent stream, the minimum number of
    elements that should be transferrable per clock cycle;
 
-   > As we'll see later, the \\(N\\) parameter for the resulting physical
-   > stream equals \\(\left\lceil\prod n\right\rceil\\) for all ancestral
+   > \\(t\\) is short for throughput ratio. As we'll see later, the \\(N\\)
+   > parameter for the resulting physical stream equals
+   > \\(\left\lceil\prod t\right\rceil\\) for all ancestral
    > \\(\textrm{Stream}\\) nodes, including this node.
    >
    > This significance is as follows. Let's say that you have a structure like
@@ -59,8 +60,8 @@ defined as \\(\textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\), where:
    > \textrm{b}: \textrm{Stream}(d = 1, T_e = \textrm{Bits}(8), ...)), ...)\\),
    > you're expecting that you'll be transferring about one of those groups
    > every three cycles, and you're expecting that the list size of `b` will
-   > be about 8 on average. In this case, \\(n = 1/3\\) for the outer stream
-   > node, and \\(n = 8\\) for the inner stream node. That'll give you
+   > be about 8 on average. In this case, \\(t = 1/3\\) for the outer stream
+   > node, and \\(t = 8\\) for the inner stream node. That'll give you
    > \\(\lceil 1/3\rceil = 1\\) element lane on the outer stream (used at
    > ~33% efficiency) and \\(\lceil 1/3 \cdot 8\rceil = 3\\) element lanes
    > for the inner `b` stream (used at ~88% efficiency), such that neither
@@ -164,18 +165,18 @@ defined as \\(\textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\), where:
 > As the \\(\textrm{Stream}\\) node carries many parameters and can therefore
 > be hard to read, some abbreviations are in order:
 > 
->  - \\(\textrm{Dim}(T_e, n, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, n, 1, \textrm{Sync},    c, \textrm{Forward}, T_u, \textrm{false})\\)
->  - \\(\textrm{New}(T_e, n, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, n, 0, \textrm{Sync},    c, \textrm{Forward}, T_u, \textrm{false})\\)
->  - \\(\textrm{Des}(T_e, n, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, n, 0, \textrm{Desync},  c, \textrm{Forward}, T_u, \textrm{false})\\)
->  - \\(\textrm{Flat}(T_e, n, c, T_u)\ \rightarrow\ \textrm{Stream}(T_e, n, 0, \textrm{Flatten}, c, \textrm{Forward}, T_u, \textrm{false})\\)
->  - \\(\textrm{Rev}(T_e, n, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, n, 0, \textrm{Sync},    c, \textrm{Reverse}, T_u, \textrm{false})\\)
+>  - \\(\textrm{Dim}(T_e, t, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, t, 1, \textrm{Sync},    c, \textrm{Forward}, T_u, \textrm{false})\\)
+>  - \\(\textrm{New}(T_e, t, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, t, 0, \textrm{Sync},    c, \textrm{Forward}, T_u, \textrm{false})\\)
+>  - \\(\textrm{Des}(T_e, t, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, t, 0, \textrm{Desync},  c, \textrm{Forward}, T_u, \textrm{false})\\)
+>  - \\(\textrm{Flat}(T_e, t, c, T_u)\ \rightarrow\ \textrm{Stream}(T_e, t, 0, \textrm{Flatten}, c, \textrm{Forward}, T_u, \textrm{false})\\)
+>  - \\(\textrm{Rev}(T_e, t, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, t, 0, \textrm{Sync},    c, \textrm{Reverse}, T_u, \textrm{false})\\)
 > 
 > For the above abbreviations, the following defaults apply in addition:
 > 
 >  - \\(T_u = \textrm{Null}\\);
 >  - \\(c =\\) complexity of parent stream (cannot be omitted if there is no
 >    parent);
->  - \\(n = 1\\).
+>  - \\(t = 1\\).
 
 #### Null
 
@@ -303,7 +304,7 @@ true if and only if \\(T_{in}\\) does not result in any signals.
 The function returns true if and only if one or more of the following
 rules match:
 
- - \\(T_{in} = \textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\),
+ - \\(T_{in} = \textrm{Stream}(T_e, t, d, s, c, r, T_u, x)\\),
    \\(\textrm{isNull}(T_e)\\) is true, \\(\textrm{isNull}(T_u)\\) is true,
    and \\(x\\) is false;
 
@@ -338,7 +339,7 @@ not starting or ending in an underscore, and not starting with a digit, and
 
 \\(\textrm{split}(T_{in})\\) is evaluated as follows.
 
- - If \\(T_{in} = \textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\), apply the
+ - If \\(T_{in} = \textrm{Stream}(T_e, t, d, s, c, r, T_u, x)\\), apply the
    following algorithm.
 
     - Initialize \\(N\\) and \\(T\\) to empty lists.
@@ -348,13 +349,13 @@ not starting or ending in an underscore, and not starting with a digit, and
     - If \\(\textrm{isNull}(T_{element})\\) is false, \\(\textrm{isNull}(T_u)\\)
       is false, or \\(x\\) is true:
        - Append \\(\varnothing\\) (an empty name) to the end of \\(N\\).
-       - Append \\(\textrm{Stream}(T_{element}, n, d, s, c, r, T_u, x)\\) to the end
+       - Append \\(\textrm{Stream}(T_{element}, t, d, s, c, r, T_u, x)\\) to the end
          of \\(T\\).
     - Extend \\(N\\) with \\(\textrm{split}(T_e)\_{names}\\) (i.e.,
       all stream names returned by the \\(\textrm{split}\\) function).
     - For all \\(T' \in \textrm{split}(T_e)\_{streams}\\) (i.e.,
       for all named streams returned by the \\(\textrm{split}\\) function):
-       - Unpack \\(T'\\) into \\(\textrm{Stream}(T'\_d, n', d', s', c', r', T'\_u, x')\\).
+       - Unpack \\(T'\\) into \\(\textrm{Stream}(T'\_d, t', d', s', c', r', T'\_u, x')\\).
          This is always possible due to the postconditions of
          \\(\textrm{split}\\).
        - If \\(r = \textrm{Reverse}\\), reverse the direction of \\(r'\\).
@@ -362,8 +363,8 @@ not starting or ending in an underscore, and not starting with a digit, and
          assign \\(s' := \textrm{FlatDesync}\\).
        - If \\(s' \ne \textrm{Flatten}\\) and \\(s \ne \textrm{FlatDesync}\\),
          assign \\(d' := d' + d\\).
-       - \\(n' := n' \cdot n\\).
-       - Append \\(\textrm{Stream}(T'\_d, n', d', s', c', r', T'\_u, x')\\) to
+       - \\(t' := t' \cdot t\\).
+       - Append \\(\textrm{Stream}(T'\_d, t', d', s', c', r', T'\_u, x')\\) to
          \\(T\\).
     - Return \\(\textrm{SplitStreams}(\textrm{Null}, N_1 : T_1, N_2 : T_2, ..., N_m : T_m)\\).
 
@@ -437,7 +438,7 @@ node is as defined in the physical stream specification.
 \\(\textrm{fields}(T_{in})\\) is evaluated as follows.
 
  - If \\(T_{in} = \textrm{Null}\\) or
-   \\(T_{in} = \textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\), return
+   \\(T_{in} = \textrm{Stream}(T_e, t, d, s, c, r, T_u, x)\\), return
    \\(\textrm{Fields}()\\).
 
  - If \\(T_{in} = \textrm{Bits}(b)\\), return
@@ -508,8 +509,8 @@ where:
    \\(\textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_n : T_n)\\).
  - \\(F_{signals} := \textrm{fields}(T_{signals})\\)
  - For all \\(i \in (1, 2, ..., n)\\):
-    - Unpack \\(T_i\\) into \\(\textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\).
-    - \\(P_i := \textrm{PhysicalStream}(\textrm{fields}(T_e), \lceil n\rceil, d, c, \textrm{fields}(T_u))\\)
+    - Unpack \\(T_i\\) into \\(\textrm{Stream}(T_e, t, d, s, c, r, T_u, x)\\).
+    - \\(P_i := \textrm{PhysicalStream}(\textrm{fields}(T_e), \lceil t\rceil, d, c, \textrm{fields}(T_u))\\)
  - Return \\(\textrm{LogicalStream}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\\).
 
 #### Type compatibility function
@@ -524,8 +525,8 @@ rules match:
 
  - \\(T_{source} = T_{sink}\\);
 
- - \\(T_{source} = \textrm{Stream}(T_e, n, d, s, c, r, T_u, x)\\),
-   \\(T_{sink} = \textrm{Stream}(T'_d, n, d, s, c', r, T_u, x)\\),
+ - \\(T_{source} = \textrm{Stream}(T_e, t, d, s, c, r, T_u, x)\\),
+   \\(T_{sink} = \textrm{Stream}(T'_d, t, d, s, c', r, T_u, x)\\),
    \\(\textrm{compatible}(T_e, T'_d) = \textrm{true}\\), and \\(c < c'\\);
 
  - \\(T_{source} = \textrm{Group}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\),
