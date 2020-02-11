@@ -318,14 +318,20 @@ rules match:
 #### Split function
 
 This section defines the function
-\\(\textrm{split}(T_{in}) \rightarrow \textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_n : T_n)\\),
-where \\(T_{in}\\) is any logical stream type, \\(T_{signals}\\) is a logical
-stream type consisting of only element-manipulating nodes, all \\(T_{1..n}\\)
-are \\(\textrm{Stream}\\) nodes with the data and user subtypes consisting
-of only element-manipulating nodes, all \\(N\\) are case-insensitively
-unique, emptyable strings consisting of letters, numbers, and/or underscores,
-not starting or ending in an underscore, and not starting with a digit, and
-\\(n\\) is a nonnegative integer.
+\\(\textrm{split}(T_{in}) \rightarrow \textrm{SplitStreams}\\),
+where \\(T_{in}\\) is any logical stream type. The \\(\textrm{SplitStreams}\\)
+node is defined as
+\\(\textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_n : T_n)\\),
+where:
+
+ - \\(T_{signals}\\) is a logical stream type consisting of only
+   element-manipulating nodes;
+ - all \\(T_{1..n}\\) are \\(\textrm{Stream}\\) nodes with the data and user
+   subtypes consisting of only element-manipulating nodes;
+ - all \\(N\\) are case-insensitively unique, emptyable strings consisting of
+   letters, numbers, and/or underscores, not starting or ending in an
+   underscore, and not starting with a digit; and
+ - \\(n\\) is a nonnegative integer.
 
 > Intuitively, it splits a logical stream type up into simplified stream types,
 > where \\(T_{signals}\\) contains only the information for the user-defined
@@ -418,7 +424,7 @@ not starting or ending in an underscore, and not starting with a digit, and
 #### Field conversion function
 
 This section defines the function
-\\(\textrm{fields}(T_{in}) \rightarrow \textrm{Fields}(N_1 : b_1, N_2 : b_2, ..., N_n : b_n)\\),
+\\(\textrm{fields}(T_{in}) \rightarrow \textrm{Fields}\\),
 where \\(T_{in}\\) is any logical stream type, and the \\(\textrm{Fields}\\)
 node is as defined in the physical stream specification.
 
@@ -481,7 +487,9 @@ node is as defined in the physical stream specification.
 #### Synthesis function
 
 This section defines the function
-\\(\textrm{synthesize}(T_{in}) \rightarrow \textrm{LogicalStream}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\\),
+\\(\textrm{synthesize}(T_{in}) \rightarrow \textrm{LogicalStream}\\),
+where \\(T_{in}\\) is any logical stream type. The \\(\textrm{LogicalStream}\\)
+node is defined as \\(\textrm{LogicalStream}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\\),
 where:
 
  - \\(F_{signals}\\) is of the form
