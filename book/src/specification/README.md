@@ -14,6 +14,9 @@ The specification is comprised of the following sections.
  - [Introduction](intro.md): defines the motivation and scope of this
    specification.
 
+ - [Notation](notation.md): defines the mathematical notation used by the
+   remainder of the specification.
+
  - [Physical stream specification](physical.md). **Physical streams** are
    hardware streams with their own valid/ready handshaking interface,
    transporting elementary data and dimensionality information. Their exact
