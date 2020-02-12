@@ -1,9 +1,5 @@
 # Summary
 
-[Tydi](./README.md)
-
----
-
 - [Introduction](./README.md)
 - [Tydi specification](./specification/README.md)
   - [Introduction](./specification/intro.md)
