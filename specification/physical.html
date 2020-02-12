@@ -84,7 +84,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div id="sidebar-scrollbox" class="sidebar-scrollbox">
-                <ol class="chapter"><li class="expanded "><a href="../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="expanded "><a href="../specification/index.html"><strong aria-hidden="true">2.</strong> Tydi specification</a></li><li><ol class="section"><li class="expanded "><a href="../specification/intro.html"><strong aria-hidden="true">2.1.</strong> Introduction</a></li><li class="expanded "><a href="../specification/physical.html" class="active"><strong aria-hidden="true">2.2.</strong> Physical streams</a></li><li class="expanded "><a href="../specification/logical.html"><strong aria-hidden="true">2.3.</strong> Logical streams</a></li></ol></li><li class="expanded "><a href="../tools/index.html"><strong aria-hidden="true">3.</strong> Tools</a></li><li><ol class="section"><li class="expanded "><a href="../tools/generators.html"><strong aria-hidden="true">3.1.</strong> Generators</a></li><li class="expanded "><a href="../tools/compositors.html"><strong aria-hidden="true">3.2.</strong> Compositors</a></li></ol></li><li class="expanded "><a href="../faq.html">Frequently Asked Questions</a></li><li class="expanded affix "><a href="../references.html">References</a></li></ol>
+                <ol class="chapter"><li class="expanded "><a href="../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="expanded "><a href="../specification/index.html"><strong aria-hidden="true">2.</strong> Tydi specification</a></li><li><ol class="section"><li class="expanded "><a href="../specification/intro.html"><strong aria-hidden="true">2.1.</strong> Introduction</a></li><li class="expanded "><a href="../specification/notation.html"><strong aria-hidden="true">2.2.</strong> Notation</a></li><li class="expanded "><a href="../specification/physical.html" class="active"><strong aria-hidden="true">2.3.</strong> Physical streams</a></li><li class="expanded "><a href="../specification/logical.html"><strong aria-hidden="true">2.4.</strong> Logical streams</a></li></ol></li><li class="expanded "><a href="../tools/index.html"><strong aria-hidden="true">3.</strong> Tools</a></li><li><ol class="section"><li class="expanded "><a href="../tools/generators.html"><strong aria-hidden="true">3.1.</strong> Generators</a></li><li class="expanded "><a href="../tools/compositors.html"><strong aria-hidden="true">3.2.</strong> Compositors</a></li></ol></li><li class="expanded "><a href="../faq.html">Frequently Asked Questions</a></li><li class="expanded affix "><a href="../references.html">References</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -165,26 +165,37 @@ give hardware developers the freedom to optimize their designs. Based on these
 parameters, this specification defines which signals must exist on the
 interface, and the significance of these signals.</p>
 <h2><a class="header" href="#parameters" id="parameters">Parameters</a></h2>
-<p>A physical stream interface has five parameters, described in the following
-subsections.</p>
+<p>A physical stream is parameterized as \(\textrm{PhysicalStream}(E, N, D, C, U)\).
+The significance of these parameters is defined in the following subsections.</p>
 <blockquote>
 <p>The parameters are defined on the interfaces of the source and the sink
 rather than the stream between them, because the complexity parameter need
 not be the same on the source and sink. The others do.</p>
 </blockquote>
-<h3><a class="header" href="#element-content" id="element-content">Element content</a></h3>
-<p>This describes the physical layout of the elementary data being transferred by
-the stream. It is an emptyable, ordered set of named fields, where each field
-has a name and a bit count.</p>
+<h3><a class="header" href="#element-content-e-and-usertransfer-content-u" id="element-content-e-and-usertransfer-content-u">Element content (E) and user/transfer content (U)</a></h3>
+<p>\(E\) and \(U\) are of the form
+\(\textrm{Fields}(N_1 : b_1, N_2 : b_2, ..., N_n : b_n)\), where \(N\) are
+names, \(b\) are positive integers representing bit counts, and \(n\) is a
+nonnegative integer, describing a list of \(n\) named bit vector signals.</p>
 <blockquote>
 <p>The element type can be given zero fields to make a &quot;null&quot; stream. Such
-streams can still be useful, as physical streams also carry metadata.</p>
+streams can still be useful, as physical streams also carry metadata. The
+bit counts are however not allowed to be zero, because a lot of synthesis
+tools out there do not handle null ranges very well.</p>
 </blockquote>
-<p>\(E\) is used as a shorthand for the total number of bits in the element;
-that is, the sum of the field bit count over all fields in the element.</p>
-<h4><a class="header" href="#field-name" id="field-name">Field name</a></h4>
+<p>The difference between the element content and the user/transfer content of
+a stream, is that a transfer may encode zero or more elements, but always
+encodes one instance of the user/transfer content.</p>
+<blockquote>
+<p>The user/transfer signals are intended for adding lower-level user-defined
+protocol signals to the stream, similar to the use of the <code>*USER</code> signals in
+AXI4. For instance, physical streams could be transferred over a
+network-on-chip-like structure by attaching routing information such as
+source and destination addresses through this method.</p>
+</blockquote>
 <p>The name of each field is a string consisting of letters, numbers, and/or
-underscores.</p>
+underscores. It may be empty, represented in this specification as
+\(\varnothing\).</p>
 <p>The name cannot start or end with an underscore.</p>
 <p>The name cannot start with a digit.</p>
 <blockquote>
@@ -192,28 +203,22 @@ underscores.</p>
 prevent confusion when the name is prefixed to form the signal name, and
 for compatibility with VHDL.</p>
 </blockquote>
-<p>The name cannot be empty.</p>
-<blockquote>
-<p>Fields may be auto-named by the next layer of the spec based on the abstract
-type if necessary.</p>
-</blockquote>
 <p>The name must be case-insensitively unique within the set of named fields.</p>
 <blockquote>
 <p>The identifier is case-insensitive because compatibility with VHDL is
 desired.</p>
 </blockquote>
-<h4><a class="header" href="#bit-count" id="bit-count">Bit count</a></h4>
-<p>The bit count cannot be zero.</p>
-<blockquote>
-<p>A lot of synthesis tools out there do not handle null ranges very well.</p>
-</blockquote>
+<p>\(|\textrm{Fields}(N_1 : b_1, N_2 : b_2, ..., N_n : b_n)|\) is a shorthand
+defined to equal \(\sum_{i=1}^{n} b_i\); that is, the sum of the field bit
+count over all fields in the element.</p>
 <h3><a class="header" href="#number-of-element-lanes-n" id="number-of-element-lanes-n">Number of element lanes (N)</a></h3>
-<p>The signals used for describing a data element are replicated this many times,
-allowing multiple elements to be transferred per stream handshake. \(N\) must
-be an integer greater than or equal to one.</p>
+<p>\(N\) must be an integer greater than or equal to one. The signals used for
+describing a data element are replicated this many times, allowing multiple
+elements to be transferred per stream handshake. Each replication is called a
+lane.</p>
 <h3><a class="header" href="#dimensionality-d" id="dimensionality-d">Dimensionality (D)</a></h3>
-<p>This parameter specifies the number of <code>last</code> bits needed to represent the
-data. It must be an integer greater than or equal to zero.</p>
+<p>\(D\) must be an integer greater than or equal to zero. It specifies the
+number of <code>last</code> bits needed to represent the data.</p>
 <blockquote>
 <p>Intuitively, each sequence nesting level adds one to this number. For
 instance, to stream two-dimensional sequences, two <code>last</code> bits are needed:
@@ -221,30 +226,18 @@ one to mark the boundaries of the inner sequence, and one to mark the
 boundary of each two-dimensional sequence.</p>
 </blockquote>
 <h3><a class="header" href="#complexity-c" id="complexity-c">Complexity (C)</a></h3>
-<p>This parameter specifies the guarantees a source makes about how elements
-are transferred. Equivalently, it specifies the assumptions a sink can safely
-make.</p>
+<p>\(C\) must be a nonempty list of nonnegative integers. It encodes the
+guarantees a source makes about how elements are transferred. Equivalently,
+it encodes the assumptions a sink can safely make.</p>
+<blockquote>
 <table><thead><tr><th>Higher C</th><th>Lower C</th></tr></thead><tbody>
 <tr><td>Fewer guarantees made by source</td><td>More guarantees made by source</td></tr>
 <tr><td>Source is easier to implement</td><td>Source is harder to implement</td></tr>
 <tr><td>Sink can make fewer assumptions</td><td>Sink can make more assumptions</td></tr>
 <tr><td>Sink is harder to implement</td><td>Sink is easier to implement</td></tr>
 </tbody></table>
-<p>The complexity levels and signals are defined such that a source with
-complexity \(C_a\) can be connected to a sink with complexity
-\(C_b \ge C_a\).</p>
-<p>The complexity number is defined as a nonempty, period-separated list of
-nonnegative integers. A complexity number is higher than another when the
-leftmost integer is greater, and lower when the leftmost integer is lower. If
-the leftmost integer is equal, the next integer is checked recursively. If one
-complexity number has more entries than another, the shorter number is padded
-with zeros on the right.</p>
-<blockquote>
-<p>That is, it works a bit like a version number. The idea behind this is to
-allow future version of this specification (or any other kind of addition
-later) to insert new complexity levels between the ones defined here. For
-instance, 3 &lt; 3.1 &lt; 3.1.1 &lt; 3.2 &lt; 4.</p>
-</blockquote>
+<p>C is usually specified as a period-separated list, like a version number
+or paragraph/secion number, because like those things, it is orderable.</p>
 <p>The complexity number carries the following intuitive significance.</p>
 <table><thead><tr><th>\(C\)</th><th>Description</th></tr></thead><tbody>
 <tr><td>&lt; 8</td><td>Only one sequence can be terminated per transfer.</td></tr>
@@ -257,57 +250,30 @@ instance, 3 &lt; 3.1 &lt; 3.1.1 &lt; 3.2 &lt; 4.</p>
 </tbody></table>
 <p>The exact requirements imposed for each \(C\) can be found along with the
 unconditional signal requirements in later sections.</p>
+</blockquote>
+<p>The complexity levels and signals are defined such that a source with
+complexity \(C_a\) can be connected to a sink with complexity
+\(C_b \ge C_a\). A complexity number is higher than another when the
+leftmost integer of either is greater, and lower when the leftmost integer is
+lower. If the leftmost integer is equal, the next integer is checked. If one
+complexity number has more entries than another, the shorter number is padded
+with zeros on the right.</p>
+<blockquote>
+<p>That is, it works a bit like a version number. The idea behind this is to
+allow future version of this specification (or any other kind of addition
+later) to insert new complexity levels between the ones defined here. For
+instance, 3 &lt; 3.1 &lt; 3.1.1 &lt; 3.2 &lt; 4.</p>
+</blockquote>
 <p>A stream is considered to be normalized when \(C &lt; 4\). At this complexity
 level, there is a one-to-one mapping between the transferred data and the
 actual transfers for any given \(N\). This is called the canonical
 representation of the data for a given \(N\).</p>
-<h3><a class="header" href="#user-defined-transfer-content" id="user-defined-transfer-content">User-defined transfer content</a></h3>
-<p>This describes the physical layout of the user-defined transfer content of the
-stream. It is an emptyable, ordered set of named fields, where each field has a
-name and a bit count.</p>
-<blockquote>
-<p>These fields are like the fields in the element content, but are associated
-to the physical stream transfers rather than the abstract data being
-transferred. They are intended for adding lower-level user-defined protocol
-signals to the stream, similar to the use of the <code>*USER</code> signals in AXI4.
-For instance, physical streams could be transferred over a
-network-on-chip-like structure by attaching routing information through this
-method.</p>
-</blockquote>
-<p>The letter \(U\) is used as a shorthand for the total number of bits in the
-transfer content; that is, the sum of the field bit count over all fields in
-the transfer content.</p>
-<h4><a class="header" href="#field-name-1" id="field-name-1">Field name</a></h4>
-<p>The name of each field is a string consisting of letters, numbers, and/or
-underscores.</p>
-<p>The name cannot start or end with an underscore.</p>
-<p>The name cannot start with a digit.</p>
-<blockquote>
-<p>It is illegal to start or end with an underscore or start with a number to
-prevent confusion when the name is prefixed to form the signal name, and
-for compatibility with VHDL.</p>
-</blockquote>
-<p>The name cannot be empty.</p>
-<blockquote>
-<p>Fields may be auto-named by the next layer of the spec based on the abstract
-type if necessary.</p>
-</blockquote>
-<p>The name must be case-insensitively unique within the set of named fields.</p>
-<blockquote>
-<p>The identifier is case-insensitive because compatibility with VHDL is
-desired.</p>
-</blockquote>
-<h4><a class="header" href="#bit-count-1" id="bit-count-1">Bit count</a></h4>
-<p>The bit count cannot be zero.</p>
-<blockquote>
-<p>A lot of synthesis tools out there do not handle null ranges very well.</p>
-</blockquote>
 <h2><a class="header" href="#signals" id="signals">Signals</a></h2>
 <p>A physical stream is comprised of the following signals.</p>
 <table><thead><tr><th>Name</th><th>Origin</th><th>Purpose</th></tr></thead><tbody>
 <tr><td><code>valid</code></td><td>Source</td><td>Stalling the data stream due to the source not being ready.</td></tr>
 <tr><td><code>ready</code></td><td>Sink</td><td>Stalling the data stream due to the sink not being ready.</td></tr>
-<tr><td><code>data</code></td><td>Source</td><td>Data transfer of \(N\) \(E\)-bit elements.</td></tr>
+<tr><td><code>data</code></td><td>Source</td><td>Data transfer of \(N\) \(</td></tr>
 <tr><td><code>last</code></td><td>Source</td><td>Indicating the last transfer for \(D\) levels of nested sequences.</td></tr>
 <tr><td><code>stai</code></td><td>Source</td><td>Start index; encodes the index of the first valid lane.</td></tr>
 <tr><td><code>endi</code></td><td>Source</td><td>End index; encodes the index of the last valid lane.</td></tr>
@@ -319,12 +285,12 @@ bit vectors with the following widths.</p>
 <table><thead><tr><th>Name</th><th>Width</th></tr></thead><tbody>
 <tr><td><code>valid</code></td><td><em>scalar</em></td></tr>
 <tr><td><code>ready</code></td><td><em>scalar</em></td></tr>
-<tr><td><code>data</code></td><td>\(N \times E\)</td></tr>
+<tr><td><code>data</code></td><td>\(N \times</td></tr>
 <tr><td><code>last</code></td><td>\(N \times D\)</td></tr>
 <tr><td><code>stai</code></td><td>\(\lceil \log_2{N} \rceil\)</td></tr>
 <tr><td><code>endi</code></td><td>\(\lceil \log_2{N} \rceil\)</td></tr>
 <tr><td><code>strb</code></td><td>\(N\)</td></tr>
-<tr><td><code>user</code></td><td>\(U\)</td></tr>
+<tr><td><code>user</code></td><td>\(</td></tr>
 </tbody></table>
 <h3><a class="header" href="#clock" id="clock">Clock</a></h3>
 <p>All signals are synchronous to a single clock signal, shared between the source
@@ -394,8 +360,8 @@ and the sink.</p>
 source.</p>
 </blockquote>
 <h4><a class="header" href="#data-signal-description" id="data-signal-description"><code>data</code> signal description</a></h4>
-<p>The <code>data</code> signal consists of <code>N</code> concatenated lanes, each carrying a number of
-data element fields, totaling to <code>E</code> bits per lane.</p>
+<p>The <code>data</code> signal consists of \(N\) concatenated lanes, each carrying a
+number of data element fields, totaling to \(|E|\) bits per lane.</p>
 <p>The state of lane \(i\) in the <code>data</code> signal is significant only while
 <code>valid</code> is asserted and data lane \(i\) is <em>active</em>. Data lane \(i\) is
 considered active if and only if</p>
@@ -444,7 +410,7 @@ is defined to be 0 for the outermost sequence, 1 for its inner sequence, up to
 <p>For example, one way to represent the value
 <code>[&quot;Hello&quot;, &quot;World&quot;], [&quot;Tydi&quot;, &quot;is&quot;, &quot;nice&quot;], [&quot;&quot;], []</code> with
 \(N = 6, C \ge 8\) is as follows. Note that \(D = 2\) follows
-from the data type, \(E\) depends on the character encoding, and the
+from the data type, \(|E|\) depends on the character encoding, and the
 example does not depend on \(U\).</p>
 <pre><code class="language-text">reset released here
         |                      transfer --&gt;
@@ -635,12 +601,12 @@ below must be driven for the omitted signals.</p>
 <table><thead><tr><th>Name</th><th>Condition</th><th>Default</th></tr></thead><tbody>
 <tr><td><code>valid</code></td><td><em>see below</em></td><td><code>'1'</code></td></tr>
 <tr><td><code>ready</code></td><td><em>see below</em></td><td><code>'1'</code></td></tr>
-<tr><td><code>data</code></td><td>\(E &gt; 0\)</td><td>all <code>'0'</code></td></tr>
+<tr><td><code>data</code></td><td>\(</td><td>E</td></tr>
 <tr><td><code>last</code></td><td>\(D \ge 1\)</td><td>all <code>'1'</code></td></tr>
 <tr><td><code>stai</code></td><td>\(C \ge 6 \wedge N &gt; 1\)</td><td>0</td></tr>
 <tr><td><code>endi</code></td><td>\((C \ge 5 \vee D \ge 1) \wedge N &gt; 1\)</td><td>\(N-1\)</td></tr>
 <tr><td><code>strb</code></td><td>\(C \ge 7 \vee D \ge 1\)</td><td>all <code>'1'</code></td></tr>
-<tr><td><code>user</code></td><td>\(U &gt; 0\)</td><td>all <code>'0'</code></td></tr>
+<tr><td><code>user</code></td><td>\(</td><td>U</td></tr>
 </tbody></table>
 <p><code>valid</code> may be omitted for sources that are always valid.</p>
 <blockquote>
@@ -653,9 +619,14 @@ during reset as well for this to apply).</p>
 performance of the source.</p>
 </blockquote>
 <h3><a class="header" href="#interface-conventions" id="interface-conventions">Interface conventions</a></h3>
-<p>When there are name conflicts (for instance due to multiple physical streams
-existing on the hierarchical level of an interface) the signal names must be
-prefixed by a unique stream name, delimited using an underscore.</p>
+<p>Streams may be named, in order to prevent name conflicts due to multiple
+streams existing within the same namespace. Such a name is to be prefixed to
+the signal names using a double underscore.</p>
+<blockquote>
+<p>Double underscores are used as a form of unambiguous hierarchy separation to
+allow user-specified field names in the logical stream types (defined later)
+to contain (non-consecutive) underscores without risk of name conflicts.</p>
+</blockquote>
 <p>The canonical representation for the <code>data</code> and <code>user</code> signals is the LSB-first
 concatenation of the contained fields. For \(N &gt; 1\), the lanes are
 concatenated LSB first, such that the lane index is major and the field index
@@ -682,23 +653,23 @@ block.</p>
 <ul>
 <li>
 <p><code>valid</code>, <code>data</code>, <code>last</code>, <code>stai</code>, <code>endi</code>, <code>strb</code>, and <code>user</code> may be bundled
-in an aggregate type named <code>&lt;stream-name&gt;_dn_type</code> with signal name
-<code>&lt;stream-name&gt;_dn</code> (<code>dn</code> is short for &quot;downstream&quot;).</p>
+in an aggregate type named <code>&lt;stream-name&gt;__dn__type</code> with signal name
+<code>&lt;stream-name&gt;__dn</code> (<code>dn</code> is short for &quot;downstream&quot;).</p>
 </li>
 <li>
-<p><code>ready</code> may be &quot;bundled&quot; in an aggregate type named <code>&lt;stream-name&gt;_up_type</code>
-with signal name <code>&lt;stream-name&gt;_up</code> for symmetry (<code>up</code> is short for
-&quot;upstream&quot;).</p>
+<p><code>ready</code> may be &quot;bundled&quot; in an aggregate type named
+<code>&lt;stream-name&gt;__up__type</code> with signal name <code>&lt;stream-name&gt;__up</code> for symmetry
+(<code>up</code> is short for &quot;upstream&quot;).</p>
 </li>
 <li>
 <p>If the language allows for signal direction reversal within a bundle, all
 stream signals may also be bundled into a single type named
-<code>&lt;stream-name&gt;_type</code>, with <code>ready</code> in the reverse direction.</p>
+<code>&lt;stream-name&gt;__type</code>, with <code>ready</code> in the reverse direction.</p>
 </li>
 <li>
 <p>The data and user fields may be bundled in aggregate types named
-<code>&lt;stream-name&gt;_data_type</code> and <code>&lt;stream-name&gt;_user_type</code> respectively. The
-<code>data</code> signal becomes an array of <code>&lt;stream-name&gt;_data_type</code>s from 0 to
+<code>&lt;stream-name&gt;__data__type</code> and <code>&lt;stream-name&gt;__user__type</code> respectively.
+The <code>data</code> signal becomes an array of <code>&lt;stream-name&gt;__data__type</code>s from 0 to
 \(N - 1\) if \(N &gt; 1\) or when otherwise desirable.</p>
 </li>
 <li>
@@ -706,9 +677,9 @@ stream signals may also be bundled into a single type named
 a bit vector of size one or a scalar bit depending on context.</p>
 </li>
 <li>
-<p>Fields with a common underscore-delimited prefix may be aggregated
-recursively using <code>&lt;stream-name&gt;_data_&lt;common-prefix&gt;_type</code>, in such a
-way that the underscores in the canonical signal name are essentially
+<p>Fields with a common double-underscore-delimited prefix may be aggregated
+recursively using <code>&lt;stream-name&gt;__data__&lt;common-prefix&gt;__type</code>, in such a
+way that the double underscores in the canonical signal name are essentially
 replaced with the hierarchy separator of the hardware definition language.</p>
 </li>
 </ul>
@@ -736,7 +707,7 @@ the first entry on the left-hand side.</p>
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
-                            <a rel="prev" href="../specification/intro.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../specification/notation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
@@ -754,7 +725,7 @@ the first entry on the left-hand side.</p>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                    <a href="../specification/intro.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a href="../specification/notation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
