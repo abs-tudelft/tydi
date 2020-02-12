@@ -12,10 +12,11 @@ a time and only in sequence (hence the name "stream"), but the logical stream
 type can be designed such that the sink as random-access capability within the
 current instance.
 
-Because of the degree of flexibility in specifying Tydi streams, much of this
-specification consists of the formal definitions of the structures needed to
-describe a Tydi stream, and operations thereupon. The resulting constraints on
-the signal lists and behavior of the signals are then described based on these.
+Because of the degree of flexibility in specifying Tydi logical streams, much
+of this specification consists of the formal definitions of the structures
+needed to describe a Tydi logical stream, and operations thereupon. The
+resulting constraints on the signal lists and behavior of the signals are then
+described based on these.
 
 Logical stream type
 -------------------
@@ -129,7 +130,13 @@ defined as \\(\textrm{Stream}(T_e, t, d, s, c, r, T_u, x)\\), where:
    > \\(\textrm{Forward}\\) indicates that the child stream flows in the same
    > direction as its parent, complementing the data of its parent in some way.
    > Conversely, \\(\textrm{Reverse}\\) indicates that the child stream acts as
-   > a response channel for the parent stream.
+   > a response channel for the parent stream. If there is no parent stream,
+   > \\(\textrm{Forward}\\) indicates that the stream flows in the natural
+   > source to sink direction of the logical stream, while
+   > \\(\textrm{Reverse}\\) indicates a control channel in the opposite
+   > direction. The latter may occur for instance when doing random read access
+   > to a memory; the first stream carrying the read commands then flows in the
+   > sink to source direction.
 
  - \\(T_u\\) is a logical stream type consisting of only element-manipulating
    nodes, representing the `user` signals of the physical stream; that is,
@@ -284,7 +291,7 @@ The names cannot start with a digit.
 
 The names cannot be empty.
 
-The names must be case-insensitively unique within the group.
+The names must be case-insensitively unique within the union.
 
 > The above requirements on the name mirror the requirements on the field names
 > for the physical streams.
@@ -313,7 +320,11 @@ rules match:
  - \\(T_{source} = \textrm{Group}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\) and
    \\(\textrm{isNull}(T_i)\\) is true for all \\(i \in (1, 2, ..., n)\\); or
 
- - \\(T_{source} = \textrm{Union}(N: T)\\) and \\(\textrm{isNull}(T)\\) is true.
+ - \\(T_{source} = \textrm{Union}(N_1: T_1)\\) and \\(\textrm{isNull}(T_1)\\)
+   is true.
+
+   > Note that any union with more than one field is not null regardless of
+   > its types, because the union tag also carries information in that case.
 
 #### Split function
 
@@ -500,7 +511,7 @@ where:
    > the physical streams.
 
  - all \\(P\\) are of the form \\(\textrm{PhysicalStream}(E, N, D, C, U)\\), as
-   defined in the physical stream speficiation;
+   defined in the physical stream specification;
 
  - all \\(N\\) are case-insensitively unique, emptyable strings consisting of
    letters, numbers, and/or underscores, not starting or ending in an

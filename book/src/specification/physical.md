@@ -13,9 +13,8 @@ interface, and the significance of these signals.
 Parameters
 ----------
 
-A physical stream is parameterized as \\(\textrm{PhysicalStream}(E, N, D, C, U)\\),
-where. The significance of these parameters is defined in the following
-subsections.
+A physical stream is parameterized as \\(\textrm{PhysicalStream}(E, N, D, C, U)\\).
+The significance of these parameters is defined in the following subsections.
 
 > The parameters are defined on the interfaces of the source and the sink
 > rather than the stream between them, because the complexity parameter need
@@ -25,11 +24,13 @@ subsections.
 
 \\(E\\) and \\(U\\) are of the form
 \\(\textrm{Fields}(N_1 : b_1, N_2 : b_2, ..., N_n : b_n)\\), where \\(N\\) are
-names, \\(b\\) are bit counts, and \\(n\\) is a nonnegative integer, describing
-a list of \\(n\\) named bit vector signals.
+names, \\(b\\) are positive integers representing bit counts, and \\(n\\) is a
+nonnegative integer, describing a list of \\(n\\) named bit vector signals.
 
 > The element type can be given zero fields to make a "null" stream. Such
-> streams can still be useful, as physical streams also carry metadata.
+> streams can still be useful, as physical streams also carry metadata. The
+> bit counts are however not allowed to be zero, because a lot of synthesis
+> tools out there do not handle null ranges very well.
 
 The difference between the element content and the user/transfer content of
 a stream, is that a transfer may encode zero or more elements, but always
@@ -58,10 +59,6 @@ The name must be case-insensitively unique within the set of named fields.
 > The identifier is case-insensitive because compatibility with VHDL is
 > desired.
 
-The bit count of each field cannot be zero.
-
-> A lot of synthesis tools out there do not handle null ranges very well.
-
 \\(|\textrm{Fields}(N_1 : b_1, N_2 : b_2, ..., N_n : b_n)|\\) is a shorthand
 defined to equal \\(\sum_{i=1}^{n} b_i\\); that is, the sum of the field bit
 count over all fields in the element.
@@ -85,9 +82,9 @@ number of `last` bits needed to represent the data.
 
 ### Complexity (C)
 
-\\(C\\) must be a nonempty, period-separated list of nonnegative integers.
-It encodes the guarantees a source makes about how elements are transferred.
-Equivalently, it encodes the assumptions a sink can safely make.
+\\(C\\) must be a nonempty list of nonnegative integers. It encodes the
+guarantees a source makes about how elements are transferred. Equivalently,
+it encodes the assumptions a sink can safely make.
 
 > | Higher C                        | Lower C                        |
 > |---------------------------------|--------------------------------|
@@ -95,6 +92,9 @@ Equivalently, it encodes the assumptions a sink can safely make.
 > | Source is easier to implement   | Source is harder to implement  |
 > | Sink can make fewer assumptions | Sink can make more assumptions |
 > | Sink is harder to implement     | Sink is easier to implement    |
+>
+> C is usually specified as a period-separated list, like a version number
+> or paragraph/secion number, because like those things, it is orderable.
 >
 > The complexity number carries the following intuitive significance.
 >
