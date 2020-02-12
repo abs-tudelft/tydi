@@ -1,6 +1,11 @@
 //! Error variants.
 
-use std::{error, fmt};
+use std::{error, fmt, result};
+
+/// Result type with [`Error`] variants.
+///
+/// [`Error`]: ./enum.Error.html
+pub type Result<T> = result::Result<T, Error>;
 
 /// Error variants used in this crate.
 #[derive(Debug, Clone, PartialEq)]
@@ -22,3 +27,16 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn error() {
+        let a = Error::InvalidArgument("test".to_string());
+        let b = Error::UnexpectedDuplicate;
+        assert_eq!(a.to_string(), "Invalid argument: test");
+        assert_eq!(b.to_string(), "Unexpected duplicate");
+    }
+}

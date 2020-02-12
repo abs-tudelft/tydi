@@ -4,16 +4,12 @@
 
 use crate::{
     generator::common::{Component, Field, Mode, Port, Record, Type},
-    physical::{BitField, Direction},
+    stream::Direction,
     LogicalStream, PhysicalStream, Streamlet,
 };
 
 pub mod common;
 pub mod vhdl;
-
-fn log2ceil(v: usize) -> usize {
-    (v as f64).log2().ceil() as usize
-}
 
 impl From<BitField> for Type {
     fn from(b: BitField) -> Self {
@@ -39,8 +35,8 @@ impl From<BitField> for Type {
 impl From<Direction> for Mode {
     fn from(d: Direction) -> Self {
         match d {
-            Direction::Downstream => Mode::Out,
-            Direction::Upstream => Mode::In,
+            Direction::Forward => Mode::Out,
+            Direction::Reverse => Mode::In,
         }
     }
 }

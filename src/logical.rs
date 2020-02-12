@@ -5,16 +5,59 @@
 //! [Reference]: https://abs-tudelft.github.io/tydi/specification/logical.html
 
 use crate::{
-    error::Error,
-    physical::PhysicalStream,
-    stream::{Complexity, Direction, Reverse},
-    util::log2_ceil,
+    physical::{Complexity, Fields, PhysicalStream},
+    Error, Name, NonNegative, PathName, Positive, Result, Reverse,
 };
 use indexmap::IndexMap;
-use std::{error, num::NonZeroUsize};
+use std::{convert::TryInto, iter::FromIterator};
 
-/// Specifies the synchronicity of the d-dimensional elements in the child
-/// stream with respect to the elements in the parent stream.
+/// A direction of a stream.
+///
+/// [Reference]
+///
+/// [Reference]: https://abs-tudelft.github.io/tydi/specification/logical.html#stream
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Direction {
+    /// Forward indicates that the child stream flows in the same direction as
+    /// its parent, complementing the data of its parent in some way.
+    Forward,
+    /// Reverse indicates that the child stream acts as a response channel for
+    /// the parent stream. If there is no parent stream, Forward indicates that
+    /// the stream flows in the natural source to sink direction of the logical
+    /// stream, while Reverse indicates a control channel in the opposite
+    /// direction. The latter may occur for instance when doing random read
+    /// access to a memory; the first stream carrying the read commands then
+    /// flows in the sink to source direction.
+    Reverse,
+}
+
+impl Reverse for Direction {
+    /// Reverse this direction.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use tydi::{Reverse, Reversed, logical::Direction};
+    ///
+    /// let mut forward = Direction::Forward;
+    /// let mut reverse = Direction::Reverse;
+    ///
+    /// forward.reverse();
+    /// assert_eq!(forward, reverse);
+    ///
+    /// forward.reverse();
+    /// assert_eq!(forward, reverse.reversed());
+    /// ```
+    fn reverse(&mut self) {
+        *self = match self {
+            Direction::Forward => Direction::Reverse,
+            Direction::Reverse => Direction::Forward,
+        };
+    }
+}
+
+/// The synchronicity of the elements in the child stream with respect to the
+/// elements in the parent stream.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Synchronicity {
     /// Indicating that there is a one-to-one relation between the parent and
@@ -40,15 +83,12 @@ pub struct Stream {
     /// Any logical stream type representing the data type carried by the
     /// logical stream.
     data: Box<LogicalStream>,
-    /// Positive real number used to specify the minimum number of elements
-    /// that should be transferrable on the child stream per element in the
-    /// parent stream without the child stream becoming the bottleneck
-    /// (with no parent, it is the initial value).
-    element_lanes: NonZeroUsize,
+    /// ...
+    throughput: f64,
     /// Nonnegative integer specifying the dimensionality of the child
     /// stream with respect to the parent stream (with no parent, it is the
     /// initial value).
-    dimensionality: usize,
+    dimensionality: NonNegative,
     /// The synchronicity of the d-dimensional elements in the child stream
     /// with respect to the elements in the parent stream.
     synchronicity: Synchronicity,
@@ -82,19 +122,17 @@ impl Stream {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         data: LogicalStream,
-        lanes: usize,
-        dimensionality: usize,
+        throughput: f64,
+        dimensionality: NonNegative,
         synchronicity: Synchronicity,
         complexity: impl Into<Complexity>,
         direction: Direction,
         user: Option<Box<LogicalStream>>,
         keep: bool,
-    ) -> Result<Self, Box<dyn error::Error>> {
+    ) -> Result<Self> {
         Ok(Stream {
             data: Box::new(data),
-            element_lanes: NonZeroUsize::new(lanes).ok_or_else(|| {
-                Error::InvalidArgument("element lanes cannot be zero".to_string())
-            })?,
+            throughput,
             dimensionality,
             synchronicity,
             complexity: complexity.into(),
@@ -112,12 +150,12 @@ impl Stream {
         self.synchronicity
     }
 
-    pub fn dimensionality(&self) -> usize {
+    pub fn dimensionality(&self) -> NonNegative {
         self.dimensionality
     }
 
-    pub fn element_lanes(&self) -> usize {
-        self.element_lanes.get()
+    pub fn throughput(&self) -> f64 {
+        self.throughput
     }
 
     pub fn is_null(&self) -> bool {
@@ -126,25 +164,61 @@ impl Stream {
             && !self.keep
     }
 
-    fn set_element_lanes(&mut self, element_lanes: NonZeroUsize) {
-        self.element_lanes = element_lanes;
+    fn set_throughput(&mut self, throughput: f64) {
+        self.throughput = throughput;
     }
 
     fn set_synchronicity(&mut self, synchronicity: Synchronicity) {
         self.synchronicity = synchronicity;
     }
 
-    fn set_dimensionality(&mut self, dimensionality: usize) {
+    fn set_dimensionality(&mut self, dimensionality: NonNegative) {
         self.dimensionality = dimensionality;
+    }
+}
+
+impl From<Stream> for LogicalStream {
+    fn from(stream: Stream) -> Self {
+        LogicalStream::Stream(stream)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Group(IndexMap<Name, LogicalStream>);
+
+impl FromIterator<(Name, LogicalStream)> for Group {
+    fn from_iter<I: IntoIterator<Item = (Name, LogicalStream)>>(iter: I) -> Self {
+        Group(IndexMap::from_iter(iter))
+    }
+}
+
+impl From<Group> for LogicalStream {
+    fn from(group: Group) -> Self {
+        LogicalStream::Group(group)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Union(IndexMap<Name, LogicalStream>);
+
+impl FromIterator<(Name, LogicalStream)> for Union {
+    fn from_iter<I: IntoIterator<Item = (Name, LogicalStream)>>(iter: I) -> Self {
+        Union(IndexMap::from_iter(iter))
+    }
+}
+
+impl From<Union> for LogicalStream {
+    fn from(union: Union) -> Self {
+        LogicalStream::Union(union)
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogicalStream {
     Null,
-    Bits(NonZeroUsize),
-    Group(IndexMap<Option<String>, LogicalStream>),
-    Union(IndexMap<Option<String>, LogicalStream>),
+    Bits(Positive),
+    Group(Group),
+    Union(Union),
     Stream(Stream),
 }
 
@@ -153,25 +227,45 @@ impl LogicalStream {
         LogicalStream::Null
     }
 
-    pub fn new_bits(count: usize) -> Result<Self, Box<dyn error::Error>> {
-        Ok(LogicalStream::Bits(NonZeroUsize::new(count).ok_or_else(
+    pub fn try_new_bits(count: NonNegative) -> Result<Self> {
+        Ok(LogicalStream::Bits(Positive::new(count).ok_or_else(
             || Error::InvalidArgument("bit count cannot be zero".to_string()),
         )?))
     }
 
-    pub fn new_group<T, U>(inner: T) -> Result<Self, Box<dyn error::Error>>
-    where
-        T: IntoIterator<Item = (Option<String>, LogicalStream)>,
-    {
-        // todo: validation
-        Ok(LogicalStream::Group(inner.into_iter().collect()))
+    pub fn new_bits(count: Positive) -> Self {
+        LogicalStream::Bits(count)
     }
 
-    pub fn new_union(
-        inner: impl IntoIterator<Item = (Option<String>, LogicalStream)>,
-    ) -> Result<Self, Box<dyn error::Error>> {
-        // todo: validation
-        Ok(LogicalStream::Union(inner.into_iter().collect()))
+    pub fn try_new_group(
+        group: impl IntoIterator<
+            Item = (
+                impl TryInto<Name, Error = Error>,
+                impl TryInto<LogicalStream, Error = Error>,
+            ),
+        >,
+    ) -> Result<Self> {
+        Ok(LogicalStream::Group(
+            group
+                .into_iter()
+                .map(
+                    |(name, stream)| match (name.try_into(), stream.try_into()) {
+                        (Ok(name), Ok(stream)) => Ok((name, stream)),
+                        (Err(name), _) => Err(name),
+                        (_, Err(stream)) => Err(stream),
+                    },
+                )
+                .collect::<Result<_>>()?,
+        ))
+    }
+
+    pub fn new_group(group: impl IntoIterator<Item = (Name, LogicalStream)>) -> Self {
+        LogicalStream::Group(group.into_iter().collect())
+    }
+
+    // pub fn try_new_union()
+    pub fn new_union(union: impl IntoIterator<Item = (Name, LogicalStream)>) -> Self {
+        LogicalStream::Union(union.into_iter().collect())
     }
 
     pub fn new_stream(inner: Stream) -> Self {
@@ -179,16 +273,28 @@ impl LogicalStream {
         LogicalStream::Stream(inner)
     }
 
+    /// Returns true if this logical stream consists of only element-
+    /// manipulating nodes. This recursively checks
+    pub fn is_element_only(&self) -> bool {
+        match self {
+            LogicalStream::Null | LogicalStream::Bits(_) => true,
+            LogicalStream::Group(Group(fields)) | LogicalStream::Union(Union(fields)) => {
+                fields.values().all(|stream| stream.is_element_only())
+            }
+            LogicalStream::Stream(stream) => stream.data.is_element_only(),
+        }
+    }
+
     /// Returns true if and only if this logical stream does not result in any
     /// signals.
     pub fn is_null(&self) -> bool {
         match self {
-            LogicalStream::Stream(stream) => stream.is_null(),
             LogicalStream::Null => true,
-            LogicalStream::Group(map) | LogicalStream::Union(map) => {
-                map.values().all(|stream| stream.is_null())
+            LogicalStream::Group(Group(fields)) | LogicalStream::Union(Union(fields)) => {
+                fields.values().all(|stream| stream.is_null())
             }
-            _ => false,
+            LogicalStream::Stream(stream) => stream.is_null(),
+            LogicalStream::Bits(_) => false,
         }
     }
 
@@ -208,7 +314,7 @@ impl LogicalStream {
                             // todo: add method
                             Stream::new(
                                 element,
-                                stream_in.element_lanes.get(),
+                                stream_in.throughput,
                                 stream_in.dimensionality,
                                 stream_in.synchronicity,
                                 stream_in.complexity.clone(),
@@ -238,12 +344,7 @@ impl LogicalStream {
                                 stream.dimensionality + stream_in.dimensionality,
                             );
                         };
-                        stream.set_element_lanes(
-                            NonZeroUsize::new(
-                                stream.element_lanes.get() * stream_in.element_lanes.get(),
-                            )
-                            .unwrap(),
-                        );
+                        stream.set_throughput(stream.throughput * stream_in.throughput);
                         (name, LogicalStream::Stream(stream))
                     }
                     _ => unreachable!(),
@@ -252,7 +353,7 @@ impl LogicalStream {
                 (LogicalStream::Null, map)
             }
             LogicalStream::Null | LogicalStream::Bits(_) => (self.clone(), IndexMap::new()),
-            LogicalStream::Group(fields) | LogicalStream::Union(fields) => {
+            LogicalStream::Group(Group(fields)) | LogicalStream::Union(Union(fields)) => {
                 let signals = fields
                     .into_iter()
                     .map(|(name, stream)| (name.clone(), stream.split().0))
@@ -260,8 +361,8 @@ impl LogicalStream {
 
                 (
                     match self {
-                        LogicalStream::Group(_) => LogicalStream::Group(signals),
-                        LogicalStream::Union(_) => LogicalStream::Union(signals),
+                        LogicalStream::Group(_) => LogicalStream::Group(Group(signals)),
+                        LogicalStream::Union(_) => LogicalStream::Union(Union(signals)),
                         _ => unreachable!(),
                     },
                     fields
@@ -270,10 +371,8 @@ impl LogicalStream {
                             stream.split().1.into_iter().map(move |(name_, stream_)| {
                                 (
                                     name_
-                                        .map(|name_| {
-                                            format!("{}__{}", name.as_ref().unwrap(), name_)
-                                        })
-                                        .or_else(|| name.clone()),
+                                        .map(|name_| format!("{}__{}", name.as_ref(), name_))
+                                        .or_else(|| Some(name.clone().to_string())),
                                     stream_,
                                 )
                             })
@@ -285,75 +384,72 @@ impl LogicalStream {
         }
     }
 
-    pub fn fields(&self) -> IndexMap<Option<String>, NonZeroUsize> {
-        let mut map = IndexMap::new();
-        match self {
-            LogicalStream::Null | LogicalStream::Stream(_) => map,
-            LogicalStream::Bits(b) => {
-                map.insert(None, *b);
-                map
-            }
-            LogicalStream::Group(fields) => {
-                map.extend(
-                    fields
-                        .iter()
-                        .map(|(name, stream)| {
-                            stream.fields().into_iter().map(move |(name_, count)| {
-                                (
-                                    name_
-                                        .map(|name_| {
-                                            format!("{}__{}", name.as_ref().unwrap(), name_)
-                                        })
-                                        .or_else(|| name.clone()),
-                                    count,
-                                )
-                            })
-                        })
-                        .flatten(),
-                );
-                map
-            }
-            LogicalStream::Union(fields) => {
-                if fields.len() > 1 {
-                    map.insert(
-                        Some("tag".to_string()),
-                        NonZeroUsize::new(log2_ceil(NonZeroUsize::new(fields.len()).unwrap()))
-                            .unwrap(),
-                    );
-                }
-                let b = fields.iter().fold(0, |acc, (_, stream)| {
-                    acc.max(
-                        stream
-                            .fields()
-                            .values()
-                            .fold(0, |acc, count| acc.max(count.get())),
-                    )
-                });
-                if b > 0 {
-                    map.insert(Some("union".to_string()), NonZeroUsize::new(b).unwrap());
-                }
-                map
-            }
-        }
+    pub fn fields(&self) -> Fields {
+        todo!()
+        // let mut map = IndexMap::new();
+        // match self {
+        //     LogicalStream::Null | LogicalStream::Stream(_) => map,
+        //     LogicalStream::Bits(b) => {
+        //         map.insert(None, *b);
+        //         map
+        //     }
+        //     LogicalStream::Group(Group(fields)) => {
+        //         map.extend(
+        //             fields
+        //                 .iter()
+        //                 .map(|(name, stream)| {
+        //                     stream.fields().into_iter().map(move |(name_, count)| {
+        //                         (
+        //                             name_
+        //                                 .map(|name_| format!("{}__{}", name.as_ref(), name_))
+        //                                 .or_else(|| Some(name.clone().to_string())),
+        //                             count,
+        //                         )
+        //                     })
+        //                 })
+        //                 .flatten(),
+        //         );
+        //         map
+        //     }
+        //     LogicalStream::Union(Union(fields)) => {
+        //         if fields.len() > 1 {
+        //             map.insert(
+        //                 Some("tag".to_string()),
+        //                 Positive::new(log2_ceil(
+        //                     Positive::new(fields.len() as NonNegative).unwrap(),
+        //                 ))
+        //                 .unwrap(),
+        //             );
+        //         }
+        //         let b = fields.iter().fold(0, |acc, (_, stream)| {
+        //             acc.max(
+        //                 stream
+        //                     .fields()
+        //                     .values()
+        //                     .fold(0, |acc, count| acc.max(count.get())),
+        //             )
+        //         });
+        //         if b > 0 {
+        //             map.insert(Some("union".to_string()), Positive::new(b).unwrap());
+        //         }
+        //         map
+        //     }
+        // };
     }
 
-    pub fn synthesize(
-        &self,
-    ) -> (
-        IndexMap<Option<String>, NonZeroUsize>,
-        IndexMap<Option<String>, PhysicalStream>,
-    ) {
-        let (signals, rest) = self.split();
-        let signals = signals.fields();
-        (
-            signals,
-            rest.into_iter()
-                .map(|(name, stream)| match stream {
-                    LogicalStream::Stream(stream) => (name, PhysicalStream::from(stream)),
-                    _ => unreachable!(),
-                })
-                .collect(),
-        )
+    pub fn synthesize(&self) -> (Fields, IndexMap<PathName, PhysicalStream>) {
+        todo!()
+        // let (signals, rest) = self.split();
+        // let signals = signals.fields();
+        // (
+        //     signals,
+        //     rest.into_iter()
+        //         .map(|(name, stream)| match stream {
+        //             LogicalStream::Stream(stream) => (name, PhysicalStream::from(stream)),
+        //             _ => unreachable!(),
+        //         })
+        //         .collect(),
+        // )
     }
 
     pub fn compatible(&self, other: &LogicalStream) -> bool {
@@ -368,45 +464,48 @@ impl LogicalStream {
                 _ => false,
             }
             || match self {
-                LogicalStream::Group(source) | LogicalStream::Union(source) => match other {
-                    LogicalStream::Group(sink) | LogicalStream::Union(sink) => {
-                        source.len() == sink.len()
-                            && source.iter().zip(sink.iter()).all(
-                                |((name, stream), (name_, stream_))| {
-                                    name == name_ && stream.compatible(&stream_)
-                                },
-                            )
+                LogicalStream::Group(Group(source)) | LogicalStream::Union(Union(source)) => {
+                    match other {
+                        LogicalStream::Group(Group(sink)) | LogicalStream::Union(Union(sink)) => {
+                            source.len() == sink.len()
+                                && source.iter().zip(sink.iter()).all(
+                                    |((name, stream), (name_, stream_))| {
+                                        name == name_ && stream.compatible(&stream_)
+                                    },
+                                )
+                        }
+                        _ => false,
                     }
-                    _ => false,
-                },
+                }
                 _ => false,
             }
     }
 }
 
 impl From<Stream> for PhysicalStream {
-    fn from(stream: Stream) -> Self {
-        PhysicalStream::new(
-            stream
-                .data
-                .fields()
-                .iter_mut()
-                .map(|(name, value)| (name.clone(), value.get()))
-                .collect(),
-            stream.element_lanes(),
-            stream.dimensionality(),
-            stream.complexity,
-            stream
-                .user
-                .map(|stream| {
-                    stream
-                        .fields()
-                        .iter_mut()
-                        .map(|(name, value)| (name.clone(), value.get()))
-                        .collect::<IndexMap<_, _>>()
-                })
-                .unwrap_or_else(IndexMap::new),
-        )
-        .unwrap()
+    fn from(_stream: Stream) -> Self {
+        todo!()
+        // PhysicalStream::new(
+        //     stream
+        //         .data
+        //         .fields()
+        //         .iter_mut()
+        //         .map(|(name, value)| (name.clone(), value.get()))
+        //         .collect(),
+        //     Positive::new(stream.throughput.ceil() as NonNegative)
+        //         .unwrap_or(Positive::new(1).unwrap()),
+        //     stream.dimensionality(),
+        //     stream.complexity,
+        //     stream
+        //         .user
+        //         .map(|stream| {
+        //             stream
+        //                 .fields()
+        //                 .iter_mut()
+        //                 .map(|(name, value)| (name.clone(), value.get()))
+        //                 .collect::<IndexMap<_, _>>()
+        //         })
+        //         .unwrap_or_else(IndexMap::new),
+        // )
     }
 }
