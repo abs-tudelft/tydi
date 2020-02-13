@@ -5,8 +5,9 @@
 //! [Reference]: https://abs-tudelft.github.io/tydi/specification/logical.html
 
 use crate::{
-    physical::{Complexity, Fields, PhysicalStream},
-    Error, Name, NonNegative, PathName, Positive, Result, Reverse,
+    physical::{BitCount, Complexity, Fields, PhysicalStream},
+    util::log2_ceil,
+    Error, Name, NonNegative, PathName, Positive, PositiveReal, Result, Reverse,
 };
 use indexmap::IndexMap;
 use std::{convert::TryInto, iter::FromIterator};
@@ -84,7 +85,7 @@ pub struct Stream {
     /// logical stream.
     data: Box<LogicalStream>,
     /// ...
-    throughput: f64,
+    throughput: PositiveReal,
     /// Nonnegative integer specifying the dimensionality of the child
     /// stream with respect to the parent stream (with no parent, it is the
     /// initial value).
@@ -122,15 +123,15 @@ impl Stream {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         data: LogicalStream,
-        throughput: f64,
+        throughput: PositiveReal,
         dimensionality: NonNegative,
         synchronicity: Synchronicity,
         complexity: impl Into<Complexity>,
         direction: Direction,
         user: Option<Box<LogicalStream>>,
         keep: bool,
-    ) -> Result<Self> {
-        Ok(Stream {
+    ) -> Self {
+        Stream {
             data: Box::new(data),
             throughput,
             dimensionality,
@@ -139,7 +140,7 @@ impl Stream {
             direction,
             user,
             keep,
-        })
+        }
     }
 
     pub fn direction(&self) -> Direction {
@@ -154,7 +155,7 @@ impl Stream {
         self.dimensionality
     }
 
-    pub fn throughput(&self) -> f64 {
+    pub fn throughput(&self) -> PositiveReal {
         self.throughput
     }
 
@@ -164,7 +165,7 @@ impl Stream {
             && !self.keep
     }
 
-    fn set_throughput(&mut self, throughput: f64) {
+    fn set_throughput(&mut self, throughput: PositiveReal) {
         self.throughput = throughput;
     }
 
@@ -290,44 +291,44 @@ impl LogicalStream {
     pub fn is_null(&self) -> bool {
         match self {
             LogicalStream::Null => true,
-            LogicalStream::Group(Group(fields)) | LogicalStream::Union(Union(fields)) => {
-                fields.values().all(|stream| stream.is_null())
+            LogicalStream::Group(Group(fields)) => fields.values().all(|stream| stream.is_null()),
+            LogicalStream::Union(Union(fields)) => {
+                fields.len() == 1 && fields.values().all(|stream| stream.is_null())
             }
             LogicalStream::Stream(stream) => stream.is_null(),
             LogicalStream::Bits(_) => false,
         }
     }
 
-    pub fn split(&self) -> (LogicalStream, IndexMap<Option<String>, LogicalStream>) {
+    pub fn split(&self) -> SplitStream {
         match self {
             LogicalStream::Stream(stream_in) => {
-                let mut map: IndexMap<Option<String>, LogicalStream> = IndexMap::new();
+                let mut streams = IndexMap::new();
 
-                let (element, rest) = stream_in.data.split();
+                let split = stream_in.data.split();
+                let (element, rest) = (split.signals, split.streams);
                 if !element.is_null()
                     || (stream_in.user.is_some() && stream_in.user.as_ref().unwrap().is_null())
                     || stream_in.keep
                 {
-                    map.insert(
-                        None,
-                        LogicalStream::new_stream(
-                            // todo: add method
-                            Stream::new(
-                                element,
-                                stream_in.throughput,
-                                stream_in.dimensionality,
-                                stream_in.synchronicity,
-                                stream_in.complexity.clone(),
-                                stream_in.direction,
-                                stream_in.user.clone(),
-                                stream_in.keep,
-                            )
-                            .unwrap(),
-                        ),
+                    streams.insert(
+                        PathName::new_empty(),
+                        // todo: add method
+                        Stream::new(
+                            element,
+                            stream_in.throughput,
+                            stream_in.dimensionality,
+                            stream_in.synchronicity,
+                            stream_in.complexity.clone(),
+                            stream_in.direction,
+                            stream_in.user.clone(),
+                            stream_in.keep,
+                        )
+                        .into(),
                     );
                 }
 
-                map.extend(rest.into_iter().map(|(name, stream)| match stream {
+                streams.extend(rest.into_iter().map(|(name, stream)| match stream {
                     LogicalStream::Stream(mut stream) => {
                         if stream_in.direction == Direction::Reverse {
                             stream.reverse();
@@ -345,111 +346,113 @@ impl LogicalStream {
                             );
                         };
                         stream.set_throughput(stream.throughput * stream_in.throughput);
-                        (name, LogicalStream::Stream(stream))
+                        (name, stream.into())
                     }
                     _ => unreachable!(),
                 }));
 
-                (LogicalStream::Null, map)
+                SplitStream {
+                    signals: LogicalStream::Null,
+                    streams,
+                }
             }
-            LogicalStream::Null | LogicalStream::Bits(_) => (self.clone(), IndexMap::new()),
+            LogicalStream::Null | LogicalStream::Bits(_) => SplitStream {
+                signals: self.clone(),
+                streams: IndexMap::new(),
+            },
             LogicalStream::Group(Group(fields)) | LogicalStream::Union(Union(fields)) => {
                 let signals = fields
                     .into_iter()
-                    .map(|(name, stream)| (name.clone(), stream.split().0))
+                    .map(|(name, stream)| (name.clone(), stream.split().signals))
                     .collect();
 
-                (
-                    match self {
+                SplitStream {
+                    signals: match self {
                         LogicalStream::Group(_) => LogicalStream::Group(Group(signals)),
                         LogicalStream::Union(_) => LogicalStream::Union(Union(signals)),
                         _ => unreachable!(),
                     },
-                    fields
+                    streams: fields
                         .into_iter()
                         .map(|(name, stream)| {
-                            stream.split().1.into_iter().map(move |(name_, stream_)| {
-                                (
-                                    name_
-                                        .map(|name_| format!("{}__{}", name.as_ref(), name_))
-                                        .or_else(|| Some(name.clone().to_string())),
-                                    stream_,
-                                )
-                            })
+                            stream.split().streams.into_iter().map(
+                                move |(mut path_name, stream_)| {
+                                    path_name.push_back(name.clone());
+                                    (path_name, stream_)
+                                },
+                            )
                         })
                         .flatten()
                         .collect(),
-                )
+                }
             }
         }
     }
 
     pub fn fields(&self) -> Fields {
-        todo!()
-        // let mut map = IndexMap::new();
-        // match self {
-        //     LogicalStream::Null | LogicalStream::Stream(_) => map,
-        //     LogicalStream::Bits(b) => {
-        //         map.insert(None, *b);
-        //         map
-        //     }
-        //     LogicalStream::Group(Group(fields)) => {
-        //         map.extend(
-        //             fields
-        //                 .iter()
-        //                 .map(|(name, stream)| {
-        //                     stream.fields().into_iter().map(move |(name_, count)| {
-        //                         (
-        //                             name_
-        //                                 .map(|name_| format!("{}__{}", name.as_ref(), name_))
-        //                                 .or_else(|| Some(name.clone().to_string())),
-        //                             count,
-        //                         )
-        //                     })
-        //                 })
-        //                 .flatten(),
-        //         );
-        //         map
-        //     }
-        //     LogicalStream::Union(Union(fields)) => {
-        //         if fields.len() > 1 {
-        //             map.insert(
-        //                 Some("tag".to_string()),
-        //                 Positive::new(log2_ceil(
-        //                     Positive::new(fields.len() as NonNegative).unwrap(),
-        //                 ))
-        //                 .unwrap(),
-        //             );
-        //         }
-        //         let b = fields.iter().fold(0, |acc, (_, stream)| {
-        //             acc.max(
-        //                 stream
-        //                     .fields()
-        //                     .values()
-        //                     .fold(0, |acc, count| acc.max(count.get())),
-        //             )
-        //         });
-        //         if b > 0 {
-        //             map.insert(Some("union".to_string()), Positive::new(b).unwrap());
-        //         }
-        //         map
-        //     }
-        // };
+        let mut fields = Fields::new_empty();
+        match self {
+            LogicalStream::Null | LogicalStream::Stream(_) => fields,
+            LogicalStream::Bits(b) => {
+                fields.insert(PathName::new_empty(), *b).unwrap();
+                fields
+            }
+            LogicalStream::Group(Group(inner)) => {
+                inner.iter().for_each(|(name, stream)| {
+                    stream.fields().iter().for_each(|(path_name, bit_count)| {
+                        let mut path_name = path_name.clone();
+                        path_name.push_back(name.clone());
+                        fields.insert(path_name, *bit_count).unwrap();
+                    })
+                });
+                fields
+            }
+            LogicalStream::Union(Union(inner)) => {
+                if inner.len() > 1 {
+                    fields
+                        .insert(
+                            PathName::new(vec!["tag"]).unwrap(),
+                            BitCount::new(log2_ceil(
+                                BitCount::new(inner.len() as NonNegative).unwrap(),
+                            ))
+                            .unwrap(),
+                        )
+                        .unwrap();
+                }
+                let b = inner.iter().fold(0, |acc, (_, stream)| {
+                    acc.max(
+                        stream
+                            .fields()
+                            .values()
+                            .fold(0, |acc, count| acc.max(count.get())),
+                    )
+                });
+                if b > 0 {
+                    fields
+                        .insert(
+                            PathName::new(vec!["union"]).unwrap(),
+                            BitCount::new(b).unwrap(),
+                        )
+                        .unwrap();
+                }
+                fields
+            }
+        }
     }
 
-    pub fn synthesize(&self) -> (Fields, IndexMap<PathName, PhysicalStream>) {
-        todo!()
-        // let (signals, rest) = self.split();
-        // let signals = signals.fields();
-        // (
-        //     signals,
-        //     rest.into_iter()
-        //         .map(|(name, stream)| match stream {
-        //             LogicalStream::Stream(stream) => (name, PhysicalStream::from(stream)),
-        //             _ => unreachable!(),
-        //         })
-        //         .collect(),
-        // )
+    pub fn synthesize(&self) -> SynthesizedStream {
+        let split = self.split();
+        let (signals, rest) = (split.signals.fields(), split.streams);
+        SynthesizedStream {
+            signals,
+            streams: rest
+                .into_iter()
+                .map(|(path_name, stream)| match stream {
+                    LogicalStream::Stream(stream) => (path_name, stream.into()),
+                    _ => unreachable!(),
+                })
+                .collect(),
+        }
     }
 
     pub fn compatible(&self, other: &LogicalStream) -> bool {
@@ -482,30 +485,29 @@ impl LogicalStream {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct SplitStream {
+    signals: LogicalStream,
+    streams: IndexMap<PathName, LogicalStream>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SynthesizedStream {
+    signals: Fields,
+    streams: IndexMap<PathName, PhysicalStream>,
+}
+
 impl From<Stream> for PhysicalStream {
-    fn from(_stream: Stream) -> Self {
-        todo!()
-        // PhysicalStream::new(
-        //     stream
-        //         .data
-        //         .fields()
-        //         .iter_mut()
-        //         .map(|(name, value)| (name.clone(), value.get()))
-        //         .collect(),
-        //     Positive::new(stream.throughput.ceil() as NonNegative)
-        //         .unwrap_or(Positive::new(1).unwrap()),
-        //     stream.dimensionality(),
-        //     stream.complexity,
-        //     stream
-        //         .user
-        //         .map(|stream| {
-        //             stream
-        //                 .fields()
-        //                 .iter_mut()
-        //                 .map(|(name, value)| (name.clone(), value.get()))
-        //                 .collect::<IndexMap<_, _>>()
-        //         })
-        //         .unwrap_or_else(IndexMap::new),
-        // )
+    fn from(stream: Stream) -> Self {
+        PhysicalStream::new(
+            stream.data.fields(),
+            Positive::new(stream.throughput.get().ceil() as NonNegative).unwrap(),
+            stream.dimensionality,
+            stream.complexity,
+            stream
+                .user
+                .map(|stream| stream.fields())
+                .unwrap_or_else(Fields::new_empty),
+        )
     }
 }

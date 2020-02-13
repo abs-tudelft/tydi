@@ -45,6 +45,51 @@ pub use traits::{Reverse, Reversed};
 pub type Positive = std::num::NonZeroU32;
 /// Non-negative integer.
 pub type NonNegative = u32;
+/// Positive real.
+pub type PositiveReal = NonZeroReal<f64>;
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NonZeroReal<T>(T);
+
+impl<T> NonZeroReal<T>
+where
+    T: Copy + Into<f64>,
+{
+    pub fn new(real: T) -> Result<Self> {
+        if real.into() > 0. {
+            Ok(NonZeroReal(real))
+        } else {
+            Err(Error::InvalidArgument("real must be positive".to_string()))
+        }
+    }
+}
+
+use std::ops::Mul;
+impl<T> Mul for NonZeroReal<T>
+where
+    T: Copy + Mul<Output = T>,
+{
+    type Output = NonZeroReal<T>;
+
+    fn mul(self, other: NonZeroReal<T>) -> Self::Output {
+        NonZeroReal::new_unchecked(self.0 * other.0)
+    }
+}
+
+impl<T> NonZeroReal<T> {
+    pub fn new_unchecked(real: T) -> Self {
+        NonZeroReal(real)
+    }
+}
+
+impl<T> NonZeroReal<T>
+where
+    T: Copy,
+{
+    pub fn get(&self) -> T {
+        self.0
+    }
+}
 
 // Tools
 // #[cfg(feature = "generator")]
@@ -172,6 +217,10 @@ pub struct PathName(VecDeque<Name>);
 
 use std::convert::TryInto;
 impl PathName {
+    pub(crate) fn new_empty() -> Self {
+        PathName(VecDeque::new())
+    }
+
     pub fn new(names: impl IntoIterator<Item = impl TryInto<Name, Error = Error>>) -> Result<Self> {
         Ok(PathName(
             names
@@ -183,6 +232,10 @@ impl PathName {
     /// Returns true if this PathName is empty (∅).
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+
+    pub(crate) fn push_back(&mut self, name: impl Into<Name>) {
+        self.0.push_back(name.into());
     }
 }
 

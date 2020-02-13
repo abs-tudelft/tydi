@@ -6,6 +6,8 @@
 //! This modules defines the following types:
 //! - [`Complexity`] the interface complexity level.
 //!   [Reference](https://abs-tudelft.github.io/tydi/specification/physical.html#complexity-c)
+//! - [`Fields`] the fields of a physical stream.
+//!   [Reference](https://abs-tudelft.github.io/tydi/specification/physical.html#element-content-e-and-usertransfer-content-u)
 //! - [`PhysicalStream`] a physical stream.
 //!   [Reference](https://abs-tudelft.github.io/tydi/specification/physical.html#physical-stream-specification)
 //! - [`SignalMap`] a signal map for the signals in a physical stream.
@@ -15,15 +17,14 @@
 //!
 //! ## Minimal example
 //!
-//! TODO(mb):fix
-//! ```ignore
+//! ```rust
 //! use tydi::physical::{PhysicalStream, SignalMap};
 //!
 //! // Construct a new physical stream with two elements, named "a" and "b".
 //! // The stream has two elements lanes, no dimensionality data, a complexity
 //! // of (major) level 2, and no user fields.
 //! let physical_stream =
-//!     PhysicalStream::new(vec![(Some("a"), 4), (Some("b"), 8)], 2, 0, 2, vec![])?;
+//!     PhysicalStream::try_new(vec![("a", 4), ("b", 8)], 2, 0, 2, vec![])?;
 //!
 //! // Get the signal map for the physical stream.
 //! let signal_map = physical_stream.signal_map();
@@ -35,7 +36,7 @@
 //! // (2 `strb`, 1 `stai`, 1 `endi`).
 //! let signal_map =
 //!     SignalMap::from(
-//!         PhysicalStream::new(vec![(Some("a"), 4), (Some("b"), 8)], 2, 0, 8, vec![])?
+//!         PhysicalStream::try_new(vec![("a", 4), ("b", 8)], 2, 0, 8, vec![])?
 //!     );
 //! assert_eq!(signal_map.bit_count(), 28);
 //!
@@ -43,13 +44,18 @@
 //! ```
 //!
 //! [`Complexity`]: ./struct.Complexity.html
+//! [`Fields`]: ./struct.Fields.html
 //! [`PhysicalStream`]: ./struct.PhysicalStream.html
 //! [`SignalMap`]: ./struct.SignalMap.html
 //! [Tydi specification]: https://abs-tudelft.github.io/tydi/specification/physical.html
 
 use crate::{util::log2_ceil, Error, NonNegative, PathName, Positive, Result};
 use indexmap::IndexMap;
-use std::{cmp::Ordering, convert::TryFrom, fmt};
+use std::{
+    cmp::Ordering,
+    convert::{TryFrom, TryInto},
+    fmt,
+};
 
 /// Positive number of bits.
 pub type BitCount = Positive;
@@ -266,8 +272,24 @@ impl Fields {
         Ok(Fields(map))
     }
 
+    pub(crate) fn new_empty() -> Self {
+        Fields(IndexMap::new())
+    }
+
+    pub(crate) fn insert(&mut self, path_name: PathName, bit_count: BitCount) -> Result<()> {
+        self.0
+            .insert(path_name, bit_count)
+            .map(|_| -> Result<()> { Err(Error::UnexpectedDuplicate) })
+            .transpose()?;
+        Ok(())
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (&PathName, &BitCount)> {
         self.0.iter()
+    }
+
+    pub fn keys(&self) -> impl Iterator<Item = &PathName> {
+        self.0.keys()
     }
 
     pub fn values(&self) -> impl Iterator<Item = &BitCount> {
@@ -283,12 +305,6 @@ impl<'a> IntoIterator for &'a Fields {
         self.0.iter()
     }
 }
-
-// impl FromIterator<(PathName, BitCount)> for Fields {
-//     fn from_iter<I: IntoIterator<Item = (PathName, BitCount)>>(iter: I) -> Self {
-//         Fields(iter.into_iter().collect())
-//     }
-// }
 
 /// A physical stream.
 ///
@@ -314,6 +330,64 @@ pub struct PhysicalStream {
 }
 
 impl PhysicalStream {
+    pub fn try_new<T, U>(
+        element_fields: T,
+        element_lanes: usize,
+        dimensionality: usize,
+        complexity: impl Into<Complexity>,
+        user: T,
+    ) -> Result<Self>
+    where
+        T: IntoIterator<Item = (U, usize)>,
+        U: TryInto<PathName, Error = Error>,
+    {
+        let element_fields = Fields::new(
+            element_fields
+                .into_iter()
+                .map(|(path_name, bit_count)| {
+                    (
+                        path_name.try_into(),
+                        Positive::new(bit_count as NonNegative),
+                    )
+                })
+                .map(|(path_name, bit_count)| match (path_name, bit_count) {
+                    (Ok(path_name), Some(bit_count)) => Ok((path_name, bit_count)),
+                    (Err(e), _) => Err(e),
+                    (_, None) => Err(Error::InvalidArgument(
+                        "element lanes cannot be zero".to_string(),
+                    )),
+                })
+                .collect::<Result<Vec<_>>>()?,
+        )?;
+        let element_lanes = Positive::new(element_lanes as NonNegative)
+            .ok_or_else(|| Error::InvalidArgument("element lanes cannot be zero".to_string()))?;
+        let dimensionality = dimensionality as NonNegative;
+        let complexity = complexity.into();
+        let user = Fields::new(
+            user.into_iter()
+                .map(|(path_name, bit_count)| {
+                    (
+                        path_name.try_into(),
+                        Positive::new(bit_count as NonNegative),
+                    )
+                })
+                .map(|(path_name, bit_count)| match (path_name, bit_count) {
+                    (Ok(path_name), Some(bit_count)) => Ok((path_name, bit_count)),
+                    (Err(e), _) => Err(e),
+                    (_, None) => Err(Error::InvalidArgument(
+                        "element lanes cannot be zero".to_string(),
+                    )),
+                })
+                .collect::<Result<Vec<_>>>()?,
+        )?;
+        Ok(PhysicalStream::new(
+            element_fields,
+            element_lanes,
+            dimensionality,
+            complexity,
+            user,
+        ))
+    }
     /// Constructs a new PhysicalStream using provided arguments. Returns an
     /// error when provided argument are not valid.
     pub fn new(
@@ -323,7 +397,6 @@ impl PhysicalStream {
         complexity: impl Into<Complexity>,
         user: impl Into<Fields>,
     ) -> Self {
-        // todo: make nice api
         PhysicalStream {
             element_fields: element_fields.into(),
             element_lanes,
@@ -709,14 +782,7 @@ mod tests {
             Fields::new(vec![])?,
         );
 
-        assert_eq!(
-            physical_stream
-                .element_fields()
-                .iter()
-                .collect::<Vec<_>>()
-                .len(),
-            1
-        );
+        assert_eq!(physical_stream.element_fields().iter().count(), 1);
         assert_eq!(physical_stream.element_lanes(), Positive::new(1).unwrap());
         assert_eq!(physical_stream.dimensionality(), 0);
         assert_eq!(physical_stream.complexity(), &Complexity::new_major(0));
