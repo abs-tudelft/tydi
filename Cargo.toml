@@ -5,11 +5,17 @@ description = "An open specification for complex data structures over hardware s
 authors = ["Johan Peltenburg", "Jeroen van Straten", "Matthijs Brobbel"]
 edition = "2018"
 
+[[bin]]
+name = "tydi"
+required-features = ["cli"]
+
 [features]
+cli = ["structopt"]
 default = []
-parser = ["nom"]
 generator = []
+parser = ["nom"]
 
 [dependencies]
 indexmap = "1.3"
 nom = { version = "5", optional = true }
+structopt = { version = "0.3", optional = true, default-features = false }
