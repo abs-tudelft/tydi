@@ -10,14 +10,15 @@ use crate::{
     LogicalStream, PhysicalStream, Streamlet,
 };
 
+pub mod chisel;
 pub mod common;
 pub mod vhdl;
 
 /// Trait to generate back-end specific source files from the common hardware representation
 /// of a project.
-trait GenerateProject {
+pub trait GenerateProject {
     /// Generate source files from a [common::Project] and save them to [path].
-    fn generate(&self, project: Project, path: &Path) -> Result<(), Box<dyn Error>>;
+    fn generate(&self, project: &Project, path: &Path) -> Result<(), Box<dyn Error>>;
 }
 
 fn log2ceil(v: usize) -> usize {
@@ -302,7 +303,7 @@ d: Bits<4>"#,
             identifier: "Tydi".to_string(),
             components: vec![comp],
         };
-        let code: String = pkg.declare();
+        let code: String = pkg.declare().unwrap();
         println!("{}", code);
     }
 }
