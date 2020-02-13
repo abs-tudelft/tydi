@@ -34,6 +34,12 @@ pub mod physical;
 // pub mod streamlet;
 mod traits;
 
+// Tools
+// #[cfg(feature = "generator")]
+// pub mod generator;
+// #[cfg(feature = "parser")]
+// pub mod parser;
+
 // Root re-exports
 // TODO(mb): discuss
 pub use error::{Error, Result};
@@ -90,12 +96,6 @@ where
         self.0
     }
 }
-
-// Tools
-// #[cfg(feature = "generator")]
-// pub mod generator;
-// #[cfg(feature = "parser")]
-// pub mod parser;
 
 /// Type-safe wrapper for valid names.
 ///
