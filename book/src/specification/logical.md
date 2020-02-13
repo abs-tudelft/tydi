@@ -171,15 +171,15 @@ defined as \\(\textrm{Stream}(T_e, t, d, s, c, r, T_u, x)\\), where:
 
 > As the \\(\textrm{Stream}\\) node carries many parameters and can therefore
 > be hard to read, some abbreviations are in order:
-> 
+>
 >  - \\(\textrm{Dim}(T_e, t, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, t, 1, \textrm{Sync},    c, \textrm{Forward}, T_u, \textrm{false})\\)
 >  - \\(\textrm{New}(T_e, t, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, t, 0, \textrm{Sync},    c, \textrm{Forward}, T_u, \textrm{false})\\)
 >  - \\(\textrm{Des}(T_e, t, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, t, 0, \textrm{Desync},  c, \textrm{Forward}, T_u, \textrm{false})\\)
 >  - \\(\textrm{Flat}(T_e, t, c, T_u)\ \rightarrow\ \textrm{Stream}(T_e, t, 0, \textrm{Flatten}, c, \textrm{Forward}, T_u, \textrm{false})\\)
 >  - \\(\textrm{Rev}(T_e, t, c, T_u) \ \rightarrow\ \textrm{Stream}(T_e, t, 0, \textrm{Sync},    c, \textrm{Reverse}, T_u, \textrm{false})\\)
-> 
+>
 > For the above abbreviations, the following defaults apply in addition:
-> 
+>
 >  - \\(T_u = \textrm{Null}\\);
 >  - \\(c =\\) complexity of parent stream (cannot be omitted if there is no
 >    parent);
@@ -522,7 +522,7 @@ where:
 > Intuitively, this function synthesizes a logical stream type to its physical
 > representation.
 
-\\(\textrm{fields}(T_{in})\\) is evaluated as follows.
+\\(\textrm{synthesize}(T_{in})\\) is evaluated as follows.
 
  - Unpack \\(\textrm{split}(T_{in})\\) into
    \\(\textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_n : T_n)\\).
