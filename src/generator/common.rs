@@ -203,6 +203,16 @@ pub struct Library {
     pub components: Vec<Component>,
 }
 
+/// A project with libraries
+// TODO(johanpel): consider renaming this, because project might imply some EDA tool-specific
+//                 project
+pub struct Project {
+    /// The name of the project.
+    pub identifier: String,
+    /// The libraries contained within the projects.
+    pub libraries: Vec<Library>,
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
