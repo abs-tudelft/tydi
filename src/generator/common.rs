@@ -6,9 +6,14 @@
 //! # Examples:
 //!
 //! ```ignore
-//! use tydi::generator::vhdl::VHDLBackEnd;
-//! use tydi::generator::chisel::ChiselBackEnd;
-//! use tydi::generator::{common::Project, GenerateProject};
+//! use tydi::generator::{
+//!     chisel::ChiselBackEnd, vhdl::VHDLBackEnd,
+//!     common::Project,
+//!     GenerateProject
+//! };
+//!
+//! let tmpdir = tempfile::tempdir()?;
+//! let path = tmpdir.path().join("output");
 //!
 //! let proj = Project {
 //!     identifier: "MyProj".to_string(),
@@ -18,8 +23,9 @@
 //! let vhdl = VHDLBackEnd::default();
 //! let chisel = ChiselBackEnd::default();
 //!
-//! vhdl.generate(&proj, std::path::Path::new("output/vhdl"));
-//! chisel.generate(&proj, std::path::Path::new("output/chisel"));
+//! vhdl.generate(&proj, &path.join("vhdl"));
+//! chisel.generate(&proj, &path.join("chisel"));
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
 /// Inner struct for `Type::Array`

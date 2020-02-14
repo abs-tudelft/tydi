@@ -93,6 +93,7 @@ impl GenerateProject for VHDLBackEnd {
 mod test {
     use super::*;
     use crate::generator::common::test::*;
+    use std::{error, fs};
 
     #[test]
     fn test_type_conflict() {
@@ -112,16 +113,19 @@ mod test {
     }
 
     #[test]
-    fn test_backend() {
+    fn test_backend() -> Result<(), Box<dyn error::Error>> {
         let v = VHDLBackEnd::default();
-        assert!(v.generate(&test_proj(), Path::new("__test")).is_ok());
+
+        let tmpdir = tempfile::tempdir()?;
+        let path = tmpdir.path().join("__test");
+
+        assert!(v.generate(&test_proj(), &path).is_ok());
 
         // Check if files were correclty generated.
-        assert!(std::fs::metadata("__test").is_ok());
-        assert!(std::fs::metadata("__test/proj").is_ok());
-        assert!(std::fs::metadata("__test/proj/lib_pkg.gen.vhd").is_ok());
+        assert!(fs::metadata(&path).is_ok());
+        assert!(fs::metadata(&path.join("proj")).is_ok());
+        assert!(fs::metadata(&path.join("proj/lib_pkg.gen.vhd")).is_ok());
 
-        // Remove everything that was generated.
-        assert!(std::fs::remove_dir_all(Path::new("__test")).is_ok());
+        Ok(())
     }
 }
