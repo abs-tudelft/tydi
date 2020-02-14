@@ -11,7 +11,7 @@ required-features = ["cli"]
 
 [features]
 cli = ["structopt"]
-default = []
+default = ["generator"]
 generator = []
 parser = ["nom"]
 

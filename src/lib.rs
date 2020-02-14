@@ -35,8 +35,8 @@ pub mod physical;
 mod traits;
 
 // Tools
-// #[cfg(feature = "generator")]
-// pub mod generator;
+#[cfg(feature = "generator")]
+pub mod generator;
 // #[cfg(feature = "parser")]
 // pub mod parser;
 

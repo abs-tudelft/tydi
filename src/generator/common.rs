@@ -1,4 +1,26 @@
-//! Common, statically sized representation for back-ends.
+//! Common hardware representation for back-ends.
+//!
+//! The goal of this module is to define a common representation of the hardware structure to be
+//! generated, before selecting a specific back-end to generate some language-specific sources.
+//!
+//! # Examples:
+//!
+//! ```ignore
+//! use tydi::generator::vhdl::VHDLBackEnd;
+//! use tydi::generator::chisel::ChiselBackEnd;
+//! use tydi::generator::{common::Project, GenerateProject};
+//!
+//! let proj = Project {
+//!     identifier: "MyProj".to_string(),
+//!     libraries: vec![ /*stuff*/]
+//! };
+//!
+//! let vhdl = VHDLBackEnd::default();
+//! let chisel = ChiselBackEnd::default();
+//!
+//! vhdl.generate(&proj, std::path::Path::new("output/vhdl"));
+//! chisel.generate(&proj, std::path::Path::new("output/chisel"));
+//! ```
 
 /// Inner struct for `Type::Array`
 #[derive(Debug, Clone, PartialEq)]
@@ -203,12 +225,22 @@ pub struct Library {
     pub components: Vec<Component>,
 }
 
+/// A project with libraries
+// TODO(johanpel): consider renaming this, because project might imply some EDA tool-specific
+//                 project
+pub struct Project {
+    /// The name of the project.
+    pub identifier: String,
+    /// The libraries contained within the projects.
+    pub libraries: Vec<Library>,
+}
+
 #[cfg(test)]
-mod test {
+pub mod test {
     use super::*;
 
-    // Some common types in tests:
-    fn rec() -> Type {
+    // Some structs from this mod to be used in tests:
+    pub fn test_rec() -> Type {
         Type::record(
             "rec",
             vec![
@@ -218,16 +250,41 @@ mod test {
         )
     }
 
-    fn rec_nested() -> Type {
+    pub fn test_rec_nested() -> Type {
         Type::record(
             "rec_nested",
-            vec![Field::new("a", Type::Bit), Field::new("b", rec())],
+            vec![Field::new("a", Type::Bit), Field::new("b", test_rec())],
         )
+    }
+
+    pub fn test_comp() -> Component {
+        Component {
+            identifier: "test_comp".to_string(),
+            parameters: vec![],
+            ports: vec![
+                Port::new("a", Mode::In, test_rec()),
+                Port::new("b", Mode::Out, test_rec_nested()),
+            ],
+        }
+    }
+
+    pub fn test_lib() -> Library {
+        Library {
+            identifier: "lib".to_string(),
+            components: vec![test_comp()],
+        }
+    }
+
+    pub fn test_proj() -> Project {
+        Project {
+            identifier: "proj".to_string(),
+            libraries: vec![test_lib()],
+        }
     }
 
     #[test]
     fn test_flatten_rec() {
-        let flat = rec().flatten(vec![], false);
+        let flat = test_rec().flatten(vec![], false);
         dbg!(&flat);
         assert_eq!(flat[0].0, vec!["a".to_string()]);
         assert_eq!(flat[0].1, Type::Bit);
@@ -239,7 +296,7 @@ mod test {
 
     #[test]
     fn test_flatten_rec_nested() {
-        let flat = rec_nested().flatten(vec![], false);
+        let flat = test_rec_nested().flatten(vec![], false);
         assert_eq!(flat[0].0[0], "a".to_string());
         assert_eq!(flat[0].1, Type::Bit);
         assert_eq!(flat[0].2, false);
