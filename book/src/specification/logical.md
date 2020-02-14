@@ -600,7 +600,7 @@ stream as defined by the \\(s\\) parameter of the child stream.
 >
 > \\[B = \textrm{Group}(x: \textrm{Bits}(2), y: \textrm{Bits}(2))\\\\
 > C = \textrm{Stream}(d=1, s=x, T_e=\textrm{Bits}(4))\\\\
-> U = \textrm{Union}(\textrm{a} : \textrm{Bits}(3), \textrm{b} : \textrm{Bits}(3), \textrm{c} : C)\\\\
+> U = \textrm{Union}(\textrm{a} : \textrm{Bits}(3), \textrm{b} : \textrm{B}, \textrm{c} : C)\\\\
 > \textrm{Stream}(d=1, T_e=U)\\]
 >
 > This results in two physical streams:
