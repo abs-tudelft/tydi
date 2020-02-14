@@ -1,11 +1,11 @@
-//! Tydi streamlet definition.
+//! Streamlet definition.
 
-use crate::LogicalStream;
+use crate::logical::LogicalStream;
 
 /// Streamlet interface definition.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Streamlet {
-    pub identifier: String,
-    pub inputs: Vec<LogicalStream>,
-    pub outputs: Vec<LogicalStream>,
+    name: String,
+    input: Vec<LogicalStream>,
+    output: Vec<LogicalStream>,
 }

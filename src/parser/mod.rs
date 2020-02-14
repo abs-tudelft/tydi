@@ -16,9 +16,6 @@ use nom::{
     IResult,
 };
 
-#[cfg(feature = "data")]
-pub mod data;
-
 pub mod logical;
 pub mod streamlet;
 

@@ -4,16 +4,12 @@
 
 use crate::{
     generator::common::{Component, Field, Mode, Port, Record, Type},
-    physical::{BitField, Dir},
+    stream::Direction,
     LogicalStream, PhysicalStream, Streamlet,
 };
 
 pub mod common;
 pub mod vhdl;
-
-fn log2ceil(v: usize) -> usize {
-    (v as f64).log2().ceil() as usize
-}
 
 impl From<BitField> for Type {
     fn from(b: BitField) -> Self {
@@ -36,11 +32,11 @@ impl From<BitField> for Type {
     }
 }
 
-impl From<Dir> for Mode {
-    fn from(d: Dir) -> Self {
+impl From<Direction> for Mode {
+    fn from(d: Direction) -> Self {
         match d {
-            Dir::Downstream => Mode::Out,
-            Dir::Upstream => Mode::In,
+            Direction::Forward => Mode::Out,
+            Direction::Reverse => Mode::In,
         }
     }
 }
@@ -157,7 +153,7 @@ mod test {
             vhdl::Declare,
         },
         parser::streamlet::streamlet_interface_definition,
-        physical::{BitField, Complexity, Dir},
+        physical::{BitField, Complexity, Direction},
         PhysicalStream, Streamlet,
     };
 
@@ -174,7 +170,7 @@ mod test {
             },
             elements_per_transfer: 1,
             dimensionality: 0,
-            dir: Dir::Downstream,
+            dir: Direction::Downstream,
             complexity: Complexity::new_major(8),
             user_bits: 0,
         }
