@@ -4,6 +4,7 @@ version = "0.0.0"
 description = "An open specification for complex data structures over hardware streams"
 authors = ["Johan Peltenburg", "Jeroen van Straten", "Matthijs Brobbel"]
 edition = "2018"
+include = ["**/*.rs"]
 
 [[bin]]
 name = "tydi"
