@@ -601,12 +601,12 @@ below must be driven for the omitted signals.</p>
 <table><thead><tr><th>Name</th><th>Condition</th><th>Default</th></tr></thead><tbody>
 <tr><td><code>valid</code></td><td><em>see below</em></td><td><code>'1'</code></td></tr>
 <tr><td><code>ready</code></td><td><em>see below</em></td><td><code>'1'</code></td></tr>
-<tr><td><code>data</code></td><td>\(</td><td>E</td></tr>
+<tr><td><code>data</code></td><td>\(|E| &gt; 0\)</td><td>all <code>'0'</code></td></tr>
 <tr><td><code>last</code></td><td>\(D \ge 1\)</td><td>all <code>'1'</code></td></tr>
 <tr><td><code>stai</code></td><td>\(C \ge 6 \wedge N &gt; 1\)</td><td>0</td></tr>
 <tr><td><code>endi</code></td><td>\((C \ge 5 \vee D \ge 1) \wedge N &gt; 1\)</td><td>\(N-1\)</td></tr>
 <tr><td><code>strb</code></td><td>\(C \ge 7 \vee D \ge 1\)</td><td>all <code>'1'</code></td></tr>
-<tr><td><code>user</code></td><td>\(</td><td>U</td></tr>
+<tr><td><code>user</code></td><td>\(|U| &gt; 0\)</td><td>all <code>'0'</code></td></tr>
 </tbody></table>
 <p><code>valid</code> may be omitted for sources that are always valid.</p>
 <blockquote>
