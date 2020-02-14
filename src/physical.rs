@@ -647,14 +647,18 @@ impl<'a> IntoIterator for &'a SignalMap {
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        vec![
-            ("data", self.data.unwrap_or(0)),
-            ("last", self.last.unwrap_or(0)),
-            ("stai", self.stai.unwrap_or(0)),
-            ("endi", self.endi.unwrap_or(0)),
-            ("strb", self.strb.unwrap_or(0)),
-            ("user", self.user.unwrap_or(0)),
+        [
+            ("data", self.data),
+            ("last", self.last),
+            ("stai", self.stai),
+            ("endi", self.endi),
+            ("strb", self.strb),
+            ("user", self.user),
         ]
+        .iter()
+        .filter(|(_, count)| count.is_some())
+        .map(|(name, count)| (*name, count.unwrap()))
+        .collect::<Vec<_>>()
         .into_iter()
     }
 }
@@ -868,7 +872,7 @@ mod tests {
                 ("stai", 1),
                 ("endi", 1),
                 ("strb", 2),
-                ("user", 0)
+                // ("user", 0) ommitted
             ]
         );
 

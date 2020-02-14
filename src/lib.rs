@@ -6,16 +6,41 @@
 //! # Tydi crate
 //!
 //! ## Modules
-//! - `physical`
+//! The `tydi` crate provides the following modules.
+//!
+//! - [`physical`]: for physical stream types.
+//! - [`logical`]: for logical stream types.
 //!
 //! ## Features
 //!
+//! The `tydi` crate supports the following (non-default) features:
+//!
+//! - `cli`: [`tydi` command-line-interface].
+//! - `generator`: [`generator`] module for generation of HDL templates.
+//! - `parser`: [`parser`] module for generation of parser functions.
 //!
 //! # Tools
 //!
+//! ## `tydi` command-line-interface
+//!
+//! The `tydi` command-line-interface provides easy access to the available
+//! tools in this crate. It can be easily installed from source using `cargo`.
+//!
+//! ### Install
+//!
+//! ```bash
+//! cargo install tydi
+//! ```
+//!
+//! ### Usage
+//!
+//! ```bash
+//! tydi --help
+//! ```
 //!
 //! # Examples
 //!
+//! ...
 //!
 //! # Specification
 //!
@@ -23,6 +48,11 @@
 //!
 //! [Tydi specification]: https://abs-tudelft.github.io/tydi/specification/
 //! [Tydi book]: https://abs-tudelft.github.io/tydi/
+//! [`physical`]: ./physical/index.html
+//! [`logical`]: ./logical/index.html
+//! [`generator`]: ./generator/index.html
+//! [`parser`]: ./parser/index.html
+//! [`tydi` command-line-interface]: #tydi-command-line-interface
 
 // Crate utils
 pub(crate) mod util;
@@ -73,18 +103,12 @@ where
 use std::ops::Mul;
 impl<T> Mul for NonZeroReal<T>
 where
-    T: Copy + Mul<Output = T>,
+    T: Copy + Mul<Output = T> + Into<f64>,
 {
     type Output = NonZeroReal<T>;
 
     fn mul(self, other: NonZeroReal<T>) -> Self::Output {
-        NonZeroReal::new_unchecked(self.0 * other.0)
-    }
-}
-
-impl<T> NonZeroReal<T> {
-    pub fn new_unchecked(real: T) -> Self {
-        NonZeroReal(real)
+        NonZeroReal::new(self.0 * other.0).unwrap()
     }
 }
 
@@ -221,7 +245,13 @@ impl PathName {
         PathName(VecDeque::new())
     }
 
-    pub fn new(names: impl IntoIterator<Item = impl TryInto<Name, Error = Error>>) -> Result<Self> {
+    pub fn new(names: impl IntoIterator<Item = Name>) -> Self {
+        PathName(names.into_iter().collect())
+    }
+
+    pub fn try_new(
+        names: impl IntoIterator<Item = impl TryInto<Name, Error = Error>>,
+    ) -> Result<Self> {
         Ok(PathName(
             names
                 .into_iter()
