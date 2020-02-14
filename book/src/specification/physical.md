@@ -505,12 +505,12 @@ below must be driven for the omitted signals.
 |---------|---------------------------------------------|-----------|
 | `valid` | *see below*                                 | `'1'`     |
 | `ready` | *see below*                                 | `'1'`     |
-| `data`  | \\(|E| > 0\\)                               | all `'0'` |
+| `data`  | \\(\|E\| > 0\\)                             | all `'0'` |
 | `last`  | \\(D \ge 1\\)                               | all `'1'` |
 | `stai`  | \\(C \ge 6 \wedge N > 1\\)                  | 0         |
 | `endi`  | \\((C \ge 5 \vee D \ge 1) \wedge N > 1\\)   | \\(N-1\\) |
 | `strb`  | \\(C \ge 7 \vee D \ge 1\\)                  | all `'1'` |
-| `user`  | \\(|U| > 0\\)                               | all `'0'` |
+| `user`  | \\(\|U\| > 0\\)                             | all `'0'` |
 
 `valid` may be omitted for sources that are always valid.
 
