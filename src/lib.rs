@@ -61,7 +61,7 @@ pub(crate) mod util;
 mod error;
 pub mod logical;
 pub mod physical;
-// pub mod streamlet;
+pub mod streamlet;
 mod traits;
 
 // Tools

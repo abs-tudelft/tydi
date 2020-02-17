@@ -28,6 +28,8 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+use crate::NonNegative;
+
 /// Inner struct for `Type::Array`
 #[derive(Debug, Clone, PartialEq)]
 pub struct Array {
@@ -117,7 +119,7 @@ pub enum Type {
     /// A vector of bits.
     BitVec {
         /// The width of the vector.
-        width: usize,
+        width: NonNegative,
     },
     /// A statically-sized array.
     Array(Array),
@@ -130,7 +132,7 @@ pub type TypeBundle = Vec<(Vec<String>, Type, bool)>;
 
 impl Type {
     /// Construct a bit vector type.
-    pub fn bitvec(width: usize) -> Type {
+    pub fn bitvec(width: NonNegative) -> Type {
         Type::BitVec { width }
     }
 
@@ -210,11 +212,11 @@ impl Component {
         self.ports.iter().for_each(|port| {
             let bundle = port
                 .typ
-                .flatten(vec![port.identifier.clone()], port.mode == Mode::In);
+                .flatten(vec![port.identifier.clone()], port.mode == Mode::Out);
             for tup in bundle {
                 new_ports.push(Port::new(
                     tup.0.join("_"),
-                    if tup.2 { Mode::In } else { Mode::Out },
+                    if tup.2 { Mode::Out } else { Mode::In },
                     tup.1,
                 ));
             }
