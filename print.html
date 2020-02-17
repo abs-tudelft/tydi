@@ -550,7 +550,7 @@ representation of the data for a given \(N\).</p>
 <table><thead><tr><th>Name</th><th>Origin</th><th>Purpose</th></tr></thead><tbody>
 <tr><td><code>valid</code></td><td>Source</td><td>Stalling the data stream due to the source not being ready.</td></tr>
 <tr><td><code>ready</code></td><td>Sink</td><td>Stalling the data stream due to the sink not being ready.</td></tr>
-<tr><td><code>data</code></td><td>Source</td><td>Data transfer of \(N\) \(</td></tr>
+<tr><td><code>data</code></td><td>Source</td><td>Data transfer of \(N\) \(|E|\)-bit elements.</td></tr>
 <tr><td><code>last</code></td><td>Source</td><td>Indicating the last transfer for \(D\) levels of nested sequences.</td></tr>
 <tr><td><code>stai</code></td><td>Source</td><td>Start index; encodes the index of the first valid lane.</td></tr>
 <tr><td><code>endi</code></td><td>Source</td><td>End index; encodes the index of the last valid lane.</td></tr>
@@ -562,12 +562,12 @@ bit vectors with the following widths.</p>
 <table><thead><tr><th>Name</th><th>Width</th></tr></thead><tbody>
 <tr><td><code>valid</code></td><td><em>scalar</em></td></tr>
 <tr><td><code>ready</code></td><td><em>scalar</em></td></tr>
-<tr><td><code>data</code></td><td>\(N \times</td></tr>
+<tr><td><code>data</code></td><td>\(N \times |E|\)</td></tr>
 <tr><td><code>last</code></td><td>\(N \times D\)</td></tr>
 <tr><td><code>stai</code></td><td>\(\lceil \log_2{N} \rceil\)</td></tr>
 <tr><td><code>endi</code></td><td>\(\lceil \log_2{N} \rceil\)</td></tr>
 <tr><td><code>strb</code></td><td>\(N\)</td></tr>
-<tr><td><code>user</code></td><td>\(</td></tr>
+<tr><td><code>user</code></td><td>\(|U|\)</td></tr>
 </tbody></table>
 <h3><a class="header" href="#clock" id="clock">Clock</a></h3>
 <p>All signals are synchronous to a single clock signal, shared between the source
@@ -791,7 +791,7 @@ driven low by the source, and may be ignored by the sink.</p>
 <p>The above rule ultimately means that the <code>last</code> information is transferred on
 a transfer basis instead of on element basis, similar to AXI4-stream. This
 can significantly decrease decoding complexity, but only allows one innermost
-sequence to be transferred per cycle regardless of (N\) and the length of
+sequence to be transferred per cycle regardless of \(N\) and the length of
 the sequence.</p>
 </blockquote>
 <p><em>[\(C &lt; 4\)]</em> It is illegal to assert a <code>last</code> bit for dimension \(j\)
