@@ -138,7 +138,7 @@ A physical stream is comprised of the following signals.
 |---------|--------|----------------------------------------------------------------------------------------|
 | `valid` | Source | Stalling the data stream due to the source not being ready.                            |
 | `ready` | Sink   | Stalling the data stream due to the sink not being ready.                              |
-| `data`  | Source | Data transfer of \\(N\\) \\(|E|\\)-bit elements.                                       |
+| `data`  | Source | Data transfer of \\(N\\) \\(\|E\|\\)-bit elements.                                     |
 | `last`  | Source | Indicating the last transfer for \\(D\\) levels of nested sequences.                   |
 | `stai`  | Source | Start index; encodes the index of the first valid lane.                                |
 | `endi`  | Source | End index; encodes the index of the last valid lane.                                   |
@@ -152,12 +152,12 @@ bit vectors with the following widths.
 |---------|-------------------------------|
 | `valid` | *scalar*                      |
 | `ready` | *scalar*                      |
-| `data`  | \\(N \times |E|\\)            |
+| `data`  | \\(N \times \|E\|\\)          |
 | `last`  | \\(N \times D\\)              |
 | `stai`  | \\(\lceil \log_2{N} \rceil\\) |
 | `endi`  | \\(\lceil \log_2{N} \rceil\\) |
 | `strb`  | \\(N\\)                       |
-| `user`  | \\(|U|\\)                     |
+| `user`  | \\(\|U\|\\)                   |
 
 ### Clock
 
@@ -404,7 +404,7 @@ driven low by the source, and may be ignored by the sink.
 > The above rule ultimately means that the `last` information is transferred on
 > a transfer basis instead of on element basis, similar to AXI4-stream. This
 > can significantly decrease decoding complexity, but only allows one innermost
-> sequence to be transferred per cycle regardless of \(N\\) and the length of
+> sequence to be transferred per cycle regardless of \\(N\\) and the length of
 > the sequence.
 
 *[\\(C < 4\\)]* It is illegal to assert a `last` bit for dimension \\(j\\)
