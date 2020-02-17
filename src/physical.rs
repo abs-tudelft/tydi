@@ -51,6 +51,7 @@
 
 use crate::{util::log2_ceil, Error, NonNegative, PathName, Positive, Result};
 use indexmap::IndexMap;
+use std::str::FromStr;
 use std::{
     cmp::Ordering,
     convert::{TryFrom, TryInto},
@@ -91,6 +92,12 @@ pub type BitCount = Positive;
 pub struct Complexity {
     /// The complexity level.
     level: Vec<NonNegative>,
+}
+
+impl Default for Complexity {
+    fn default() -> Self {
+        Complexity { level: vec![4] }
+    }
 }
 
 impl PartialEq for Complexity {
@@ -154,6 +161,23 @@ impl TryFrom<Vec<NonNegative>> for Complexity {
     /// error when the provided vector is empty.
     fn try_from(level: Vec<NonNegative>) -> Result<Self> {
         Complexity::new(level)
+    }
+}
+
+impl FromStr for Complexity {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        Complexity::new(
+            // split string into string slices
+            s.split(".")
+                // convert slices to nonnegatives after trimming whitespace
+                .map(|d| d.trim().parse::<NonNegative>())
+                // convert to result with vector of nonnegatives
+                .collect::<std::result::Result<Vec<_>, std::num::ParseIntError>>()
+                // convert potential error to tydi error
+                .map_err(|e| Error::InvalidArgument(e.to_string()))?,
+        )
     }
 }
 

@@ -15,15 +15,16 @@ name = "tydi"
 required-features = ["cli"]
 
 [features]
-cli = ["structopt"]
-default = ["generator"]
+cli = ["structopt", "parser"]
+default = ["generator", "parser"]
 generator = []
-parser = ["nom"]
+parser = ["pest", "pest_derive"]
 
 [dependencies]
 indexmap = "1.3"
-nom = { version = "5", optional = true }
 structopt = { version = "0.3", optional = true, default-features = false }
+pest = {version="2.1.2", optional = true}
+pest_derive = {version="2.1.0", optional = true}
 
 [dev-dependencies]
 tempfile = "3"

@@ -67,8 +67,11 @@ mod traits;
 // Tools
 #[cfg(feature = "generator")]
 pub mod generator;
-// #[cfg(feature = "parser")]
-// pub mod parser;
+#[cfg(feature = "parser")]
+pub mod parser;
+#[cfg(feature = "parser")]
+#[macro_use]
+extern crate pest_derive;
 
 // Root re-exports
 // TODO(mb): discuss

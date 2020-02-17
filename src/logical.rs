@@ -82,6 +82,12 @@ pub enum Synchronicity {
     FlatDesync,
 }
 
+impl Default for Synchronicity {
+    fn default() -> Self {
+        Synchronicity::Sync
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Stream {
     /// Any logical stream type representing the data type carried by the

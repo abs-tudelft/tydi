@@ -1,0 +1,58 @@
+/// Pest grammar for Streamlet Definition File.
+
+// Whitespace and comments.
+WHITESPACE 	        = _{ (" " | "\n") }
+COMMENT 	        = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+
+// Identifiers
+//ident 		        = {ASCII_ALPHA{1} ~ (ASCII_ALPHANUMERIC | (ASCII_ALPHANUMERIC+ ~ "_"{1} ~ ASCII_ALPHANUMERIC+))*}
+ident               = {(ASCII_ALPHANUMERIC | "_")+}
+
+// Literals
+digit               = _{ '0'..'9' }
+int                 =  { digit ~ (digit | "_")* }
+plus                = { "+" }
+minus               = { "-" }
+exp                 = { ^"e" ~ (plus | minus)? ~ int }
+float               = {int ~ "." ~ int? ~ exp? |int ~ exp}
+
+bool                = {"true" | "false" }
+
+// Leaf types
+null 		        = {"Null"}
+bits 		        = {"Bits" ~ "<" ~ int ~ ">"}
+
+// Compound types
+field 		        = {ident ~ ":" ~ typ}
+field_list 	        = {field ~ ("," ~ field_list)*}
+group 		        = {"Group" ~ "<" ~ field_list ~ ">"}
+union 		        = {"Union" ~ "<" ~ field_list ~ ">"}
+
+// Complexity level
+compl 	            = { (int ~ ("." ~ compl)*) }
+
+// Stream type
+stream_opt_tput     = { "t" ~ "=" ~ float }
+stream_opt_dim 		= { "d" ~ "=" ~ int }
+stream_opt_sync     = { "s" ~ "=" ~ (^"Sync" | ^"Flatten" | ^"Desync" | ^"FlatDesync")}
+stream_opt_compl 	= { "c" ~ "=" ~ compl }
+stream_opt_dir      = { "r" ~ "=" ~ ("Forward" | "Reverse") }
+stream_opt_user     = { "u" ~ "=" ~ typ }
+stream_opt_extra    = { "x" ~ "=" ~ bool }
+stream_opt  		= { (stream_opt_tput | stream_opt_dim | stream_opt_sync | stream_opt_compl | stream_opt_dir | stream_opt_user | stream_opt_extra) }
+stream_opt_list     = { stream_opt ~ ("," ~ stream_opt_list)* }
+stream 				= {"Stream" ~ "<" ~ typ ~ ("," ~ stream_opt_list)* ~ ">"}
+
+// Type
+typ                 = {null | bits | group | union | stream }
+
+// Interface
+mode 		        = {("in" | "out")}
+interface           = {ident ~ ":" ~ mode ~ typ ~ ";"}
+if_list             = {interface+}
+
+// Streamlet
+streamlet           = {"Streamlet" ~ ident ~ "{" ~ if_list ~ "}"}
+
+// SDF file
+sdf                 = { streamlet* }
