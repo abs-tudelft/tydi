@@ -254,6 +254,8 @@ impl fmt::Display for Complexity {
     }
 }
 
+/// Fields of a physical stream.
+///
 #[derive(Debug, Clone, PartialEq)]
 pub struct Fields(IndexMap<PathName, BitCount>);
 
@@ -306,7 +308,7 @@ impl<'a> IntoIterator for &'a Fields {
     }
 }
 
-/// A physical stream.
+/// Physical stream.
 ///
 /// A physical stream carries a stream of elements, dimensionality information
 /// for said elements, and (optionally) user-defined transfer information from
@@ -571,7 +573,7 @@ impl From<PhysicalStream> for SignalMap {
     }
 }
 
-/// A signal map for the signals in a physical stream.
+/// Signal map for the signals in a physical stream.
 ///
 /// A signal map can be constructed from a [`PhysicalStream`] using the
 /// [`signal_map`] method or using the `From`/`Into` trait implementation.
