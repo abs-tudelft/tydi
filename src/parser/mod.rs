@@ -11,16 +11,37 @@
 //#[macro_use]
 //extern crate pest_derive;
 
+use crate::parser::transform::TransformError;
+use crate::streamlet::Streamlet;
+use pest::Parser;
+use std::convert::TryFrom;
+
 #[derive(Parser)]
 #[grammar = "parser/sdf.pest"]
 pub struct SDFParser;
 
 mod transform;
 
+pub fn parse_streamlet(input: &str) -> Result<Streamlet, TransformError> {
+    let pair = SDFParser::parse(Rule::streamlet, input)
+        .map_err(|e| {
+            eprintln!("{}", e);
+            TransformError::NoMatch
+        })?
+        .next()
+        .unwrap();
+    match pair.as_rule() {
+        Rule::streamlet => Streamlet::try_from(pair),
+        _ => unreachable!(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::logical::LogicalStreamType;
     use pest::Parser;
+    use std::convert::TryInto;
 
     macro_rules! parse_ok {
         ($rule:ident, $string:literal) => {
@@ -30,6 +51,19 @@ mod tests {
                 Err(e) => panic!("{}", e),
             }
         };
+    }
+
+    #[test]
+    fn streamlet() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(
+            parse_streamlet("Streamlet null { a: in Null; b: out Null; }"),
+            Ok(Streamlet::new(
+                "null",
+                vec![("a".try_into()?, LogicalStreamType::Null)],
+                vec![("b".try_into()?, LogicalStreamType::Null)]
+            ))
+        );
+        Ok(())
     }
 
     #[test]
@@ -67,13 +101,13 @@ mod tests {
         parse_ok!(stream, "Stream<Bits<1>>");
         parse_ok!(stream, "Stream<Bits<1>,t=0.5>");
         parse_ok!(stream, "Stream<Bits<1>,d=2>");
-        parse_ok!(stream, "Stream<Bits<1>,c={4.0}>");
+        parse_ok!(stream, "Stream<Bits<1>,c=4.0>");
         parse_ok!(stream, "Stream<Bits<1>,r=Reverse>");
         parse_ok!(stream, "Stream<Bits<1>,u=Group<u0:Bits<1>,u1:Bits<2>>>");
         parse_ok!(stream, "Stream<Bits<1>,x=false>");
         parse_ok!(
             stream,
-            "Stream<Bits<1>,t=0.5,d=2,c={4.0},r=Reverse,u=Group<u0:Bits<1>,u1:Bits<2>>,x=false>"
+            "Stream<Bits<1>,t=0.5,d=2,c=4.0,r=Reverse,u=Group<u0:Bits<1>,u1:Bits<2>>,x=false>"
         );
     }
 
@@ -85,8 +119,7 @@ mod tests {
 
     #[test]
     fn test_interface() {
-        let p = SDFParser::parse(Rule::interface, "some_name : in Stream<Bits<2>>;");
-        println!("{:#?}", p);
+        let _ = SDFParser::parse(Rule::interface, "some_name : in Stream<Bits<2>>;");
         parse_ok!(interface, "some_name : in Stream<Bits<2>>;");
     }
 }

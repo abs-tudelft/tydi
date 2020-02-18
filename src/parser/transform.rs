@@ -1,16 +1,22 @@
+use crate::generator::common::Mode;
+use crate::logical::Direction;
 use crate::logical::{LogicalStreamType, Stream, Synchronicity};
 use crate::parser::Rule;
 use crate::physical::Complexity;
+use crate::streamlet::Streamlet;
+use crate::Name;
 use crate::{NonNegative, PositiveReal};
+use indexmap::IndexMap;
 use pest::iterators::Pair;
 use std::convert::{Infallible, TryFrom, TryInto};
 use std::fmt::{Display, Error, Formatter};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TransformError {
     NoMatch,
     DuplicateArguments,
     Complexity,
+    Synchronicity,
     MissingArgument,
     BadArgument,
 }
@@ -30,15 +36,15 @@ impl Display for TransformError {
 }
 
 impl<'i> TryFrom<Pair<'i, Rule>> for Complexity {
-    type Error = Box<dyn std::error::Error>;
+    type Error = TransformError;
 
     fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
             Rule::compl => pair
                 .as_str()
                 .parse::<Complexity>()
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error>),
-            _ => Err(Box::new(TransformError::Complexity)),
+                .map_err(|_| TransformError::BadArgument),
+            _ => Err(TransformError::Complexity),
         }
     }
 }
@@ -48,38 +54,78 @@ impl TryFrom<Rule> for Synchronicity {
 
     fn try_from(value: Rule) -> Result<Self, Self::Error> {
         match value {
-            Rule::sync =>
-            Rule::flat =>
-            Rule::desync =>
-                Rule::flatdesync =>
-            _
+            Rule::sync => Ok(Synchronicity::Sync),
+            Rule::flat => Ok(Synchronicity::Flatten),
+            Rule::desync => Ok(Synchronicity::Desync),
+            Rule::flatdesync => Ok(Synchronicity::FlatDesync),
+            _ => Err(TransformError::NoMatch),
         }
     }
 }
 
 impl<'i> TryFrom<Pair<'i, Rule>> for Synchronicity {
-    type Error = Box<dyn std::error::Error>;
+    type Error = TransformError;
 
     fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
-            Rule::stream_opt_sync => pair
-                .into_inner()
-                .next()
-                .unwrap()
-                .as_rule()
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error>),
-            _ => Err(Box::new(TransformError::Complexity)),
+            Rule::stream_opt_dir => pair.into_inner().next().unwrap().as_rule().try_into(),
+            _ => Err(TransformError::Synchronicity),
+        }
+    }
+}
+
+impl TryFrom<Rule> for Direction {
+    type Error = TransformError;
+
+    fn try_from(value: Rule) -> Result<Self, Self::Error> {
+        match value {
+            Rule::forward => Ok(Direction::Forward),
+            Rule::reverse => Ok(Direction::Reverse),
+            _ => Err(TransformError::NoMatch),
+        }
+    }
+}
+
+impl<'i> TryFrom<Pair<'i, Rule>> for Direction {
+    type Error = TransformError;
+
+    fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
+        match pair.as_rule() {
+            Rule::stream_opt_dir => pair.into_inner().next().unwrap().as_rule().try_into(),
+            _ => Err(TransformError::Synchronicity),
+        }
+    }
+}
+
+impl<'i> TryFrom<Pair<'i, Rule>> for Mode {
+    type Error = TransformError;
+
+    fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
+        match pair.as_rule() {
+            Rule::mode => match pair.as_str() {
+                "in" => Ok(Mode::In),
+                "out" => Ok(Mode::Out),
+                _ => unreachable!(),
+            },
+            _ => Err(TransformError::NoMatch),
         }
     }
 }
 
 impl<'i> TryFrom<Pair<'i, Rule>> for LogicalStreamType {
-    type Error = Box<dyn std::error::Error>;
+    type Error = TransformError;
 
     fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
-            Rule::null => Ok(LogicalStreamType::Null),
-            _ => Err(Box::new(TransformError::NoMatch)),
+            Rule::typ => {
+                let pair = pair.into_inner().next().unwrap();
+                match pair.as_rule() {
+                    Rule::null => Ok(LogicalStreamType::Null),
+                    Rule::bits => pair.into_inner().next().unwrap().try_into(),
+                    _ => Err(TransformError::NoMatch),
+                }
+            }
+            _ => Err(TransformError::NoMatch),
         }
     }
 }
@@ -119,6 +165,19 @@ where
     }
 }
 
+fn transform_bool<'i>(value: impl Iterator<Item = Pair<'i, Rule>>) -> Result<bool, TransformError> {
+    value
+        .filter_map(|p| {
+            if p.as_rule() == Rule::stream_opt_extra {
+                p.into_inner().next().unwrap().as_str().parse::<bool>().ok()
+            } else {
+                None
+            }
+        })
+        .next()
+        .ok_or_else(|| TransformError::MissingArgument)
+}
+
 fn transform_dim<'i>(
     value: impl Iterator<Item = Pair<'i, Rule>>,
 ) -> Result<NonNegative, TransformError> {
@@ -139,8 +198,39 @@ fn transform_dim<'i>(
         .ok_or_else(|| TransformError::MissingArgument)
 }
 
+impl<'i> TryFrom<Pair<'i, Rule>> for Streamlet {
+    type Error = TransformError;
+
+    fn try_from(pair: Pair<'i, Rule>) -> Result<Self, Self::Error> {
+        let mut pairs = pair.into_inner();
+        let name = pairs.next().unwrap().as_str();
+        let if_list = pairs.next().unwrap().into_inner();
+        let (input, output): (Vec<_>, Vec<_>) = if_list
+            .map(|interface| {
+                let mut interface = interface.into_inner();
+                let name: Name = interface
+                    .next()
+                    .unwrap()
+                    .as_str()
+                    .parse::<Name>()
+                    .map_err(|_| TransformError::BadArgument)?;
+                let mode: Mode = interface.next().unwrap().try_into()?;
+                let typ: LogicalStreamType = interface.next().unwrap().try_into()?;
+                Ok((name, mode, typ))
+            })
+            .collect::<Result<Vec<_>, TransformError>>()?
+            .into_iter()
+            .partition(|(_, mode, _)| mode == &Mode::In);
+        Ok(Streamlet::new(
+            name,
+            input.into_iter().map(|(name, _, stream)| (name, stream)),
+            output.into_iter().map(|(name, _, stream)| (name, stream)),
+        ))
+    }
+}
+
 impl<'i> TryFrom<Pair<'i, Rule>> for Stream {
-    type Error = Box<dyn std::error::Error>;
+    type Error = TransformError;
 
     fn try_from(pair: Pair<'i, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
@@ -150,27 +240,24 @@ impl<'i> TryFrom<Pair<'i, Rule>> for Stream {
                     .next()
                     .ok_or_else(|| TransformError::MissingArgument)?
                     .try_into()?;
-                let throughput: PositiveReal =
-                    transform(pairs.clone()).unwrap_or(PositiveReal::new(1.0).unwrap());
-                let dimensionality: NonNegative = transform_dim(pairs.clone()).unwrap_or_default();
-                let synchronicity: Synchronicity = transform(pairs.clone()).unwrap_or_default();
 
-                //                let complexity: Complexity = pairs.try_into().unwrap_or_default();
-                //                let direction: Direction = pairs.try_into().unwrap_or_default();
-                //                let user: Option<Box<LogicalStreamType>> = pairs.try_into().unwrap_or(None);
-                //                let keep: bool = pair.try_into().unwrap_or(false);
-                //                Ok(Stream::new(
-                //                    typ,
-                //                    throughput,
-                //                    dimensionality,
-                //                    synchronicity,
-                //                    complexity,
-                //                    direction,
-                //                    user,
-                //                    keep,
-                //                ))
+                let complexity: Complexity = transform(pairs.clone()).unwrap_or_default();
+
+                Ok(Stream::new(
+                    typ,
+                    transform(pairs.clone()).unwrap_or(PositiveReal::new(1.0).unwrap()),
+                    transform_dim(pairs.clone()).unwrap_or_default(),
+                    transform(pairs.clone()).unwrap_or_default(),
+                    complexity,
+                    transform(pairs.clone()).unwrap_or_default(),
+                    transform(pairs.clone().skip(1))
+                        .map(Box::new)
+                        .map(Option::Some)
+                        .unwrap_or(None),
+                    transform_bool(pairs.clone()).unwrap_or(false),
+                ))
             }
-            _ => unimplemented!(),
+            _ => Err(TransformError::NoMatch),
         }
     }
 }

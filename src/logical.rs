@@ -35,6 +35,12 @@ pub enum Direction {
     Reverse,
 }
 
+impl Default for Direction {
+    fn default() -> Self {
+        Direction::Forward
+    }
+}
+
 impl Reverse for Direction {
     /// Reverse this direction.
     ///
