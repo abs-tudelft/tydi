@@ -31,12 +31,22 @@ union 		        = {"Union" ~ "<" ~ field_list ~ ">"}
 // Complexity level
 compl 	            = { (int ~ ("." ~ compl)*) }
 
+// Synchronicity
+sync                = { "Sync" }
+flat                = { "Flatten" }
+desync              = { "Desync" }
+flatdesync          = { "FlatDesync" }
+
+// Direction
+forward             = { "Forward" }
+reverse             = { "Reverse" }
+
 // Stream type
 stream_opt_tput     = { "t" ~ "=" ~ float }
 stream_opt_dim 		= { "d" ~ "=" ~ int }
-stream_opt_sync     = { "s" ~ "=" ~ (^"Sync" | ^"Flatten" | ^"Desync" | ^"FlatDesync")}
+stream_opt_sync     = { "s" ~ "=" ~ (sync | flat | desync | flatdesync) }
 stream_opt_compl 	= { "c" ~ "=" ~ compl }
-stream_opt_dir      = { "r" ~ "=" ~ ("Forward" | "Reverse") }
+stream_opt_dir      = { "r" ~ "=" ~ (forward | reverse) }
 stream_opt_user     = { "u" ~ "=" ~ typ }
 stream_opt_extra    = { "x" ~ "=" ~ bool }
 stream_opt  		= { (stream_opt_tput | stream_opt_dim | stream_opt_sync | stream_opt_compl | stream_opt_dir | stream_opt_user | stream_opt_extra) }
