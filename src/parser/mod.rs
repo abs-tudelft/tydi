@@ -56,7 +56,9 @@ mod tests {
     #[test]
     fn streamlet() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(
-            parse_streamlet("Streamlet null { a: in Null; b: out Null; }"),
+            parse_streamlet(
+                "Streamlet null { a: in Stream<Group<a:Bits<1>, b:Bits<2>>>; c: out Null; }"
+            ),
             Ok(Streamlet::new(
                 "null",
                 vec![("a".try_into()?, LogicalStreamType::Null)],
