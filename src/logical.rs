@@ -12,7 +12,7 @@ use crate::{
 use indexmap::IndexMap;
 use std::{
     convert::{TryFrom, TryInto},
-    iter::FromIterator,
+    error,
 };
 
 /// Direction of a stream.
@@ -94,31 +94,55 @@ impl Default for Synchronicity {
     }
 }
 
+/// The stream-manipulating logical stream type.
+///
+/// Defines a new physical stream.
+///
+/// [Reference](https://abs-tudelft.github.io/tydi/specification/logical.html#stream)
 #[derive(Debug, Clone, PartialEq)]
 pub struct Stream {
+    /// Logical stream type of data elements carried by this stream.
+    ///
     /// Any logical stream type representing the data type carried by the
     /// logical stream.
     data: Box<LogicalStreamType>,
-    /// ...
+    /// Throughput ratio of the stream.
+    ///
+    /// Positive real number, representing the minimum number of elements that
+    /// should be transferrable on the child stream per element in the parent
+    /// stream, or if there is no parent stream, the minimum number of elements
+    /// that should be transferrable per clock cycle.
     throughput: PositiveReal,
+    /// Dimensionality of the stream.
+    ///
     /// Nonnegative integer specifying the dimensionality of the child
     /// stream with respect to the parent stream (with no parent, it is the
     /// initial value).
     dimensionality: NonNegative,
+    /// Synchronicity of the stream.
+    ///
     /// The synchronicity of the d-dimensional elements in the child stream
     /// with respect to the elements in the parent stream.
     synchronicity: Synchronicity,
+    /// Complexity level of the stream.
+    ///
     /// The complexity number for the physical stream interface, as defined
     /// in the physical stream specification.
     complexity: Complexity,
+    /// Direction of the stream.
+    ///
     /// The direction of the stream. If there is no parent stream, this
     /// specifies the direction with respect to the natural direction of
     /// the stream (source to sink).
     direction: Direction,
+    /// Logical stream type of (optional) user data carried by this stream.
+    ///
     /// An optional logical stream type consisting of only
     /// element-manipulating nodes, representing the user data carried by
     /// this logical stream.
     user: Option<Box<LogicalStreamType>>,
+    /// Stream carries extra information.
+    ///
     /// Keep specifies whether the stream carries "extra" information
     /// beyond the data and user signal payloads. x is normally false,
     /// which implies that the Stream node will not result in a physical
@@ -129,6 +153,11 @@ pub struct Stream {
 }
 
 impl Reverse for Stream {
+    /// Reverse the direction of this stream.
+    ///
+    /// This flips the [`Direction`] of the stream.
+    ///
+    /// [`Direction`]: ./enum.Direction.html
     fn reverse(&mut self) {
         self.direction.reverse();
     }
@@ -158,94 +187,149 @@ impl Stream {
         }
     }
 
+    /// Returns the direction of this stream.
     pub fn direction(&self) -> Direction {
         self.direction
     }
 
+    /// Returns the synchronicity of this stream.
     pub fn synchronicity(&self) -> Synchronicity {
         self.synchronicity
     }
 
+    /// Returns the dimensionality of this stream.
     pub fn dimensionality(&self) -> NonNegative {
         self.dimensionality
     }
 
+    /// Returns the throughput ratio of this stream.
     pub fn throughput(&self) -> PositiveReal {
         self.throughput
     }
 
+    /// Returns true if this stream is null i.e. it results in no signals.
+    ///
+    /// [Reference](https://abs-tudelft.github.io/tydi/specification/logical.html#null-detection-function)
     pub fn is_null(&self) -> bool {
         self.data.is_null()
             && (self.user.is_some() && self.user.as_ref().unwrap().is_null())
             && !self.keep
     }
 
+    /// Set the throughput ratio of this stream.
     fn set_throughput(&mut self, throughput: PositiveReal) {
         self.throughput = throughput;
     }
 
+    /// Set the synchronicity of this stream.
     fn set_synchronicity(&mut self, synchronicity: Synchronicity) {
         self.synchronicity = synchronicity;
     }
 
+    /// Set the dimensionality of this stream.
     fn set_dimensionality(&mut self, dimensionality: NonNegative) {
         self.dimensionality = dimensionality;
     }
 }
 
 impl From<Stream> for LogicalStreamType {
+    /// Wraps this stream in a [`LogicalStreamType`].
+    ///
+    /// [`LogicalStreamType`]: ./enum.LogicalStreamType.html
     fn from(stream: Stream) -> Self {
         LogicalStreamType::Stream(stream)
     }
 }
 
+/// The Group stream type acts as a product type (composition).
+///
+/// [Reference](https://abs-tudelft.github.io/tydi/specification/logical.html#group)
 #[derive(Debug, Clone, PartialEq)]
 pub struct Group(IndexMap<Name, LogicalStreamType>);
 
 impl Group {
+    /// Returns a new Group logical stream type. Returns an error when either
+    /// the name or logical stream type conversion fails, or when there are
+    /// duplicate names.
     pub fn try_new(
         group: impl IntoIterator<
             Item = (
-                impl TryInto<Name, Error = Error>,
-                impl TryInto<LogicalStreamType, Error = Error>,
+                impl TryInto<Name, Error = impl Into<Box<dyn error::Error>>>,
+                impl TryInto<LogicalStreamType, Error = impl Into<Box<dyn error::Error>>>,
             ),
         >,
     ) -> Result<Self> {
-        group
+        let mut map = IndexMap::new();
+        for (name, stream) in group
             .into_iter()
             .map(
                 |(name, stream)| match (name.try_into(), stream.try_into()) {
                     (Ok(name), Ok(stream)) => Ok((name, stream)),
-                    (Err(name), _) => Err(name),
-                    (_, Err(stream)) => Err(stream),
+                    (Err(name), _) => Err(Error::from(name.into())),
+                    (_, Err(stream)) => Err(Error::from(stream.into())),
                 },
             )
-            .collect::<Result<_>>()
-    }
-}
-
-impl FromIterator<(Name, LogicalStreamType)> for Group {
-    fn from_iter<I: IntoIterator<Item = (Name, LogicalStreamType)>>(iter: I) -> Self {
-        Group(IndexMap::from_iter(iter))
+            .collect::<Result<Vec<_>>>()?
+        {
+            map.insert(name, stream)
+                .map(|_| -> Result<()> { Err(Error::UnexpectedDuplicate) })
+                .transpose()?;
+        }
+        Ok(Group(map))
     }
 }
 
 impl From<Group> for LogicalStreamType {
+    /// Wraps this group in a [`LogicalStreamType`].
+    ///
+    /// [`LogicalStreamType`]: ./enum.LogicalStreamType.html
     fn from(group: Group) -> Self {
         LogicalStreamType::Group(group)
     }
 }
 
+///
+///
+/// [Reference](https://abs-tudelft.github.io/tydi/specification/logical.html#union)
 #[derive(Debug, Clone, PartialEq)]
 pub struct Union(IndexMap<Name, LogicalStreamType>);
 
-impl FromIterator<(Name, LogicalStreamType)> for Union {
-    fn from_iter<I: IntoIterator<Item = (Name, LogicalStreamType)>>(iter: I) -> Self {
-        Union(IndexMap::from_iter(iter))
+impl Union {
+    /// Returns a new Union logical stream type. Returns an error when either
+    /// the name or logical stream type conversion fails, or when there are
+    /// duplicate names.
+    pub fn try_new(
+        union: impl IntoIterator<
+            Item = (
+                impl TryInto<Name, Error = impl Into<Box<dyn error::Error>>>,
+                impl TryInto<LogicalStreamType, Error = impl Into<Box<dyn error::Error>>>,
+            ),
+        >,
+    ) -> Result<Self> {
+        let mut map = IndexMap::new();
+        for (name, stream) in union
+            .into_iter()
+            .map(
+                |(name, stream)| match (name.try_into(), stream.try_into()) {
+                    (Ok(name), Ok(stream)) => Ok((name, stream)),
+                    (Err(name), _) => Err(Error::from(name.into())),
+                    (_, Err(stream)) => Err(Error::from(stream.into())),
+                },
+            )
+            .collect::<Result<Vec<_>>>()?
+        {
+            map.insert(name, stream)
+                .map(|_| -> Result<()> { Err(Error::UnexpectedDuplicate) })
+                .transpose()?;
+        }
+        Ok(Union(map))
     }
 }
 
 impl From<Union> for LogicalStreamType {
+    /// Wraps this union in a [`LogicalStreamType`].
+    ///
+    /// [`LogicalStreamType`]: ./enum.LogicalStreamType.html
     fn from(union: Union) -> Self {
         LogicalStreamType::Union(union)
     }
@@ -371,26 +455,24 @@ impl LogicalStreamType {
     pub fn try_new_group(
         group: impl IntoIterator<
             Item = (
-                impl TryInto<Name, Error = Error>,
-                impl TryInto<LogicalStreamType, Error = Error>,
+                impl TryInto<Name, Error = impl Into<Box<dyn error::Error>>>,
+                impl TryInto<LogicalStreamType, Error = impl Into<Box<dyn error::Error>>>,
             ),
         >,
     ) -> Result<Self> {
-        Ok(LogicalStreamType::Group(
-            group
-                .into_iter()
-                .map(
-                    |(name, stream)| match (name.try_into(), stream.try_into()) {
-                        (Ok(name), Ok(stream)) => Ok((name, stream)),
-                        (Err(name), _) => Err(name),
-                        (_, Err(stream)) => Err(stream),
-                    },
-                )
-                .collect::<Result<_>>()?,
-        ))
+        Group::try_new(group).map(Into::into)
     }
 
-    // pub fn try_new_union()\
+    pub fn try_new_union(
+        union: impl IntoIterator<
+            Item = (
+                impl TryInto<Name, Error = impl Into<Box<dyn error::Error>>>,
+                impl TryInto<LogicalStreamType, Error = impl Into<Box<dyn error::Error>>>,
+            ),
+        >,
+    ) -> Result<Self> {
+        Union::try_new(union).map(Into::into)
+    }
 
     /// Returns true if this logical stream consists of only element-
     /// manipulating stream types. This recursively checks all inner stream
@@ -658,20 +740,7 @@ mod tests {
 
     #[test]
     fn union() -> Result<()> {
-        let b = LogicalStreamType::Group(
-            vec![
-                (
-                    Name::new("x")?,
-                    LogicalStreamType::Bits(Positive::new(2).unwrap()),
-                ),
-                (
-                    "y".try_into()?,
-                    LogicalStreamType::Bits(Positive::new(2).unwrap()),
-                ),
-            ]
-            .into_iter()
-            .collect(),
-        );
+        let b = LogicalStreamType::try_new_group(vec![("x", 2), ("y", 2)])?;
         let c = Stream::new(
             LogicalStreamType::Bits(Positive::new(4).unwrap()),
             PositiveReal::new(1.).unwrap(),
@@ -682,18 +751,11 @@ mod tests {
             None,
             false,
         );
-        let u = LogicalStreamType::Union(
-            vec![
-                (
-                    "a".try_into()?,
-                    LogicalStreamType::Bits(Positive::new(3).unwrap()),
-                ),
-                ("b".try_into()?, b.clone()),
-                ("c".try_into()?, c.into()),
-            ]
-            .into_iter()
-            .collect(),
-        );
+        let u = LogicalStreamType::try_new_union(vec![
+            ("a", 3.try_into()?),
+            ("b", b.clone()),
+            ("c", LogicalStreamType::Stream(c)),
+        ])?;
         let stream: LogicalStreamType = Stream::new(
             u,
             PositiveReal::new(1.).unwrap(),
@@ -747,18 +809,11 @@ mod tests {
             None,
             false,
         );
-        let u = LogicalStreamType::Union(
-            vec![
-                (
-                    "a".try_into()?,
-                    LogicalStreamType::Bits(Positive::new(3).unwrap()),
-                ),
-                ("b".try_into()?, b.clone()),
-                ("c".try_into()?, c.into()),
-            ]
-            .into_iter()
-            .collect(),
-        );
+        let u = LogicalStreamType::try_new_union(vec![
+            ("a", 3.try_into()?),
+            ("b", b.clone()),
+            ("c", c.into()),
+        ])?;
         let stream: LogicalStreamType = Stream::new(
             u,
             PositiveReal::new(1.).unwrap(),
@@ -790,18 +845,11 @@ mod tests {
             None,
             false,
         );
-        let u = LogicalStreamType::Union(
-            vec![
-                (
-                    "a".try_into()?,
-                    LogicalStreamType::Bits(Positive::new(3).unwrap()),
-                ),
-                ("b".try_into()?, b),
-                ("c".try_into()?, c.into()),
-            ]
-            .into_iter()
-            .collect(),
-        );
+        let u = LogicalStreamType::try_new_union(vec![
+            ("a", 3.try_into()?),
+            ("b", b),
+            ("c", c.into()),
+        ])?;
         let stream: LogicalStreamType = Stream::new(
             u,
             PositiveReal::new(1.).unwrap(),

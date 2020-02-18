@@ -14,6 +14,8 @@ pub enum Error {
     InvalidArgument(String),
     /// Indicates an unexpected duplicate is provided.
     UnexpectedDuplicate,
+    /// Unknown error.
+    UnknownError,
 }
 
 impl fmt::Display for Error {
@@ -22,11 +24,22 @@ impl fmt::Display for Error {
         match self {
             Error::InvalidArgument(ref msg) => write!(f, "Invalid argument: {}", msg),
             Error::UnexpectedDuplicate => write!(f, "Unexpected duplicate"),
+            Error::UnknownError => write!(f, "Unknown error"),
         }
     }
 }
 
 impl error::Error for Error {}
+
+impl From<Box<dyn error::Error>> for Error {
+    fn from(error: Box<dyn error::Error>) -> Self {
+        if let Ok(error) = error.downcast::<Self>() {
+            *error
+        } else {
+            Error::UnknownError
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
