@@ -40,6 +40,8 @@ pub fn parse_streamlet(input: &str) -> Result<Streamlet, TransformError> {
 mod tests {
     use super::*;
     use crate::logical::LogicalStreamType;
+    use crate::streamlet::{Interface, Mode, StreamletBuilder};
+    use crate::Name;
     use pest::Parser;
     use std::convert::TryInto;
 
@@ -51,21 +53,6 @@ mod tests {
                 Err(e) => panic!("{}", e),
             }
         };
-    }
-
-    #[test]
-    fn streamlet() -> Result<(), Box<dyn std::error::Error>> {
-        assert_eq!(
-            parse_streamlet(
-                "Streamlet null { a: in Stream<Group<a:Bits<1>, b:Bits<2>>>; c: out Null; }"
-            ),
-            Ok(Streamlet::new(
-                "null",
-                vec![("a".try_into()?, LogicalStreamType::Null)],
-                vec![("b".try_into()?, LogicalStreamType::Null)]
-            ))
-        );
-        Ok(())
     }
 
     #[test]
@@ -109,7 +96,7 @@ mod tests {
         parse_ok!(stream, "Stream<Bits<1>,x=false>");
         parse_ok!(
             stream,
-            "Stream<Bits<1>,t=0.5,d=2,c=4.0,r=Reverse,u=Group<u0:Bits<1>,u1:Bits<2>>,x=false>"
+            "Stream<Union<a: Null, b: Bits<1>, c: Group<d:Null, e:Null>>,t=0.5,d=2,c=4.0,r=Reverse,u=Group<u0:Bits<1>,u1:Bits<2>>,x=false>"
         );
     }
 

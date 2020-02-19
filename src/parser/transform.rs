@@ -1,14 +1,28 @@
-use crate::generator::common::Mode;
-use crate::logical::{Direction, Group};
+use crate::logical::{Direction, Group, Union};
 use crate::logical::{LogicalStreamType, Stream, Synchronicity};
 use crate::parser::Rule;
 use crate::physical::Complexity;
-use crate::streamlet::Streamlet;
+use crate::streamlet::{Interface, Mode, Streamlet, StreamletBuilder};
 use crate::Name;
 use crate::{NonNegative, PositiveReal};
-use pest::iterators::Pair;
+use pest::iterators::{Pair, Pairs};
 use std::convert::{Infallible, TryFrom, TryInto};
 use std::fmt::{Display, Error, Formatter};
+
+fn check_rule<T>(
+    pair: Pair<Rule>,
+    rule: Rule,
+    f: impl Fn(Pair<Rule>) -> Result<T, TransformError>,
+) -> Result<T, TransformError> {
+    if pair.as_rule() == rule {
+        f(pair)
+    } else {
+        Err(TransformError::BadRule(format!(
+            "Expected: \"{:?}\", Actual: \"{:?}\"",
+            rule, pair
+        )))
+    }
+}
 
 // TODO(johanpel): upgrade error management.
 #[derive(Debug, PartialEq)]
@@ -68,19 +82,6 @@ impl Default for StreamOptList {
     }
 }
 
-macro_rules! check_rule {
-    ($pair:ident, $expected_rule:ident, $code:block) => {
-        match $pair.as_rule() {
-            Rule::$expected_rule => $code,
-            _ => Err(TransformError::BadRule(format!(
-                "Expected: \"{}\", Actual: \"{:?}\"",
-                stringify!($expected_rule),
-                $pair
-            ))),
-        }
-    };
-}
-
 impl std::error::Error for TransformError {}
 
 impl From<std::convert::Infallible> for TransformError {
@@ -99,7 +100,7 @@ impl<'i> TryFrom<Pair<'i, Rule>> for Complexity {
     type Error = TransformError;
 
     fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
-        check_rule!(pair, compl, {
+        check_rule(pair, Rule::compl, |pair| {
             pair.as_str()
                 .parse::<Complexity>()
                 .map_err(|e| TransformError::BadArgument(e.to_string()))
@@ -111,7 +112,7 @@ impl<'i> TryFrom<Pair<'i, Rule>> for Synchronicity {
     type Error = TransformError;
 
     fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
-        check_rule!(pair, synchronicity, {
+        check_rule(pair, Rule::synchronicity, |pair| {
             match pair.into_inner().next().unwrap().as_rule() {
                 Rule::sync => Ok(Synchronicity::Sync),
                 Rule::flat => Ok(Synchronicity::Flatten),
@@ -127,7 +128,7 @@ impl<'i> TryFrom<Pair<'i, Rule>> for Direction {
     type Error = TransformError;
 
     fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
-        check_rule!(pair, dir, {
+        check_rule(pair, Rule::dir, |pair| {
             match pair.into_inner().next().unwrap().as_rule() {
                 Rule::forward => Ok(Direction::Forward),
                 Rule::reverse => Ok(Direction::Reverse),
@@ -141,12 +142,10 @@ impl<'i> TryFrom<Pair<'i, Rule>> for Mode {
     type Error = TransformError;
 
     fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
-        check_rule!(pair, mode, {
-            match pair.as_str() {
-                "in" => Ok(Mode::In),
-                "out" => Ok(Mode::Out),
-                _ => unreachable!(),
-            }
+        check_rule(pair, Rule::mode, |pair| match pair.as_str() {
+            "in" => Ok(Mode::In),
+            "out" => Ok(Mode::Out),
+            _ => unreachable!(),
         })
     }
 }
@@ -154,21 +153,18 @@ impl<'i> TryFrom<Pair<'i, Rule>> for Mode {
 impl<'i> TryFrom<Pair<'i, Rule>> for StreamOptList {
     type Error = TransformError;
     fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
-        check_rule!(pair, stream_opt_list, {
+        check_rule(pair, Rule::stream_opt_list, |pair| {
             let mut stream_opt_list = StreamOptList::default();
 
-            let pairs = pair
-                .into_inner()
-                .flatten()
-                .filter(|pair| pair.as_rule() == Rule::stream_opt)
-                .map(|pair| {
-                    pair.into_inner()
-                        .next()
-                        .unwrap()
-                        .into_inner()
-                        .next()
-                        .unwrap()
-                });
+            let pairs = list_flatten(pair).into_iter().map(|stream_opt| {
+                stream_opt
+                    .into_inner()
+                    .next()
+                    .unwrap()
+                    .into_inner()
+                    .next()
+                    .unwrap()
+            });
 
             stream_opt_list.set_throughput(transform(pairs.clone()));
             stream_opt_list.set_dimensionality(transform_arguments(pairs.clone(), |pair| {
@@ -190,7 +186,7 @@ impl<'i> TryFrom<Pair<'i, Rule>> for LogicalStreamType {
     type Error = TransformError;
 
     fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
-        check_rule!(pair, typ, {
+        check_rule(pair, Rule::typ, |pair| {
             let pair = pair.into_inner().next().unwrap();
             match pair.as_rule() {
                 Rule::null => Ok(LogicalStreamType::Null),
@@ -208,6 +204,10 @@ impl<'i> TryFrom<Pair<'i, Rule>> for LogicalStreamType {
                     let group: Group = pair.try_into()?;
                     Ok(group.into())
                 }
+                Rule::union => {
+                    let union: Union = pair.try_into()?;
+                    Ok(union.into())
+                }
                 _ => unreachable!(),
             }
         })
@@ -218,8 +218,26 @@ impl<'i> TryFrom<Pair<'i, Rule>> for PositiveReal {
     type Error = TransformError;
 
     fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
-        check_rule!(pair, float, {
-            PositiveReal::new(pair.as_str().parse::<f64>().unwrap())
+        check_rule(pair, Rule::float, |pair| {
+            PositiveReal::new(
+                pair.as_str()
+                    .trim()
+                    .parse::<f64>()
+                    .map_err(|e| TransformError::BadArgument(e.to_string()))?,
+            )
+            .map_err(|e| TransformError::BadArgument(e.to_string()))
+        })
+    }
+}
+
+impl<'i> TryFrom<Pair<'i, Rule>> for Name {
+    type Error = TransformError;
+
+    fn try_from(pair: Pair<'i, Rule>) -> Result<Self, Self::Error> {
+        check_rule(pair, Rule::ident, |pair| {
+            pair.as_str()
+                .trim()
+                .parse::<Name>()
                 .map_err(|e| TransformError::BadArgument(e.to_string()))
         })
     }
@@ -229,31 +247,16 @@ impl<'i> TryFrom<Pair<'i, Rule>> for Streamlet {
     type Error = TransformError;
 
     fn try_from(pair: Pair<'i, Rule>) -> Result<Self, Self::Error> {
-        check_rule!(pair, streamlet, {
+        check_rule(pair, Rule::streamlet, |pair| {
             let mut pairs = pair.into_inner();
-            let name = pairs.next().unwrap().as_str();
-            let if_list = pairs.next().unwrap().into_inner();
-            let (input, output): (Vec<_>, Vec<_>) = if_list
-                .map(|interface| {
-                    let mut interface = interface.into_inner();
-                    let name: Name = interface
-                        .next()
-                        .unwrap()
-                        .as_str()
-                        .parse::<Name>()
-                        .map_err(|e| TransformError::BadArgument(e.to_string()))?;
-                    let mode: Mode = interface.next().unwrap().try_into()?;
-                    let typ: LogicalStreamType = interface.next().unwrap().try_into()?;
-                    Ok((name, mode, typ))
-                })
-                .collect::<Result<Vec<_>, TransformError>>()?
-                .into_iter()
-                .partition(|(_, mode, _)| mode == &Mode::In);
-            Ok(Streamlet::new(
-                name,
-                input.into_iter().map(|(name, _, stream)| (name, stream)),
-                output.into_iter().map(|(name, _, stream)| (name, stream)),
-            ))
+            let name: Name = pairs.next().unwrap().try_into()?;
+            let mut builder = StreamletBuilder::new(name);
+            for interface in pairs {
+                builder.add_interface(interface.try_into()?);
+            }
+            Ok(builder
+                .finish()
+                .map_err(|e| TransformError::BadArgument(e.to_string()))?)
         })
     }
 }
@@ -262,7 +265,7 @@ impl<'i> TryFrom<Pair<'i, Rule>> for Stream {
     type Error = TransformError;
 
     fn try_from(pair: Pair<'i, Rule>) -> Result<Self, Self::Error> {
-        check_rule!(pair, stream, {
+        check_rule(pair, Rule::stream, |pair| {
             let mut pairs = pair.into_inner();
             let typ: LogicalStreamType = pairs
                 .next()
@@ -288,22 +291,69 @@ impl<'i> TryFrom<Pair<'i, Rule>> for Stream {
     }
 }
 
+fn list_flatten(pair: Pair<Rule>) -> Vec<Pair<Rule>> {
+    // todo(mb): return type
+    match pair.as_rule() {
+        Rule::field_list | Rule::stream_opt_list => {
+            let mut fields = pair.into_inner();
+            let pairs = Pairs::single(fields.next().unwrap());
+            if let Some(field_list) = fields.next() {
+                pairs.chain(list_flatten(field_list)).collect::<Vec<_>>()
+            } else {
+                pairs.collect::<Vec<_>>()
+            }
+        }
+        _ => panic!("field_list rules only"),
+    }
+}
+
 impl<'i> TryFrom<Pair<'i, Rule>> for Group {
     type Error = TransformError;
 
     fn try_from(pair: Pair<'i, Rule>) -> Result<Self, Self::Error> {
-        check_rule!(pair, group, {
-            // Obtain the field list AST node
-            let field_list = pair.into_inner().next().unwrap().into_inner();
+        check_rule(pair, Rule::group, |pair| {
             Group::try_new(
-                field_list
-                    .map(|field_pair| {
-                        let mut field = field_pair.into_inner();
-                        let field_name = field.next().unwrap().as_str();
-                        let field_type: LogicalStreamType = field.next().unwrap().try_into()?;
-                        Ok((field_name, field_type))
-                    })
-                    .collect::<Result<Vec<_>, TransformError>>()?,
+                list_flatten(pair.into_inner().next().unwrap())
+                    .into_iter()
+                    .map(|field| {
+                        let mut pairs = field.into_inner();
+                        (pairs.next().unwrap(), pairs.next().unwrap())
+                    }),
+            )
+            .map_err(|e| TransformError::BadArgument(e.to_string()))
+        })
+    }
+}
+
+// TODO(johanpel): create a tryfrom apparaat for field list
+impl<'i> TryFrom<Pair<'i, Rule>> for Union {
+    type Error = TransformError;
+
+    fn try_from(pair: Pair<'i, Rule>) -> Result<Self, Self::Error> {
+        check_rule(pair, Rule::union, |pair| {
+            Union::try_new(
+                list_flatten(pair.into_inner().next().unwrap())
+                    .into_iter()
+                    .map(|field| {
+                        let mut pairs = field.into_inner();
+                        (pairs.next().unwrap(), pairs.next().unwrap())
+                    }),
+            )
+            .map_err(|e| TransformError::BadArgument(e.to_string()))
+        })
+    }
+}
+
+impl<'i> TryFrom<Pair<'i, Rule>> for Interface {
+    type Error = TransformError;
+
+    fn try_from(pair: Pair<'i, Rule>) -> Result<Self, Self::Error> {
+        check_rule(pair, Rule::interface, |pair| {
+            let mut pairs = pair.into_inner();
+            Interface::try_new(
+                pairs.next().unwrap(),
+                pairs.next().unwrap().try_into()?,
+                pairs.next().unwrap(),
             )
             .map_err(|e| TransformError::BadArgument(e.to_string()))
         })
@@ -314,6 +364,7 @@ fn transform<T, U, E>(value: impl Iterator<Item = U>) -> Result<T, TransformErro
 where
     T: TryFrom<U, Error = E>,
     E: Into<TransformError>,
+    U: std::fmt::Debug,
 {
     let mut filtered = value.filter_map(|p| p.try_into().ok());
     // Attempt to pop a result.
@@ -327,7 +378,7 @@ where
 }
 
 fn transform_bool(pair: Pair<Rule>) -> Result<bool, TransformError> {
-    check_rule!(pair, bool, {
+    check_rule(pair, Rule::bool, |pair| {
         pair.as_str()
             .parse::<bool>()
             .map_err(|e| TransformError::BadArgument(e.to_string()))
@@ -345,7 +396,7 @@ fn transform_arguments<'i, T>(
 }
 
 fn transform_uint(pair: Pair<Rule>) -> Result<NonNegative, TransformError> {
-    check_rule!(pair, uint, {
+    check_rule(pair, Rule::uint, |pair| {
         pair.as_str()
             .parse::<NonNegative>()
             .map_err(|e| TransformError::BadArgument(e.to_string()))
@@ -375,25 +426,21 @@ mod tests {
 
     #[test]
     fn test_complexity() {
-        transform_ok!(
-            stream_opt_compl,
-            "c=4.1.3",
-            Complexity::new(vec![4, 1, 3]).unwrap()
-        );
+        transform_ok!(compl, "4.1.3", Complexity::new(vec![4, 1, 3]).unwrap());
     }
 
     #[test]
     fn test_synchronicity() {
-        transform_ok!(stream_opt_sync, "s=Sync", Synchronicity::Sync);
-        transform_ok!(stream_opt_sync, "s= Flatten", Synchronicity::Flatten);
-        transform_ok!(stream_opt_sync, "s = Desync", Synchronicity::Desync);
-        transform_ok!(stream_opt_sync, "s =FlatDesync", Synchronicity::FlatDesync);
+        transform_ok!(synchronicity, "Sync", Synchronicity::Sync);
+        transform_ok!(synchronicity, "Flatten", Synchronicity::Flatten);
+        transform_ok!(synchronicity, "Desync", Synchronicity::Desync);
+        transform_ok!(synchronicity, "FlatDesync", Synchronicity::FlatDesync);
     }
 
     #[test]
     fn test_direction() {
-        transform_ok!(stream_opt_dir, "r =Forward", Direction::Forward);
-        transform_ok!(stream_opt_dir, "r= Reverse", Direction::Reverse);
+        transform_ok!(dir, "Forward", Direction::Forward);
+        transform_ok!(dir, "Reverse", Direction::Reverse);
     }
 
     #[test]
@@ -403,13 +450,8 @@ mod tests {
     }
 
     #[test]
-    fn test_throughput() {
-        transform_ok!(stream_opt_tput, "t=0.1", PositiveReal::new(0.1).unwrap());
-    }
-
-    #[test]
-    fn test_dimensionality() {
-        unimplemented!()
+    fn test_float() {
+        transform_ok!(float, "0.1", PositiveReal::new(0.1).unwrap());
     }
 
     #[test]
@@ -425,10 +467,7 @@ mod tests {
             false,
         );
         transform_ok!(stream, "Stream<Bits<1>>", e0);
-    }
 
-    #[test]
-    fn test_stream1() {
         let e1 = Stream::new(
             LogicalStreamType::try_new_bits(4).unwrap(),
             PositiveReal::new(0.5).unwrap(),
@@ -445,8 +484,63 @@ mod tests {
             "Stream<Bits<4>, t=0.5, d=2, s=FlatDesync, c=1.3.3.7, r=Reverse, u=Bits<5>, x=true>",
             e1
         );
+
+        let e2 = Stream::new(
+            LogicalStreamType::try_new_union(vec![
+                ("a", LogicalStreamType::Null),
+                ("b", LogicalStreamType::try_new_bits(1).unwrap()),
+                (
+                    "c",
+                    LogicalStreamType::try_new_group(vec![
+                        ("d", LogicalStreamType::Null),
+                        ("e", LogicalStreamType::Null),
+                    ])
+                    .unwrap(),
+                ),
+            ])
+            .unwrap(),
+            PositiveReal::new(0.01).unwrap(),
+            2,
+            Synchronicity::default(),
+            Complexity::new(vec![4, 2]).unwrap(),
+            Direction::Forward,
+            Some(Box::new(
+                LogicalStreamType::try_new_group(vec![("u0", 1), ("u1", 2)]).unwrap(),
+            )),
+            false,
+        );
+
+        transform_ok!(stream,
+        "Stream<Union<a: Null, b: Bits<1>, c: Group<d:Null, e:Null>>,t=0.01,d=2,c=4.2,u=Group<u0:Bits<1>,u1:Bits<2>>,x=false>",
+        e2);
     }
 
     #[test]
-    fn test_interface() {}
+    fn test_interface() {
+        transform_ok!(
+            interface,
+            "a : in Bits<1>;",
+            Interface::try_new("a", Mode::In, LogicalStreamType::try_new_bits(1).unwrap()).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_streamlet() -> Result<(), Box<dyn std::error::Error>> {
+        transform_ok!(
+            streamlet,
+            "Streamlet test { a: in Group<a:Bits<1>, b:Bits<2>>; c: out Null; }",
+            StreamletBuilder::new(Name::try_new("test").unwrap())
+                .with_interface(Interface::new(
+                    "a".try_into()?,
+                    Mode::In,
+                    Group::try_new(vec![("a", 1), ("b", 2)]).unwrap()
+                ))
+                .with_interface(
+                    Interface::try_new("c", Mode::Out, LogicalStreamType::Null).unwrap()
+                )
+                .finish()
+                .unwrap()
+        );
+        Ok(())
+    }
 }
