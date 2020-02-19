@@ -160,7 +160,7 @@ impl Stream {
         synchronicity: Synchronicity,
         complexity: impl Into<Complexity>,
         direction: Direction,
-        user: Option<Box<LogicalStreamType>>,
+        user: Option<LogicalStreamType>,
         keep: bool,
     ) -> Self {
         Stream {
@@ -170,7 +170,7 @@ impl Stream {
             synchronicity,
             complexity: complexity.into(),
             direction,
-            user,
+            user: user.map(Box::new),
             keep,
         }
     }
@@ -528,7 +528,7 @@ impl LogicalStreamType {
                             stream_in.synchronicity,
                             stream_in.complexity.clone(),
                             stream_in.direction,
-                            stream_in.user.clone(),
+                            stream_in.user.clone().map(|stream| *stream),
                             stream_in.keep,
                         )
                         .into(),
