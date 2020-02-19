@@ -10,17 +10,17 @@ ident               = {(ASCII_ALPHANUMERIC | "_")+}
 
 // Literals
 digit               = _{ '0'..'9' }
-int                 =  { digit ~ (digit | "_")* }
+uint                = { digit ~ (digit | "_")* }
 plus                = { "+" }
 minus               = { "-" }
-exp                 = { ^"e" ~ (plus | minus)? ~ int }
-float               = {int ~ "." ~ int? ~ exp? |int ~ exp}
+exp                 = { ^"e" ~ (plus | minus)? ~ uint }
+float               = {uint ~ "." ~ uint? ~ exp? |uint ~ exp}
 
 bool                = {"true" | "false" }
 
 // Leaf types
 null 		        = {"Null"}
-bits 		        = {"Bits" ~ "<" ~ int ~ ">"}
+bits 		        = {"Bits" ~ "<" ~ uint ~ ">"}
 
 // Compound types
 field 		        = {ident ~ ":" ~ typ}
@@ -29,27 +29,28 @@ group 		        = {"Group" ~ "<" ~ field_list ~ ">"}
 union 		        = {"Union" ~ "<" ~ field_list ~ ">"}
 
 // Complexity level
-compl 	            = { (int ~ ("." ~ compl)*) }
+compl 	            = { (uint ~ ("." ~ compl)*) }
 
 // Synchronicity
 sync                = { "Sync" }
 flat                = { "Flatten" }
 desync              = { "Desync" }
 flatdesync          = { "FlatDesync" }
+synchronicity       = { sync | flat | desync | flatdesync }
 
 // Direction
 forward             = { "Forward" }
 reverse             = { "Reverse" }
-
+dir                 = { forward | reverse }
 // Stream type
 stream_opt_tput     = { "t" ~ "=" ~ float }
-stream_opt_dim 		= { "d" ~ "=" ~ int }
-stream_opt_sync     = { "s" ~ "=" ~ (sync | flat | desync | flatdesync) }
+stream_opt_dim 		= { "d" ~ "=" ~ uint }
+stream_opt_sync     = { "s" ~ "=" ~ synchronicity }
 stream_opt_compl 	= { "c" ~ "=" ~ compl }
-stream_opt_dir      = { "r" ~ "=" ~ (forward | reverse) }
+stream_opt_dir      = { "r" ~ "=" ~ dir }
 stream_opt_user     = { "u" ~ "=" ~ typ }
 stream_opt_extra    = { "x" ~ "=" ~ bool }
-stream_opt  		= { (stream_opt_tput | stream_opt_dim | stream_opt_sync | stream_opt_compl | stream_opt_dir | stream_opt_user | stream_opt_extra) }
+stream_opt  		= { stream_opt_tput | stream_opt_dim | stream_opt_sync | stream_opt_compl | stream_opt_dir | stream_opt_user | stream_opt_extra }
 stream_opt_list     = { stream_opt ~ ("," ~ stream_opt_list)* }
 stream 				= {"Stream" ~ "<" ~ typ ~ ("," ~ stream_opt_list)* ~ ">"}
 

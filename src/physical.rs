@@ -170,7 +170,7 @@ impl FromStr for Complexity {
     fn from_str(s: &str) -> Result<Self> {
         Complexity::new(
             // split string into string slices
-            s.split(".")
+            s.split('.')
                 // convert slices to nonnegatives after trimming whitespace
                 .map(|d| d.trim().parse::<NonNegative>())
                 // convert to result with vector of nonnegatives
