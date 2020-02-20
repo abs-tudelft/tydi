@@ -20,6 +20,8 @@ use std::convert::TryFrom;
 #[grammar = "parser/sdf.pest"]
 pub struct SDFParser;
 
+pub mod nom;
+
 mod transform;
 
 pub fn parse_streamlet(input: &str) -> Result<Streamlet, TransformError> {
