@@ -50,3 +50,7 @@ where
         r
     }
 }
+
+pub trait Name {
+    fn name(&self) -> &str;
+}
