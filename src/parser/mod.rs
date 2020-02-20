@@ -42,7 +42,7 @@ pub fn parse_streamlet(input: &str) -> Result<Streamlet, TransformError> {
 mod tests {
     use super::*;
     use crate::logical::LogicalStreamType;
-    use crate::streamlet::{Interface, Mode, StreamletBuilder};
+    use crate::streamlet::{Interface, Mode};
     use crate::Name;
     use pest::Parser;
     use std::convert::TryInto;

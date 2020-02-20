@@ -1,25 +1,25 @@
-use crate::logical::Direction;
-use crate::logical::LogicalStreamType;
-use crate::logical::Synchronicity;
-use crate::logical::{Group, Stream, Union};
+use crate::logical::{Direction, Group, LogicalStreamType, Stream, Synchronicity, Union};
 use crate::physical::Complexity;
-use crate::{Name, Positive, PositiveReal};
+use crate::project::Library;
+use crate::streamlet::{Interface, Mode, Streamlet};
+use crate::{Name, PositiveReal};
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::bytes::complete::take_until;
 use nom::bytes::complete::take_while;
 use nom::character::complete::digit1;
 use nom::character::complete::one_of;
+use nom::character::streaming::multispace1;
 use nom::combinator::map;
 use nom::combinator::map_res;
 use nom::combinator::opt;
 use nom::combinator::recognize;
-use nom::multi::separated_list;
+use nom::multi::{many0, separated_list};
 use nom::number::complete::float;
-use nom::sequence::delimited;
 use nom::sequence::preceded;
 use nom::sequence::separated_pair;
 use nom::sequence::tuple;
+use nom::sequence::{delimited, terminated};
 use std::collections::HashMap;
 
 // #[derive(Debug, PartialEq)]
@@ -27,19 +27,19 @@ use std::collections::HashMap;
 //     kind: ErrorKind<I>,
 //     backtrace: Vec<ErrorKind<I>>,
 // }
-
+//
 // impl<I> ParserError<I> {
 //     fn backtrace(&mut self, other: ParserError<I>) {
 //         self.backtrace.push(other.kind);
 //     }
 // }
-
+//
 // #[derive(Debug, PartialEq)]
 // enum ErrorKind<I> {
 //     Nom(I, nom::error::ErrorKind),
 //     BadName(String),
 // }
-
+//
 // impl<I> ParseError<I> for ParserError<I> {
 //     fn from_error_kind(input: I, kind: nom::error::ErrorKind) -> Self {
 //         ParserError {
@@ -47,16 +47,22 @@ use std::collections::HashMap;
 //             backtrace: vec![],
 //         }
 //     }
-
+//
 //     fn append(input: I, kind: nom::error::ErrorKind, mut other: Self) -> Self {
 //         other.backtrace(Self::from_error_kind(input, kind));
 //         other
 //     }
 // }
 
-// todo(mb): whitespace tollerance
-
 type Result<I, T> = nom::IResult<I, T, nom::error::VerboseError<I>>;
+
+fn ws(input: &str) -> Result<&str, Vec<&str>> {
+    many0(alt((multispace1, comment)))(input)
+}
+
+fn w<'a, T>(f: impl Fn(&'a str) -> Result<&'a str, T>) -> impl Fn(&'a str) -> Result<&'a str, T> {
+    terminated(f, ws)
+}
 
 pub fn name(input: &str) -> Result<&str, Name> {
     map_res(
@@ -80,9 +86,10 @@ pub fn null(input: &str) -> Result<&str, LogicalStreamType> {
 }
 
 pub fn bits(input: &str) -> Result<&str, LogicalStreamType> {
-    map_res(delimited(tag("Bits<"), digit1, tag(">")), |x: &str| {
-        LogicalStreamType::try_new_bits(x.parse().unwrap()).map_err(|_| ())
-    })(input)
+    map_res(
+        delimited(w(tag("Bits<")), w(digit1), tag(">")),
+        |x: &str| LogicalStreamType::try_new_bits(x.parse().unwrap()).map_err(|_| ()),
+    )(input)
 }
 
 pub fn logical_stream_type(input: &str) -> Result<&str, LogicalStreamType> {
@@ -91,14 +98,14 @@ pub fn logical_stream_type(input: &str) -> Result<&str, LogicalStreamType> {
 
 fn fields(input: &str) -> Result<&str, Vec<(Name, LogicalStreamType)>> {
     separated_list(
-        tag(","),
-        separated_pair(name, tag(":"), logical_stream_type),
+        w(tag(",")),
+        separated_pair(w(name), w(tag(":")), w(logical_stream_type)),
     )(input)
 }
 
 pub fn group(input: &str) -> Result<&str, LogicalStreamType> {
     map_res(
-        delimited(tag("Group<"), fields, tag(">")),
+        delimited(w(tag("Group<")), w(fields), tag(">")),
         |fields: Vec<(Name, LogicalStreamType)>| {
             Group::try_new(fields).map(Into::into).map_err(|_| ())
         },
@@ -107,7 +114,7 @@ pub fn group(input: &str) -> Result<&str, LogicalStreamType> {
 
 pub fn union(input: &str) -> Result<&str, LogicalStreamType> {
     map_res(
-        delimited(tag("Union<"), fields, tag(">")),
+        delimited(w(tag("Union<")), w(fields), tag(">")),
         |fields: Vec<(Name, LogicalStreamType)>| {
             Union::try_new(fields).map(Into::into).map_err(|_| ())
         },
@@ -115,7 +122,7 @@ pub fn union(input: &str) -> Result<&str, LogicalStreamType> {
 }
 
 pub fn complexity(input: &str) -> Result<&str, Complexity> {
-    map_res(separated_list(tag("."), digit1), |level: Vec<&str>| {
+    map_res(separated_list(w(tag(".")), digit1), |level: Vec<&str>| {
         Complexity::new(level.iter().map(|x| x.parse().unwrap())).map_err(|_| ())
     })(input)
 }
@@ -142,17 +149,17 @@ pub fn stream(input: &str) -> Result<&str, LogicalStreamType> {
     dbg!(input);
     map_res(
         tuple((
-            tag("Stream<"),
-            logical_stream_type,
+            w(tag("Stream<")),
+            w(logical_stream_type),
             opt(preceded(
-                tag(","),
+                w(tag(",")),
                 map(
                     separated_list(
-                        tag(","),
+                        w(tag(",")),
                         separated_pair(
-                            one_of("tdscrux"),
-                            tag("="),
-                            alt((
+                            w(one_of("tdscrux")),
+                            w(tag("=")),
+                            w(alt((
                                 recognize(float),
                                 recognize(digit1),
                                 recognize(synchronicity),
@@ -160,7 +167,7 @@ pub fn stream(input: &str) -> Result<&str, LogicalStreamType> {
                                 recognize(direction),
                                 recognize(logical_stream_type),
                                 recognize(bool),
-                            )),
+                            ))),
                         ),
                     ),
                     |opts| opts.into_iter().collect::<HashMap<char, &str>>(),
@@ -235,6 +242,38 @@ pub fn stream(input: &str) -> Result<&str, LogicalStreamType> {
     )(input)
 }
 
+pub fn mode(input: &str) -> Result<&str, Mode> {
+    map(alt((tag("in"), tag("out"))), |x: &str| x.parse().unwrap())(input)
+}
+
+pub fn interface(input: &str) -> Result<&str, Interface> {
+    map(
+        tuple((w(name), w(tag(":")), mode, multispace1, logical_stream_type)),
+        |(n, _, m, _, t): (Name, _, Mode, _, LogicalStreamType)| Interface::new(n, m, t),
+    )(input)
+}
+
+pub fn streamlet(input: &str) -> Result<&str, Streamlet> {
+    map_res(
+        tuple((
+            w(tag("Streamlet")),
+            w(name),
+            w(tag("(")),
+            separated_list(w(tag(",")), w(interface)),
+            tag(")"),
+        )),
+        |(_, n, _, il, _): (_, Name, _, Vec<Interface>, _)| {
+            Streamlet::from_builder(n, il.into_iter().collect())
+        },
+    )(input)
+}
+
+pub fn library(input: &str) -> Result<&str, Library> {
+    map(separated_list(multispace1, tuple((opt(ws), w(streamlet)))) | v: Vec<(_, Streamlet)> | {})(
+        input,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -285,10 +324,26 @@ mod tests {
     #[test]
     fn parse_group() {
         assert_eq!(
-            group("Group<a:Null,b:Bits<5>>"),
+            group("Group< a    :  Null ,  b:Bits<5>>"),
             Ok((
                 "",
                 Group::try_new(vec![
+                    ("a", LogicalStreamType::Null),
+                    ("b", LogicalStreamType::try_new_bits(5).unwrap())
+                ])
+                .unwrap()
+                .into()
+            ))
+        );
+    }
+
+    #[test]
+    fn parse_union() {
+        assert_eq!(
+            union("Union<a:Null,b:Bits<5>>"),
+            Ok((
+                "",
+                Union::try_new(vec![
                     ("a", LogicalStreamType::Null),
                     ("b", LogicalStreamType::try_new_bits(5).unwrap())
                 ])
@@ -308,18 +363,50 @@ mod tests {
 
     #[test]
     fn parse_synchronicity() {
+        assert_eq!(synchronicity("Sync"), Ok(("", Synchronicity::Sync)));
+        assert_eq!(synchronicity("Desync"), Ok(("", Synchronicity::Desync)));
         assert_eq!(synchronicity("Flatten"), Ok(("", Synchronicity::Flatten)));
+        assert_eq!(
+            synchronicity("FlatDesync"),
+            Ok(("", Synchronicity::FlatDesync))
+        );
     }
 
     #[test]
     fn parse_direction() {
         assert_eq!(direction("Forward"), Ok(("", Direction::Forward)));
+        assert_eq!(direction("Reverse"), Ok(("", Direction::Reverse)));
+    }
+
+    #[test]
+    fn parse_mode() {
+        assert_eq!(mode("in"), Ok(("", Mode::In)));
+        assert_eq!(mode("out"), Ok(("", Mode::Out)));
+    }
+
+    #[test]
+    fn parse_interface() {
+        assert_eq!(
+            interface("a :  in Null"),
+            Ok((
+                "",
+                Interface::try_new("a", Mode::In, LogicalStreamType::Null).unwrap()
+            ))
+        );
+        assert_eq!(
+            interface("b:out Bits<1>"),
+            Ok((
+                "",
+                Interface::try_new("b", Mode::Out, LogicalStreamType::try_new_bits(1).unwrap(),)
+                    .unwrap()
+            ))
+        );
     }
 
     #[test]
     fn parse_stream() {
         assert_eq!(
-            stream("Stream<Union<a:Null,b:Bits<1>,c:Group<d:Null,e:Null>>,t=0.01,d=2,c=4.2,u=Group<u0:Bits<1>,u1:Bits<2>>,x=false>"),
+            stream("Stream< Union< a  :  Null  ,b:Bits<1>,c:Group<d:Null,e:Null>>,t=0.01 ,d=2,c=4.2,u=Group<u0:Bits<1>,u1:Bits<2>>,x=false>"),
             Ok((
                 "",
                 Stream::new(
@@ -346,6 +433,37 @@ mod tests {
                     )),
                     false,
                 ).into()
+            ))
+        );
+    }
+
+    #[test]
+    fn parse_streamlet() {
+        assert_eq!(
+            streamlet(concat!(
+                "Streamlet test (\n",
+                "  a : in Group< a : Bits< 1 >,\n",
+                "                b : Bits< 2>\n",
+                "              >,\n",
+                "  c : out Null\n",
+                ")",
+            )),
+            Ok((
+                "",
+                StreamletBuilder::new(Name::try_new("test").unwrap())
+                    .with_interface(
+                        Interface::try_new(
+                            "a",
+                            Mode::In,
+                            Group::try_new(vec![("a", 1), ("b", 2)]).unwrap()
+                        )
+                        .unwrap()
+                    )
+                    .with_interface(
+                        Interface::try_new("c", Mode::Out, LogicalStreamType::Null).unwrap()
+                    )
+                    .finish()
+                    .unwrap()
             ))
         );
     }
