@@ -231,7 +231,7 @@ pub fn stream(input: &str) -> Result<&str, LogicalStreamType> {
                 synchronicity,
                 complexity,
                 direction,
-                user.map(Box::new),
+                user,
                 keep,
             )
             .into())
@@ -427,9 +427,9 @@ mod tests {
                     Synchronicity::default(),
                     Complexity::new(vec![4, 2]).unwrap(),
                     Direction::Forward,
-                    Some(Box::new(
+                    Some(
                         LogicalStreamType::try_new_group(vec![("u0", 1), ("u1", 2)]).unwrap(),
-                    )),
+                    ),
                     false,
                 ).into()
             ))
