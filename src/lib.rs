@@ -59,6 +59,7 @@ pub(crate) mod util;
 
 // Core
 mod error;
+pub mod library;
 pub mod logical;
 pub mod physical;
 pub mod streamlet;
@@ -67,8 +68,8 @@ mod traits;
 // Tools
 #[cfg(feature = "generator")]
 pub mod generator;
-// #[cfg(feature = "parser")]
-// pub mod parser;
+#[cfg(feature = "parser")]
+pub mod parser;
 
 // Root re-exports
 // TODO(mb): discuss
@@ -140,7 +141,7 @@ pub struct Name(String);
 impl Name {
     /// Constructs a new name wrapper. Returns an error when the provided name
     /// is invalid.
-    pub fn new(name: impl Into<String>) -> Result<Self> {
+    pub fn try_new(name: impl Into<String>) -> Result<Self> {
         let name = name.into();
         if name.is_empty() {
             Err(Error::InvalidArgument("name cannot be empty".to_string()))
@@ -193,14 +194,14 @@ use std::convert::TryFrom;
 impl TryFrom<&str> for Name {
     type Error = Error;
     fn try_from(str: &str) -> Result<Self> {
-        Name::new(str)
+        Name::try_new(str)
     }
 }
 
 impl TryFrom<String> for Name {
     type Error = Error;
     fn try_from(string: String) -> Result<Self> {
-        Name::new(string)
+        Name::try_new(string)
     }
 }
 
@@ -208,7 +209,7 @@ use std::str::FromStr;
 impl FromStr for Name {
     type Err = Error;
     fn from_str(str: &str) -> Result<Self> {
-        Name::new(str)
+        Name::try_new(str)
     }
 }
 

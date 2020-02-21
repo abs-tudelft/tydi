@@ -5,7 +5,7 @@
 //!
 //! # Examples:
 //!
-//! ```ignore
+//! ```
 //! use tydi::generator::{
 //!     chisel::ChiselBackEnd, vhdl::VHDLBackEnd,
 //!     common::Project,
@@ -21,10 +21,10 @@
 //! };
 //!
 //! let vhdl = VHDLBackEnd::default();
-//! let chisel = ChiselBackEnd::default();
+//! //let chisel = ChiselBackEnd::default();
 //!
 //! vhdl.generate(&proj, &path.join("vhdl"));
-//! chisel.generate(&proj, &path.join("chisel"));
+//! //chisel.generate(&proj, &path.join("chisel"));
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 

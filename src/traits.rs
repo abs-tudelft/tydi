@@ -1,4 +1,4 @@
-//! Stream-related traits.
+//! Tydi common traits.
 
 /// In-place reverse.
 ///
@@ -49,4 +49,9 @@ where
         r.reverse();
         r
     }
+}
+
+/// Trait for things that have names.
+pub trait Name {
+    fn name(&self) -> &str;
 }

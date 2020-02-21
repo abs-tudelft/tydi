@@ -10,6 +10,7 @@ use crate::{
     Error, Name, NonNegative, PathName, Positive, PositiveReal, Result, Reverse,
 };
 use indexmap::IndexMap;
+use std::str::FromStr;
 use std::{
     convert::{TryFrom, TryInto},
     error,
@@ -33,6 +34,27 @@ pub enum Direction {
     /// access to a memory; the first stream carrying the read commands then
     /// flows in the sink to source direction.
     Reverse,
+}
+
+impl Default for Direction {
+    fn default() -> Self {
+        Direction::Forward
+    }
+}
+
+impl FromStr for Direction {
+    type Err = Error;
+
+    fn from_str(input: &str) -> Result<Self> {
+        match input {
+            "Forward" => Ok(Direction::Forward),
+            "Reverse" => Ok(Direction::Reverse),
+            _ => Err(Error::InvalidArgument(format!(
+                "{} is not a valid Direction",
+                input
+            ))),
+        }
+    }
 }
 
 impl Reverse for Direction {
@@ -80,6 +102,29 @@ pub enum Synchronicity {
     /// dimensionality information from the parent. This means there the
     /// relation between the two streams, if any, is fully user-defined.
     FlatDesync,
+}
+
+impl Default for Synchronicity {
+    fn default() -> Self {
+        Synchronicity::Sync
+    }
+}
+
+impl FromStr for Synchronicity {
+    type Err = Error;
+
+    fn from_str(input: &str) -> Result<Self> {
+        match input {
+            "Sync" => Ok(Synchronicity::Sync),
+            "Flatten" => Ok(Synchronicity::Flatten),
+            "Desync" => Ok(Synchronicity::Desync),
+            "FlatDesync" => Ok(Synchronicity::FlatDesync),
+            _ => Err(Error::InvalidArgument(format!(
+                "{} is not a valid Synchronicity",
+                input
+            ))),
+        }
+    }
 }
 
 /// The stream-manipulating logical stream type.
