@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 
+use crate::generator::chisel::{Analyze, ChiselError, ChiselResult, Declare, Identify};
 use crate::generator::common::{Component, Library, Mode, Port, Type};
-use crate::generator::chisel::{Analyze, Declare, Identify, ChiselError, ChiselResult};
 
 impl Identify for Mode {
     fn identify(&self) -> ChiselResult {
@@ -21,28 +21,26 @@ impl Declare for Type {
             Type::Bit => Ok("Bool()".to_string()),
             Type::BitVec { width } => {
                 let actual_width = if *width == 0 { 1 } else { *width };
-                Ok(format!(
-                    "UInt({}.W)",
-                    actual_width
-                ))
+                Ok(format!("UInt({}.W)", actual_width))
             }
             Type::Record(rec) => {
                 let mut result = format!("class {} extends Bundle {{ \n", rec.identifier);
                 //Handle nested bundles (new operator)
                 for field in &rec.fields {
                     match &field.typ {
-                        Type::Record(_rec)=>   result.push_str(format!("  val {} = new {};\n", field.name, field.typ.identify()?).as_str()),
-                        _   => result.push_str(format!("  val {} = {};\n", field.name, field.typ.identify()?).as_str()),
+                        Type::Record(_rec) => result.push_str(
+                            format!("  val {} = new {};\n", field.name, field.typ.identify()?)
+                                .as_str(),
+                        ),
+                        _ => result.push_str(
+                            format!("  val {} = {};\n", field.name, field.typ.identify()?).as_str(),
+                        ),
                     }
                 }
                 result.push_str("}");
                 Ok(result)
             }
-            Type::Array(arr) => Ok(format!(
-                "Vec ({}, {})",
-                arr.size - 1,
-                arr.typ.declare()?
-            )),
+            Type::Array(arr) => Ok(format!("Vec ({}, {})", arr.size - 1, arr.typ.declare()?)),
         }
     }
 }
@@ -85,9 +83,9 @@ impl Declare for Port {
             self.mode.identify()?,
             //Handle custom bundle
             match &self.typ {
-                    Type::Record(_rec) => "new ".to_string(),
-                    _   =>  "".to_string(),
-                } + &self.typ.identify()?
+                Type::Record(_rec) => "new ".to_string(),
+                _ => "".to_string(),
+            } + &self.typ.identify()?
         ))
     }
 }
