@@ -1,6 +1,5 @@
 use crate::logical::{Direction, Group, LogicalStreamType, Stream, Synchronicity, Union};
 use crate::physical::Complexity;
-use crate::project::Library;
 use crate::streamlet::{Interface, Mode, Streamlet};
 use crate::{Name, PositiveReal};
 use nom::branch::alt;
@@ -8,13 +7,13 @@ use nom::bytes::complete::tag;
 use nom::bytes::complete::take_until;
 use nom::bytes::complete::take_while;
 use nom::character::complete::digit1;
+use nom::character::complete::multispace1;
 use nom::character::complete::one_of;
-use nom::character::streaming::multispace1;
 use nom::combinator::map;
 use nom::combinator::map_res;
 use nom::combinator::opt;
 use nom::combinator::recognize;
-use nom::multi::{many0, separated_list};
+use nom::multi::{many0, many1, separated_list};
 use nom::number::complete::float;
 use nom::sequence::preceded;
 use nom::sequence::separated_pair;
@@ -56,12 +55,16 @@ use std::collections::HashMap;
 
 type Result<I, T> = nom::IResult<I, T, nom::error::VerboseError<I>>;
 
-fn ws(input: &str) -> Result<&str, Vec<&str>> {
+fn ws0(input: &str) -> Result<&str, Vec<&str>> {
     many0(alt((multispace1, comment)))(input)
 }
 
+fn ws1(input: &str) -> Result<&str, Vec<&str>> {
+    many1(alt((multispace1, comment)))(input)
+}
+
 fn w<'a, T>(f: impl Fn(&'a str) -> Result<&'a str, T>) -> impl Fn(&'a str) -> Result<&'a str, T> {
-    terminated(f, ws)
+    terminated(f, ws0)
 }
 
 pub fn name(input: &str) -> Result<&str, Name> {
@@ -268,15 +271,17 @@ pub fn streamlet(input: &str) -> Result<&str, Streamlet> {
     )(input)
 }
 
-pub fn library(input: &str) -> Result<&str, Library> {
-    map(separated_list(multispace1, tuple((opt(ws), w(streamlet)))) | v: Vec<(_, Streamlet)> | {})(
-        input,
-    )
+pub fn list_of_streamlets(input: &str) -> Result<&str, Vec<Streamlet>> {
+    map(
+        preceded(ws0, separated_list(ws1, streamlet)),
+        |l: Vec<Streamlet>| l,
+    )(input)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::util::UniquelyNamedBuilder;
 
     #[test]
     fn parse_comment() {
@@ -317,7 +322,7 @@ mod tests {
     fn parse_bits() {
         assert_eq!(
             bits("Bits<3>"),
-            Ok(("", LogicalStreamType::Bits(Positive::new(3).unwrap())))
+            Ok(("", LogicalStreamType::try_new_bits(3).unwrap()))
         );
     }
 
@@ -450,18 +455,55 @@ mod tests {
             )),
             Ok((
                 "",
-                StreamletBuilder::new(Name::try_new("test").unwrap())
-                    .with_interface(
-                        Interface::try_new(
-                            "a",
-                            Mode::In,
-                            Group::try_new(vec![("a", 1), ("b", 2)]).unwrap()
+                Streamlet::from_builder(
+                    Name::try_new("test").unwrap(),
+                    UniquelyNamedBuilder::new()
+                        .with_item(
+                            Interface::try_new(
+                                "a",
+                                Mode::In,
+                                Group::try_new(vec![("a", 1), ("b", 2)]).unwrap()
+                            )
+                            .unwrap()
                         )
-                        .unwrap()
-                    )
-                    .with_interface(
-                        Interface::try_new("c", Mode::Out, LogicalStreamType::Null).unwrap()
-                    )
+                        .with_item(
+                            Interface::try_new("c", Mode::Out, LogicalStreamType::Null).unwrap()
+                        )
+                )
+                .unwrap()
+            ))
+        );
+    }
+
+    fn test_streamlet(name: impl Into<String>) -> Streamlet {
+        Streamlet::from_builder(
+            Name::try_new(name).unwrap(),
+            UniquelyNamedBuilder::new().with_items(vec![
+                Interface::try_new("a", Mode::In, LogicalStreamType::Null).unwrap(),
+                Interface::try_new("b", Mode::Out, LogicalStreamType::Null).unwrap(),
+            ]),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn parse_list_of_streamlets() {
+        assert_eq!(
+            list_of_streamlets(concat!(
+                "/* Some comment */\n",
+                "Streamlet a ( a: in Null, b: out Null)\n",
+                "/* Another comment */\n",
+                "Streamlet b ( a: in Null, b: out Null)\n",
+                "Streamlet c ( a: in Null, b: out Null)",
+            )),
+            Ok((
+                "",
+                UniquelyNamedBuilder::new()
+                    .with_items(vec![
+                        test_streamlet("a"),
+                        test_streamlet("b"),
+                        test_streamlet("c"),
+                    ])
                     .finish()
                     .unwrap()
             ))

@@ -3,7 +3,6 @@
 use crate::logical::LogicalStreamType;
 use crate::util::UniquelyNamedBuilder;
 use crate::{Error, Name, Result};
-use std::collections::HashSet;
 use std::convert::TryInto;
 use std::str::FromStr;
 

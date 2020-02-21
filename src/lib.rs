@@ -59,9 +59,9 @@ pub(crate) mod util;
 
 // Core
 mod error;
+pub mod library;
 pub mod logical;
 pub mod physical;
-pub mod project;
 pub mod streamlet;
 mod traits;
 
@@ -70,9 +70,6 @@ mod traits;
 pub mod generator;
 #[cfg(feature = "parser")]
 pub mod parser;
-#[cfg(feature = "parser")]
-#[macro_use]
-extern crate pest_derive;
 
 // Root re-exports
 // TODO(mb): discuss

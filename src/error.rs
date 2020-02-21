@@ -16,6 +16,10 @@ pub enum Error {
     UnexpectedDuplicate,
     /// Unknown error.
     UnknownError,
+    /// File I/O error.
+    FileIOError(String),
+    // Parsing error.
+    ParsingError(String),
 }
 
 impl fmt::Display for Error {
@@ -25,6 +29,8 @@ impl fmt::Display for Error {
             Error::InvalidArgument(ref msg) => write!(f, "Invalid argument: {}", msg),
             Error::UnexpectedDuplicate => write!(f, "Unexpected duplicate"),
             Error::UnknownError => write!(f, "Unknown error"),
+            Error::FileIOError(ref msg) => write!(f, "File I/O error: {}", msg),
+            Error::ParsingError(ref msg) => write!(f, "Parsing error: {}", msg),
         }
     }
 }
