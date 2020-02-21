@@ -31,7 +31,7 @@ impl Declare for Type {
                 //Handle nested bundles (new operator)
                 for field in &rec.fields {
                     match &field.typ {
-                        Type::Record(rec)=>   result.push_str(format!("  val {} = new {};\n", field.name, field.typ.identify()?).as_str()),
+                        Type::Record(_rec)=>   result.push_str(format!("  val {} = new {};\n", field.name, field.typ.identify()?).as_str()),
                         _   => result.push_str(format!("  val {} = {};\n", field.name, field.typ.identify()?).as_str()),
                     }
                 }
@@ -85,7 +85,7 @@ impl Declare for Port {
             self.mode.identify()?,
             //Handle custom bundle
             match &self.typ {
-                    Type::Record(rec) => "new ".to_string(),
+                    Type::Record(_rec) => "new ".to_string(),
                     _   =>  "".to_string(),
                 } + &self.typ.identify()?
         ))
@@ -179,8 +179,8 @@ mod test {
     fn test_mode_decl() {
         let m0 = Mode::In;
         let m1 = Mode::Out;
-        //println!("{}", m0.identify().unwrap());
-        //println!("{}", m1.identify().unwrap());
+        println!("{}", m0.identify().unwrap());
+        println!("{}", m1.identify().unwrap());
     }
 
     #[test]
@@ -189,22 +189,22 @@ mod test {
         let t1 = Type::BitVec { width: 8 };
         let t2 = test_rec();
         let t3 = test_rec_nested();
-        //println!("{}", t0.declare().unwrap());
-        //println!("{}", t1.declare().unwrap());
-        //println!("{}", t2.declare().unwrap());
-        //println!("{}", t3.declare().unwrap());
+        println!("{}", t0.declare().unwrap());
+        println!("{}", t1.declare().unwrap());
+        println!("{}", t2.declare().unwrap());
+        println!("{}", t3.declare().unwrap());
     }
 
     #[test]
     fn test_port_decl() {
         let p = Port::new("test", Mode::In, Type::BitVec { width: 10 });
-        //println!("{}", p.declare().unwrap());
+        println!("{}", p.declare().unwrap());
     }
 
     #[test]
     fn test_comp_decl() {
         let c = test_comp();
-        //println!("{}", c.declare().unwrap());
+        println!("{}", c.declare().unwrap());
     }
 
     #[test]

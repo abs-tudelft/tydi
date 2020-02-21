@@ -111,24 +111,22 @@ mod test {
             components: vec![c],
         };
         let result = p.declare();
-        //assert_eq!(result.unwrap_err(), VHDLError::TypeNameConflict);
+        assert_eq!(result.unwrap_err(), ChiselError::TypeNameConflict);
     }
 
     #[test]
     fn test_backend() -> Result<(), Box<dyn error::Error>> {
         let v = ChiselBackEnd::default();
 
-        //let tmpdir = tempfile::tempdir()?;
-        //let path = tmpdir.path().join("__test");
+        let tmpdir = tempfile::tempdir()?;
+        let path = tmpdir.path().join("__test");
 
-        let path = Path::new("/home/akos/temp");
-
-        v.generate(&test_proj(), &path);
+        assert!(v.generate(&test_proj(), &path).is_ok());
 
         // Check if files were correclty generated.
-        //assert!(fs::metadata(&path).is_ok());
-        //assert!(fs::metadata(&path.join("proj")).is_ok());
-        //assert!(fs::metadata(&path.join("proj/lib_pkg.gen.vhd")).is_ok());
+        assert!(fs::metadata(&path).is_ok());
+        assert!(fs::metadata(&path.join("proj")).is_ok());
+        assert!(fs::metadata(&path.join("proj/lib/lib.gen.scala")).is_ok());
 
         Ok(())
     }
