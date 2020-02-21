@@ -1,4 +1,6 @@
-//! Streamlet definition.
+//! This module contains the Streamlet structure.
+//!
+//! A streamlet is a Tydi name for a component of which all ports are of a [LogicalStreamType].
 
 use crate::logical::LogicalStreamType;
 use crate::util::UniquelyNamedBuilder;
@@ -14,12 +16,6 @@ pub struct Streamlet {
 }
 
 impl Streamlet {
-    fn get_interface(&self, name: impl AsRef<str>) -> Option<&Interface> {
-        self.interfaces
-            .iter()
-            .find(|interface| interface.name.as_ref() == name.as_ref())
-    }
-
     pub fn from_builder(name: Name, builder: UniquelyNamedBuilder<Interface>) -> Result<Self> {
         Ok(Streamlet {
             name,

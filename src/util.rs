@@ -28,7 +28,7 @@ pub struct UniquelyNamedBuilder<T: Name> {
 
 impl<T: Name> UniquelyNamedBuilder<T> {
     pub fn new() -> Self {
-        UniquelyNamedBuilder { items: Vec::new() }
+        UniquelyNamedBuilder::default()
     }
 
     pub fn add_item(&mut self, item: T) {
@@ -62,5 +62,11 @@ impl<T: Name> FromIterator<T> for UniquelyNamedBuilder<T> {
         UniquelyNamedBuilder {
             items: iter.into_iter().collect(),
         }
+    }
+}
+
+impl<T: Name> Default for UniquelyNamedBuilder<T> {
+    fn default() -> Self {
+        UniquelyNamedBuilder { items: Vec::new() }
     }
 }

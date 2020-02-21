@@ -1,24 +1,18 @@
+//! Nom-based parsers for Streamlet Definition Files.
+
 use crate::logical::{Direction, Group, LogicalStreamType, Stream, Synchronicity, Union};
 use crate::physical::Complexity;
 use crate::streamlet::{Interface, Mode, Streamlet};
 use crate::{Name, PositiveReal};
-use nom::branch::alt;
-use nom::bytes::complete::tag;
-use nom::bytes::complete::take_until;
-use nom::bytes::complete::take_while;
-use nom::character::complete::digit1;
-use nom::character::complete::multispace1;
-use nom::character::complete::one_of;
-use nom::combinator::map;
-use nom::combinator::map_res;
-use nom::combinator::opt;
-use nom::combinator::recognize;
-use nom::multi::{many0, many1, separated_list};
-use nom::number::complete::float;
-use nom::sequence::preceded;
-use nom::sequence::separated_pair;
-use nom::sequence::tuple;
-use nom::sequence::{delimited, terminated};
+use nom::{
+    branch::alt,
+    bytes::complete::{tag, take_until, take_while},
+    character::complete::{digit1, multispace1, one_of},
+    combinator::{map, map_res, opt, recognize},
+    multi::{many0, many1, separated_list},
+    number::complete::float,
+    sequence::{delimited, preceded, separated_pair, terminated, tuple},
+};
 use std::collections::HashMap;
 
 // #[derive(Debug, PartialEq)]
