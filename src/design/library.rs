@@ -1,13 +1,14 @@
-//! This module contains the Library structure, used to group multiple [Streamlet]s together.
+//! This module contains the [Library] structure, used to group multiple [Streamlet]s together.
 //!
 //! This allows users to build up libraries of streamlets and helps to generate language-specific
 //! output (e.g. a package in VHDL).
 
+use crate::design::Streamlet;
 use crate::error::Error::{FileIOError, ParsingError};
 use crate::parser::nom::list_of_streamlets;
-use crate::streamlet::Streamlet;
-use crate::util::UniquelyNamedBuilder;
-use crate::{Name, Result};
+use crate::traits::Identify;
+use crate::{Name, Result, UniquelyNamedBuilder};
+use log::debug;
 use std::path::Path;
 
 /// A collection of Streamlets.
@@ -17,13 +18,17 @@ pub struct Library {
     streamlets: Vec<Streamlet>,
 }
 
-impl crate::traits::Name for Library {
+impl crate::traits::Identify for Library {
     fn name(&self) -> &str {
         self.name.as_ref()
     }
 }
 
 impl Library {
+    pub fn streamlets(&self) -> Vec<Streamlet> {
+        self.streamlets.clone()
+    }
+
     /// Construct a Library from a UniquelyNamedBuilder with Streamlets.
     pub fn from_builder(name: Name, builder: UniquelyNamedBuilder<Streamlet>) -> Result<Self> {
         Ok(Library {
@@ -41,6 +46,11 @@ impl Library {
                     .ok_or_else(|| FileIOError("Invalid path.".to_string()))?
             )))
         } else {
+            debug!(
+                "Parsing: {}",
+                path.to_str()
+                    .ok_or_else(|| FileIOError("Invalid path.".to_string()))?
+            );
             let streamlets: Vec<Streamlet> = list_of_streamlets(
                 std::fs::read_to_string(&path)
                     .map_err(|e| FileIOError(e.to_string()))?
@@ -48,6 +58,10 @@ impl Library {
             )
             .map_err(|e| ParsingError(e.to_string()))?
             .1;
+            debug!("Parsed streamlets: {}", {
+                let sln: Vec<&str> = streamlets.iter().map(|s| s.name()).collect();
+                sln.join(", ")
+            });
             Library::from_builder(
                 Name::try_new(
                     path.file_stem()

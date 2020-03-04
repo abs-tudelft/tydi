@@ -3,7 +3,7 @@
 //! This module contains functionality to convert hardware defined in the common hardware
 //! representation to VHDL source files.
 
-use std::error::Error;
+use crate::Result;
 use std::path::Path;
 
 use crate::generator::common::*;
@@ -11,34 +11,16 @@ use crate::generator::GenerateProject;
 
 mod impls;
 
-/// VHDL back-end code generation result
-type VHDLResult = Result<String, VHDLError>;
-
-/// VHDL back-end errors.
-#[derive(Debug, Clone, PartialEq)]
-pub enum VHDLError {
-    NotSynthesizable,
-    TypeNameConflict,
-}
-
-impl std::fmt::Display for VHDLError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, ".")
-    }
-}
-
-impl std::error::Error for VHDLError {}
-
 /// Generate trait for VHDL declarations.
 pub trait Declare {
     /// Generate a VHDL declaration from self.
-    fn declare(&self) -> VHDLResult;
+    fn declare(&self) -> Result<String>;
 }
 
 /// Generate trait for VHDL identifiers.
 pub trait Identify {
     /// Generate a VHDL identifier from self.
-    fn identify(&self) -> VHDLResult;
+    fn identify(&self) -> Result<String>;
 }
 
 /// Analyze trait for VHDL objects.
@@ -70,7 +52,7 @@ pub struct VHDLBackEnd {
 }
 
 impl GenerateProject for VHDLBackEnd {
-    fn generate(&self, project: &Project, path: &Path) -> Result<(), Box<dyn Error>> {
+    fn generate(&self, project: &Project, path: &Path) -> Result<()> {
         // Create the project directory.
         let mut dir = path.to_path_buf();
         dir.push(project.identifier.clone());
@@ -93,7 +75,7 @@ impl GenerateProject for VHDLBackEnd {
 mod test {
     use super::*;
     use crate::generator::common::test::*;
-    use std::{error, fs};
+    use std::fs;
 
     #[test]
     fn test_type_conflict() {
@@ -109,11 +91,12 @@ mod test {
             components: vec![c],
         };
         let result = p.declare();
-        assert_eq!(result.unwrap_err(), VHDLError::TypeNameConflict);
+        // TODO(johanpel): make sure this tests for the right error:
+        assert!(result.is_err());
     }
 
     #[test]
-    fn test_backend() -> Result<(), Box<dyn error::Error>> {
+    fn test_backend() -> Result<()> {
         let v = VHDLBackEnd::default();
 
         let tmpdir = tempfile::tempdir()?;
@@ -121,7 +104,7 @@ mod test {
 
         assert!(v.generate(&test_proj(), &path).is_ok());
 
-        // Check if files were correclty generated.
+        // Check if files were correctly generated.
         assert!(fs::metadata(&path).is_ok());
         assert!(fs::metadata(&path.join("proj")).is_ok());
         assert!(fs::metadata(&path.join("proj/lib_pkg.gen.vhd")).is_ok());

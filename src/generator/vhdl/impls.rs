@@ -2,22 +2,24 @@
 
 use std::collections::HashMap;
 
+use crate::error::Error::BackEndError;
 use crate::generator::common::{Component, Library, Mode, Port, Type};
-use crate::generator::vhdl::{Analyze, Declare, Identify, VHDLError, VHDLResult};
+use crate::generator::vhdl::{Analyze, Declare, Identify};
+use crate::Result;
 
 impl Identify for Mode {
-    fn identify(&self) -> VHDLResult {
+    fn identify(&self) -> Result<String> {
         match self {
             Mode::In => Ok("in".to_string()),
             Mode::Out => Ok("out".to_string()),
             Mode::Inout => Ok("inout".to_string()),
-            _ => Err(VHDLError::NotSynthesizable),
+            _ => Err(BackEndError("Mode not synthesizable.".to_string())),
         }
     }
 }
 
 impl Declare for Type {
-    fn declare(&self) -> VHDLResult {
+    fn declare(&self) -> Result<String> {
         match self {
             Type::Bit => Ok("std_logic".to_string()),
             Type::BitVec { width } => {
@@ -49,7 +51,7 @@ impl Declare for Type {
 }
 
 impl Identify for Type {
-    fn identify(&self) -> VHDLResult {
+    fn identify(&self) -> Result<String> {
         // Records and arrays use type definitions.
         // Any other types are used directly.
         match self {
@@ -79,7 +81,7 @@ impl Analyze for Type {
 }
 
 impl Declare for Port {
-    fn declare(&self) -> VHDLResult {
+    fn declare(&self) -> Result<String> {
         Ok(format!(
             "{} : {} {}",
             self.identifier,
@@ -90,7 +92,7 @@ impl Declare for Port {
 }
 
 impl Identify for Port {
-    fn identify(&self) -> VHDLResult {
+    fn identify(&self) -> Result<String> {
         Ok(self.identifier.to_string())
     }
 }
@@ -102,7 +104,7 @@ impl Analyze for Port {
 }
 
 impl Declare for Component {
-    fn declare(&self) -> VHDLResult {
+    fn declare(&self) -> Result<String> {
         let mut result = String::new();
         result.push_str(format!("component {}\n", self.identifier).as_str());
         if !self.ports.is_empty() {
@@ -136,7 +138,7 @@ impl Analyze for Component {
 }
 
 impl Declare for Library {
-    fn declare(&self) -> VHDLResult {
+    fn declare(&self) -> Result<String> {
         // Whatever generated the common representation is responsible to not to use the same
         // identifiers for different types.
         // Use a set to remember which type identifiers we've already used, so we don't declare
@@ -154,7 +156,12 @@ impl Declare for Library {
                     }
                     Some(already_defined_type) => {
                         if r != already_defined_type {
-                            return Err(VHDLError::TypeNameConflict);
+                            return Err(BackEndError(format!(
+                                "Type name conflict: {}",
+                                already_defined_type
+                                    .identify()
+                                    .unwrap_or_else(|_| "".to_string())
+                            )));
                         }
                     }
                 }

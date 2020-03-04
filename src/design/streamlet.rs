@@ -1,6 +1,6 @@
 //! This module contains the Streamlet structure.
 //!
-//! A streamlet is a Tydi name for a component of which all ports are of a [LogicalStreamType].
+//! A streamlet is a component where every [Interface] has a [LogicalStreamType].
 
 use crate::logical::LogicalStreamType;
 use crate::util::UniquelyNamedBuilder;
@@ -16,6 +16,10 @@ pub struct Streamlet {
 }
 
 impl Streamlet {
+    pub fn interfaces(&self) -> Vec<Interface> {
+        self.interfaces.clone()
+    }
+
     pub fn from_builder(name: Name, builder: UniquelyNamedBuilder<Interface>) -> Result<Self> {
         Ok(Streamlet {
             name,
@@ -24,13 +28,13 @@ impl Streamlet {
     }
 }
 
-impl crate::traits::Name for Streamlet {
+impl crate::traits::Identify for Streamlet {
     fn name(&self) -> &str {
         self.name.as_ref()
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Mode {
     Out,
     In,
@@ -58,7 +62,17 @@ pub struct Interface {
     typ: LogicalStreamType,
 }
 
-impl crate::traits::Name for Interface {
+impl Interface {
+    pub fn mode(&self) -> Mode {
+        self.mode
+    }
+
+    pub fn typ(&self) -> LogicalStreamType {
+        self.typ.clone()
+    }
+}
+
+impl crate::traits::Identify for Interface {
     fn name(&self) -> &str {
         self.name.as_ref()
     }

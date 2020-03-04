@@ -560,7 +560,7 @@ impl LogicalStreamType {
                 let split = stream_in.data.split();
                 let (element, rest) = (split.signals, split.streams);
                 if !element.is_null()
-                    || (stream_in.user.is_some() && stream_in.user.as_ref().unwrap().is_null())
+                    || (stream_in.user.is_some() && !stream_in.user.as_ref().unwrap().is_null())
                     || stream_in.keep
                 {
                     streams.insert(
@@ -767,9 +767,75 @@ pub struct LogicalStream {
     streams: IndexMap<PathName, PhysicalStream>,
 }
 
+impl LogicalStream {
+    pub fn streams(&self) -> impl Iterator<Item = (&PathName, &PhysicalStream)> {
+        self.streams.iter()
+    }
+}
+
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+
+    /// Module containing functions that return common LogicalStreamTypes to be used for testing
+    /// purposed only.
+    pub(crate) mod streams {
+        use super::*;
+
+        use crate::logical::LogicalStreamType;
+
+        #[allow(dead_code)]
+        pub(crate) fn null() -> LogicalStreamType {
+            LogicalStreamType::from(Stream::new(
+                LogicalStreamType::Null,
+                PositiveReal::new(1.).unwrap(),
+                0,
+                Synchronicity::Sync,
+                Complexity::default(),
+                Direction::Forward,
+                None,
+                false,
+            ))
+        }
+
+        pub(crate) fn single_element() -> LogicalStreamType {
+            LogicalStreamType::from(Stream::new(
+                LogicalStreamType::try_new_bits(8).unwrap(),
+                PositiveReal::new(1.).unwrap(),
+                0,
+                Synchronicity::Sync,
+                Complexity::default(),
+                Direction::Forward,
+                None,
+                false,
+            ))
+        }
+
+        #[allow(dead_code)]
+        pub(crate) fn nested_elements() -> LogicalStreamType {
+            LogicalStreamType::from(Stream::new(
+                LogicalStreamType::try_new_group(vec![
+                    ("a", LogicalStreamType::try_new_bits(1).unwrap()),
+                    (
+                        "b",
+                        LogicalStreamType::try_new_group(vec![
+                            ("c", LogicalStreamType::try_new_bits(2).unwrap()),
+                            ("d", LogicalStreamType::try_new_bits(3).unwrap()),
+                        ])
+                        .unwrap(),
+                    ),
+                ])
+                .unwrap(),
+                PositiveReal::new(1.).unwrap(),
+                0,
+                Synchronicity::Sync,
+                Complexity::default(),
+                Direction::Forward,
+                None,
+                false,
+            ))
+        }
+    }
 
     #[test]
     fn union() -> Result<()> {

@@ -278,8 +278,7 @@ impl fmt::Display for Complexity {
     }
 }
 
-/// Fields of a physical stream.
-///
+/// Map of named bit fields.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Fields(IndexMap<PathName, BitCount>);
 

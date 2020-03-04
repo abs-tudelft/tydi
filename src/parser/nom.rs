@@ -1,8 +1,8 @@
 //! Nom-based parsers for Streamlet Definition Files.
 
+use crate::design::{Interface, Mode, Streamlet};
 use crate::logical::{Direction, Group, LogicalStreamType, Stream, Synchronicity, Union};
 use crate::physical::Complexity;
-use crate::streamlet::{Interface, Mode, Streamlet};
 use crate::{Name, PositiveReal};
 use nom::{
     branch::alt,
@@ -143,7 +143,6 @@ pub fn direction(input: &str) -> Result<&str, Direction> {
 }
 
 pub fn stream(input: &str) -> Result<&str, LogicalStreamType> {
-    dbg!(input);
     map_res(
         tuple((
             w(tag("Stream<")),
@@ -222,8 +221,6 @@ pub fn stream(input: &str) -> Result<&str, LogicalStreamType> {
                 .flatten()
                 .unwrap_or(false);
 
-            dbg!(&data);
-            dbg!(&opt);
             Ok(Stream::new(
                 data,
                 throughput,
@@ -478,6 +475,20 @@ mod tests {
             ]),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn parse_single_streamlet() {
+        assert_eq!(
+            list_of_streamlets("Streamlet x ( a : in Null, b : out Null )"),
+            Ok((
+                "",
+                UniquelyNamedBuilder::new()
+                    .with_items(vec![test_streamlet("x"),])
+                    .finish()
+                    .unwrap()
+            ))
+        );
     }
 
     #[test]
