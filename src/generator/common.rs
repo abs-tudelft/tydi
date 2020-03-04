@@ -157,6 +157,7 @@ impl Type {
 }
 
 /// A parameter for components.
+#[derive(Debug, Clone)]
 pub struct Parameter {
     pub name: String,
     pub typ: Type,
@@ -197,6 +198,7 @@ impl Port {
 }
 
 /// A component.
+#[derive(Debug, Clone)]
 pub struct Component {
     /// Component identifier.
     pub identifier: String,
@@ -226,6 +228,7 @@ impl Component {
 }
 
 /// A library of components and types.
+#[derive(Debug)]
 pub struct Library {
     /// The identifier.
     pub identifier: String,
@@ -236,6 +239,7 @@ pub struct Library {
 /// A project with libraries
 // TODO(johanpel): consider renaming this, because project might imply some EDA tool-specific
 //                 project
+#[derive(Debug)]
 pub struct Project {
     /// The name of the project.
     pub identifier: String,
@@ -293,7 +297,6 @@ pub mod test {
     #[test]
     fn test_flatten_rec() {
         let flat = test_rec().flatten(vec![], false);
-        dbg!(&flat);
         assert_eq!(flat[0].0, vec!["a".to_string()]);
         assert_eq!(flat[0].1, Type::Bit);
         assert_eq!(flat[0].2, false);

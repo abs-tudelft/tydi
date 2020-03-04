@@ -52,6 +52,6 @@ where
 }
 
 /// Trait for things that have names.
-pub trait Name {
+pub trait Identify {
     fn name(&self) -> &str;
 }

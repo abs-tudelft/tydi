@@ -1,23 +1,29 @@
 //! Tydi is an open specification for complex data structures over hardware
 //! streams.
 //!
-//! The `tydi` crate provides an implementation of the [Tydi specification].
+//! This crate implements a library that helps to work with the
+//! constructs defined within the [Tydi specification].
+//!
+//! It also contains features that enable users to generate hardware
+//! component declarations based on the specification.
 //!
 //! # Tydi crate
 //!
 //! ## Modules
 //! The `tydi` crate provides the following modules.
 //!
-//! - [`physical`]: for physical stream types.
-//! - [`logical`]: for logical stream types.
+//! - [`physical`]: for physical stream types as described in the Tydi specification.
+//! - [`logical`]: for logical stream types as described in the Tydi specification.
+//! - [`design`]: for constructs that are not (yet) described in the Tydi specification,
+//!               such as streamlets.
 //!
 //! ## Features
 //!
 //! The `tydi` crate supports the following (non-default) features:
 //!
-//! - `cli`: [`tydi` command-line-interface].
-//! - `generator`: [`generator`] module for generation of HDL templates.
-//! - `parser`: [`parser`] module for generation of parser functions.
+//! - [`cli`] command-line-interface generator tool.
+//! - [`generator`] module for generation of HDL templates.
+//! - [`parser`] module with parser for Streamlet Definition Files.
 //!
 //! # Tools
 //!
@@ -34,8 +40,15 @@
 //!
 //! ### Usage
 //!
+//! To show CLI help, use:
 //! ```bash
 //! tydi --help
+//! ```
+//!
+//! To generate VHDL sources in the current directory from all *.sdf files
+//! in the current directory, use:
+//! ```bash
+//! tydi generate vhdl <project name>
 //! ```
 //!
 //! # Examples
@@ -51,6 +64,8 @@
 //! [`physical`]: ./physical/index.html
 //! [`logical`]: ./logical/index.html
 //! [`generator`]: ./generator/index.html
+//! [`design`]: ./design/index.html
+//! [`cli`]: ./design/index.html
 //! [`parser`]: ./parser/index.html
 //! [`tydi` command-line-interface]: #tydi-command-line-interface
 
@@ -58,11 +73,10 @@
 pub(crate) mod util;
 
 // Core
+pub mod design;
 mod error;
-pub mod library;
 pub mod logical;
 pub mod physical;
-pub mod streamlet;
 mod traits;
 
 // Tools
@@ -75,6 +89,7 @@ pub mod parser;
 // TODO(mb): discuss
 pub use error::{Error, Result};
 pub use traits::{Reverse, Reversed};
+pub use util::{Logger, UniquelyNamedBuilder};
 
 // Types for positive and non-negative integers.
 
@@ -281,7 +296,7 @@ impl fmt::Display for PathName {
                 result.push_str(name);
             });
         } else {
-            result.push_str("∅");
+            result.push_str("");
         }
         write!(f, "{}", result)
     }

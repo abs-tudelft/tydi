@@ -1,6 +1,7 @@
-use crate::traits::Name;
+use crate::traits::Identify;
 use crate::{Error, Result};
 use crate::{NonNegative, Positive};
+use log::{Level, Metadata, Record};
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
@@ -22,11 +23,12 @@ mod tests {
     }
 }
 
-pub struct UniquelyNamedBuilder<T: Name> {
+#[derive(Debug)]
+pub struct UniquelyNamedBuilder<T: Identify> {
     items: Vec<T>,
 }
 
-impl<T: Name> UniquelyNamedBuilder<T> {
+impl<T: Identify> UniquelyNamedBuilder<T> {
     pub fn new() -> Self {
         UniquelyNamedBuilder::default()
     }
@@ -57,7 +59,7 @@ impl<T: Name> UniquelyNamedBuilder<T> {
     }
 }
 
-impl<T: Name> FromIterator<T> for UniquelyNamedBuilder<T> {
+impl<T: Identify> FromIterator<T> for UniquelyNamedBuilder<T> {
     fn from_iter<U: IntoIterator<Item = T>>(iter: U) -> Self {
         UniquelyNamedBuilder {
             items: iter.into_iter().collect(),
@@ -65,8 +67,24 @@ impl<T: Name> FromIterator<T> for UniquelyNamedBuilder<T> {
     }
 }
 
-impl<T: Name> Default for UniquelyNamedBuilder<T> {
+impl<T: Identify> Default for UniquelyNamedBuilder<T> {
     fn default() -> Self {
         UniquelyNamedBuilder { items: Vec::new() }
     }
+}
+
+pub struct Logger;
+
+impl log::Log for Logger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() <= Level::Debug
+    }
+
+    fn log(&self, record: &Record) {
+        if self.enabled(record.metadata()) {
+            println!("{:5} - {}", record.level(), record.args());
+        }
+    }
+
+    fn flush(&self) {}
 }
