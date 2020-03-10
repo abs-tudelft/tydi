@@ -219,7 +219,9 @@ defined as \\(\textrm{Group}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\), where:
 
 > Intuitively, each instance of type \\(\textrm{Group}(...)\\) consists of
 > instances of *all* the contained types. This corresponds to a `struct` or
-> `record` in most programming languages.
+> `record` in most programming languages, or can be used to specify an array of
+> a defined size if the types are all the same. The latter may be abbreviated
+> as \\(\textrm{Tuple}(n, T)\ \rightarrow\ \textrm{Group}(0: T, 1: T, ..., n-1: T)\\).
 
 The names cannot be empty.
 
