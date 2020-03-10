@@ -220,24 +220,9 @@ defined as \\(\textrm{Group}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\), where:
 > instances of *all* the contained types. This corresponds to a `struct` or
 > `record` in most programming languages.
 
-The names cannot contain two or more consecutive underscores.
-
-> Double underscores are used by Tydi as a hierarchy separator when flattening
-> structures for the canonical representation. If not for the above rule,
-> something of the form
-> \\(\textrm{Group}(\textrm{'a'}:\textrm{Group}(\textrm{'b__c'}:...),\textrm{'a__b'}:\textrm{Group}(\textrm{'c'}:...))\\)
-> would result in a name conflict: both signals would be named `a__b__c`.
-
-The names cannot start or end with an underscore.
-
-The names cannot start with a digit.
-
 The names cannot be empty.
 
-The names must be case-insensitively unique within the group.
-
-> The above requirements on the name mirror the requirements on the field names
-> for the physical streams.
+The names must be unique within the group.
 
 #### Union
 
@@ -277,24 +262,9 @@ is defined as \\(\textrm{Union}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\\), where:
 > The pattern for that is simply \\(\textrm{Union}(\textrm{Null}, T)\\). In
 > this case, the union's tag field acts like a validity bit.
 
-The names cannot contain two or more consecutive underscores.
-
-> Double underscores are used by Tydi as a hierarchy separator when flattening
-> structures for the canonical representation. If not for the above rule,
-> something of the form
-> \\(\textrm{Union}(\textrm{'a'}:\textrm{Union}(\textrm{'b__c'}:\textrm{Stream}...),\textrm{'a__b'}:\textrm{Union}(\textrm{'c'}:\textrm{Stream}...))\\)
-> would result in a name conflict: both physical streams would be named `a__b__c`.
-
-The names cannot start or end with an underscore.
-
-The names cannot start with a digit.
-
 The names cannot be empty.
 
-The names must be case-insensitively unique within the union.
-
-> The above requirements on the name mirror the requirements on the field names
-> for the physical streams.
+The names must be unique within the union.
 
 ### Operations on logical stream
 
@@ -332,44 +302,44 @@ This section defines the function
 \\(\textrm{split}(T_{in}) \rightarrow \textrm{SplitStreams}\\),
 where \\(T_{in}\\) is any logical stream type. The \\(\textrm{SplitStreams}\\)
 node is defined as
-\\(\textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_n : T_n)\\),
+\\(\textrm{SplitStreams}(T_{signals}, P_1 : T_1, P_2 : T_2, ..., P_n : T_n)\\),
 where:
 
  - \\(T_{signals}\\) is a logical stream type consisting of only
    element-manipulating nodes;
  - all \\(T_{1..n}\\) are \\(\textrm{Stream}\\) nodes with the data and user
    subtypes consisting of only element-manipulating nodes;
- - all \\(N\\) are case-insensitively unique, emptyable strings consisting of
-   letters, numbers, and/or underscores, not starting or ending in an
-   underscore, and not starting with a digit; and
+ - all \\(P\\) are unique name paths, each path consisting of zero or more
+   strings, where each string is nonempty and consists of letters, numbers,
+   and/or underscores; and
  - \\(n\\) is a nonnegative integer.
 
 > Intuitively, it splits a logical stream type up into simplified stream types,
 > where \\(T_{signals}\\) contains only the information for the user-defined
 > signals, and \\(T_i\\) contains only the information for the physical stream
-> with index \\(i\\) and name \\(N_i\\).
+> with index \\(i\\) and name path \\(P_i\\).
 >
-> The names can be empty, because if there are no \\(Group\\)s or \\(Union\\)s,
-> the one existing stream or signal will not have an intrinsic name given by
-> the type. Empty strings are represented here with \\(\varnothing\\). Note
-> that the names here can include double underscores.
+> The name paths can be empty, because if there are no \\(Group\\)s or
+> \\(Union\\)s, the one existing stream or signal will not have an intrinsic
+> name given by the type. Empty paths are represented here with
+> \\(\varnothing\\).
 
 \\(\textrm{split}(T_{in})\\) is evaluated as follows.
 
  - If \\(T_{in} = \textrm{Stream}(T_e, t, d, s, c, r, T_u, x)\\), apply the
    following algorithm.
 
-    - Initialize \\(N\\) and \\(T\\) to empty lists.
+    - Initialize \\(P\\) and \\(T\\) to empty lists.
     - \\(T_{element} := \textrm{split}(T_e)\_{signals}\\) (i.e., the
       \\(T_{signals}\\) item of the tuple returned by the \\(\textrm{split}\\)
       function)
     - If \\(\textrm{isNull}(T_{element})\\) is false, \\(\textrm{isNull}(T_u)\\)
       is false, or \\(x\\) is true:
-       - Append \\(\varnothing\\) (an empty name) to the end of \\(N\\).
+       - Append \\(\varnothing\\) (an empty name path) to the end of \\(P\\).
        - Append \\(\textrm{Stream}(T_{element}, t, d, s, c, r, T_u, x)\\) to the end
          of \\(T\\).
-    - Extend \\(N\\) with \\(\textrm{split}(T_e)\_{names}\\) (i.e.,
-      all stream names returned by the \\(\textrm{split}\\) function).
+    - Extend \\(P\\) with \\(\textrm{split}(T_e)\_{paths}\\) (i.e.,
+      all stream name paths returned by the \\(\textrm{split}\\) function).
     - For all \\(T' \in \textrm{split}(T_e)\_{streams}\\) (i.e.,
       for all named streams returned by the \\(\textrm{split}\\) function):
        - Unpack \\(T'\\) into \\(\textrm{Stream}(T'\_d, t', d', s', c', r', T'\_u, x')\\).
@@ -383,50 +353,46 @@ where:
        - \\(t' := t' \cdot t\\).
        - Append \\(\textrm{Stream}(T'\_d, t', d', s', c', r', T'\_u, x')\\) to
          \\(T\\).
-    - Return \\(\textrm{SplitStreams}(\textrm{Null}, N_1 : T_1, N_2 : T_2, ..., N_m : T_m)\\).
+    - Return \\(\textrm{SplitStreams}(\textrm{Null}, P_1 : T_1, P_2 : T_2, ..., P_m : T_m)\\).
 
  - If \\(T_{in} = \textrm{Null}\\) or \\(T_{in} = \textrm{Bits}(b)\\),
    return \\(\textrm{SplitStreams}(T_{in})\\).
 
- - If \\(T_{in} = \textrm{Group}(N_{g,1} : T_{g,1}, N_{g,2} : T_{g,2}, ..., N_{g,n} : T_{g,n})\\),
+ - If \\(T_{in} = \textrm{Group}(N_1 : T_{g,1}, N_2 : T_{g,2}, ..., N_n : T_{g,n})\\),
    apply the following algorithm.
 
-    - \\(T_{signals} := \textrm{Group}(N_{g,1} : \textrm{split}(T_{g,1})\_{signals}, ..., N_{g,n} : \textrm{split}(T_{g,n})\_{signals})\\)
+    - \\(T_{signals} := \textrm{Group}(N_1 : \textrm{split}(T_{g,1})\_{signals}, ..., N_n : \textrm{split}(T_{g,n})\_{signals})\\)
       (i.e., replace the types contained by the group with the
       \\(T_{signals}\\) item of the tuple returned by the \\(\textrm{split}\\)
       function applied to the original types).
-    - Initialize \\(N\\) and \\(T\\) to empty lists.
+    - Initialize \\(P\\) and \\(T\\) to empty lists.
     - For all \\(i \in 1..n\\):
-       - For all \\(\textrm{name} \in \textrm{split}(T_{g,i})\_{names}\\) (i.e.,
-         for all stream names returned by the \\(\textrm{split}\\) function),
-          - If \\(\textrm{name} = \varnothing\\), append \\(N_{g,i}\\) to the end
-            of \\(N\\).
-          - Otherwise, append the concatenation \\(N_{g,i}\\) and \\(\textrm{name}\\)
-            to the end of \\(N\\), separated by a double underscore.
+       - For all \\(\textrm{path} \in \textrm{split}(T_{g,i})\_{paths}\\) (i.e.,
+         for all stream name paths returned by the \\(\textrm{split}\\) function),
+         append the concatenation of \\(\textrm{path}\\) and \\((N_i)\\) to the end
+         of \\(P\\).
        - Extend \\(T\\) with \\(\textrm{split}(T_{g,i})\_{streams}\\) (i.e.,
          all named streams returned by the \\(\textrm{split}\\) function).
-    - Return \\(\textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_m : T_m)\\),
-      where \\(m = |N| = |T|\\).
+    - Return \\(\textrm{SplitStreams}(T_{signals}, P_1 : T_1, P_2 : T_2, ..., P_m : T_m)\\),
+      where \\(m = |P| = |T|\\).
 
- - If \\(T_{in} = \textrm{Union}(N_{u,1} : T_{u,1}, N_{u,2} : T_{u,2}, ..., N_{u,n} : T_{u,n})\\),
+ - If \\(T_{in} = \textrm{Union}(N_1 : T_{u,1}, N_2 : T_{u,2}, ..., N_n : T_{u,n})\\),
    apply the following algorithm.
 
-    - \\(T_{signals} := \textrm{Union}(N_{u,1} : \textrm{split}(T_{u,1})\_{signals}, ..., N_{u,n} : \textrm{split}(T_{u,n})\_{signals})\\)
+    - \\(T_{signals} := \textrm{Union}(N_1 : \textrm{split}(T_{u,1})\_{signals}, ..., N_n : \textrm{split}(T_{u,n})\_{signals})\\)
       (i.e., replace the types contained by the group with the
       \\(T_{signals}\\) item of the tuple returned by the \\(\textrm{split}\\)
       function applied to the original types).
-    - Initialize \\(N\\) and \\(T\\) to empty lists.
+    - Initialize \\(P\\) and \\(T\\) to empty lists.
     - For all \\(i \in 1..n\\):
-       - For all \\(\textrm{name} \in \textrm{split}(T_{u,i})\_{names}\\) (i.e.,
-         for all stream names returned by the \\(\textrm{split}\\) function),
-          - If \\(\textrm{name} = \varnothing\\), append \\(N_{u,i}\\) to the end
-            of \\(N\\).
-          - Otherwise, append the concatenation \\(N_{u,i}\\) and \\(\textrm{name}\\)
-            to the end of \\(N\\), separated by a double underscore.
+       - For all \\(\textrm{path} \in \textrm{split}(T_{u,i})\_{paths}\\) (i.e.,
+         for all stream name paths returned by the \\(\textrm{split}\\) function),
+         append the concatenation of \\(\textrm{path}\\) and \\((N_i)\\) to the end
+         of \\(P\\).
        - Extend \\(T\\) with \\(\textrm{split}(T_{u,i})\_{streams}\\) (i.e.,
          all named streams returned by the \\(\textrm{split}\\) function).
-    - Return \\(\textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_m : T_m)\\),
-      where \\(m = |N| = |T|\\).
+    - Return \\(\textrm{SplitStreams}(T_{signals}, P_1 : T_1, P_2 : T_2, ..., P_m : T_m)\\),
+      where \\(m = |P| = |T|\\).
 
 > Note that the algorithm for \\(\textrm{Group}\\) and \\(\textrm{Union}\\) is
 > the same, aside from returning \\(\textrm{Group}\\) vs \\(\textrm{Union}\\)
@@ -449,8 +415,7 @@ node is as defined in the physical stream specification.
 >
 > The names can be empty, because if there are no \\(Group\\)s or \\(Union\\)s,
 > the one existing stream or signal will not have an intrinsic name given by
-> the type. Empty strings are represented here with \\(\varnothing\\). Note
-> that the names here can include double underscores.
+> the type. Empty strings are represented here with \\(\varnothing\\).
 
 \\(\textrm{fields}(T_{in})\\) is evaluated as follows.
 
@@ -461,61 +426,58 @@ node is as defined in the physical stream specification.
  - If \\(T_{in} = \textrm{Bits}(b)\\), return
    \\(\textrm{Fields}(\varnothing : b)\\).
 
- - If \\(T_{in} = \textrm{Group}(N_{g,1} : T_{g,1}, N_{g,2} : T_{g,2}, ..., N_{g,n} : T_{g,n})\\),
+ - If \\(T_{in} = \textrm{Group}(N_1 : T_{g,1}, N_2 : T_{g,2}, ..., N_n : T_{g,n})\\),
    apply the following algorithm.
 
-    - Initialize \\(N_o\\) and \\(b_o\\) to empty lists.
+    - Initialize \\(P_o\\) and \\(b_o\\) to empty lists.
     - For all \\(i \in 1..n\\):
        - Unpack \\(\textrm{fields}(T_{g,i})\\) into
-         \\(\textrm{Fields}(N_{e,1} : b_{e,1}, N_{e,2} : b_{e,2}, ..., N_{e,m} : b_{e,m})\\).
+         \\(\textrm{Fields}(P_{e,1} : b_{e,1}, P_{e,2} : b_{e,2}, ..., P_{e,m} : b_{e,m})\\).
        - For all \\(j \in 1..m\\):
-          - If \\(N_{e,j} = \varnothing\\), append \\(N_{g,i}\\) to the end
-            of \\(N_o\\). Otherwise, append the concatenation of \\(N_{g,i}\\)
-            and \\(N_{e,j}\\), separated by a double underscore, to the end of
-            \\(N_o\\).
+          - Append the concatenation of \\((N_i)\\) and \\(P_{e,j}\\) to the end of
+            \\(P_o\\).
           - Append \\(b_{e,j}\\) to the end of \\(b_o\\).
-    - Return \\(\textrm{Fields}(N_{o,1} : b_{o,1}, N_{o,2} : b_{o,2}, ..., N_{o,p} : b_{o,p})\\),
-      where \\(p = |N_o| = |b_o|\\).
+    - Return \\(\textrm{Fields}(P_{o,1} : b_{o,1}, P_{o,2} : b_{o,2}, ..., P_{o,p} : b_{o,p})\\),
+      where \\(p = |P_o| = |b_o|\\).
 
- - If \\(T_{in} = \textrm{Union}(N_{u,1} : T_{u,1}, N_{u,2} : T_{u,2}, ..., N_{u,n} : T_{u,n})\\),
+ - If \\(T_{in} = \textrm{Union}(N_1 : T_{u,1}, N_2 : T_{u,2}, ..., N_n : T_{u,n})\\),
    apply the following algorithm.
 
-    - Initialize \\(N_o\\) and \\(b_o\\) to empty lists.
+    - Initialize \\(P_o\\) and \\(b_o\\) to empty lists.
     - If \\(n > 1\\):
-       - Append `"tag"` to the end of \\(N_o\\).
+       - Append `"tag"` to the end of \\(P_o\\).
        - Append \\(\left\lceil\log_2 n\right\rceil\\) to the end of \\(b_o\\).
     - \\(b_d := 0\\)
     - For all \\(i \in 1..n\\):
        - Unpack \\(\textrm{fields}(T_{g,i})\\) into
-         \\(\textrm{Fields}(N_{e,1} : b_{e,1}, N_{e,2} : b_{e,2}, ..., N_{e,m} : b_{e,m})\\).
+         \\(\textrm{Fields}(P_{e,1} : b_{e,1}, P_{e,2} : b_{e,2}, ..., P_{e,m} : b_{e,m})\\).
        - \\(b_d := \max\left(b_d, \sum_{j=1}^m b_{e,j}\right)\\)
     - If \\(b_d > 0\\):
-       - Append `"union"` to the end of \\(N_o\\).
+       - Append `"union"` to the end of \\(P_o\\).
        - Append \\(b_d\\) to the end of \\(b_o\\).
-    - Return \\(\textrm{Fields}(N_{o,1} : b_{o,1}, N_{o,2} : b_{o,2}, ..., N_{o,p} : b_{o,p})\\),
-      where \\(p = |N_o| = |b_o|\\).
+    - Return \\(\textrm{Fields}(P_{o,1} : b_{o,1}, P_{o,2} : b_{o,2}, ..., P_{o,p} : b_{o,p})\\),
+      where \\(p = |P_o| = |b_o|\\).
 
 #### Synthesis function
 
 This section defines the function
 \\(\textrm{synthesize}(T_{in}) \rightarrow \textrm{LogicalStream}\\),
 where \\(T_{in}\\) is any logical stream type. The \\(\textrm{LogicalStream}\\)
-node is defined as \\(\textrm{LogicalStream}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\\),
+node is defined as \\(\textrm{LogicalStream}(F_{signals}, P_1 : S_1, P_2 : S_2, ..., P_n : S_n)\\),
 where:
 
  - \\(F_{signals}\\) is of the form
-   \\(\textrm{Fields}(N_{s,1} : b_{s,1}, N_{s,2} : b_{s,2}, ..., N_{s,m} : b_{s,m})\\),
+   \\(\textrm{Fields}(P_{s,1} : b_{s,1}, P_{s,2} : b_{s,2}, ..., P_{s,m} : b_{s,m})\\),
    as defined in the physical stream specification;
 
    > This represents the list of user-defined signals flowing in parallel to
    > the physical streams.
 
- - all \\(P\\) are of the form \\(\textrm{PhysicalStream}(E, N, D, C, U)\\), as
+ - all \\(S\\) are of the form \\(\textrm{PhysicalStream}(E, N, D, C, U)\\), as
    defined in the physical stream specification;
 
- - all \\(N\\) are case-insensitively unique, emptyable strings consisting of
-   letters, numbers, and/or underscores, not starting or ending in an
-   underscore, and not starting with a digit; and
+ - all \\(P\\) are unique name paths, consisting of zero or more non-empty
+   strings, each consisting of letters, numbers, and/or underscores; and
 
  - \\(n\\) is a nonnegative integer.
 
@@ -525,12 +487,12 @@ where:
 \\(\textrm{synthesize}(T_{in})\\) is evaluated as follows.
 
  - Unpack \\(\textrm{split}(T_{in})\\) into
-   \\(\textrm{SplitStreams}(T_{signals}, N_1 : T_1, N_2 : T_2, ..., N_n : T_n)\\).
+   \\(\textrm{SplitStreams}(T_{signals}, P_1 : T_1, P_2 : T_2, ..., P_n : T_n)\\).
  - \\(F_{signals} := \textrm{fields}(T_{signals})\\)
  - For all \\(i \in (1, 2, ..., n)\\):
     - Unpack \\(T_i\\) into \\(\textrm{Stream}(T_e, t, d, s, c, r, T_u, x)\\).
-    - \\(P_i := \textrm{PhysicalStream}(\textrm{fields}(T_e), \lceil t\rceil, d, c, \textrm{fields}(T_u))\\)
- - Return \\(\textrm{LogicalStream}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\\).
+    - \\(S_i := \textrm{PhysicalStream}(\textrm{fields}(T_e), \lceil t\rceil, d, c, \textrm{fields}(T_u))\\)
+ - Return \\(\textrm{LogicalStream}(F_{signals}, P_1 : S_1, P_2 : S_2, ..., P_n : S_n)\\).
 
 #### Type compatibility function
 
