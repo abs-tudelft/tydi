@@ -2,15 +2,15 @@ Logical streams
 ===============
 
 A Tydi logical stream consists of a bundle of physical streams and a group of
-user-defined signals, parameterized by way of a logical stream type. The
-logical stream type, in turn, represents some representation of an abstract
-data type (in the same way that for instance `std::vector` and `std::list` both
-represent a sequence in C++). Conceptually, the resulting logical stream can
-then be used to stream instances of its corresponding abstract data type from
-the source to the sink. The sink can only receive or operate on one instance at
-a time and only in sequence (hence the name "stream"), but the logical stream
-type can be designed such that the sink as random-access capability within the
-current instance.
+user-defined signals for quasi-constant values, parameterized by way of a
+logical stream type. The logical stream type, in turn, represents some
+representation of an abstract data type (in the same way that for instance
+`std::vector` and `std::list` both represent a sequence in C++). Conceptually,
+the resulting logical stream can then be used to stream instances of its
+corresponding abstract data type from the source to the sink. The sink can only
+receive or operate on one instance and the constants at a time and only in
+sequence (hence the name "stream"), but the logical stream type can be designed
+such that the sink as random-access capability within the current instance.
 
 Because of the degree of flexibility in specifying Tydi logical streams, much
 of this specification consists of the formal definitions of the structures
@@ -729,8 +729,15 @@ differing from the natural order defined above.
 > stream and `y` acts as its response. That is, the source of `x` may not
 > assume that the response will come before it sends the request.
 
-User-defined signal constraints
--------------------------------
+User-defined signals
+--------------------
+
+The purpose of the user-defined signals is to communicate quasi-constant values
+from the source to the sink, where the definition of "quasi-constant" is mostly
+up to the user.
+
+> They may for instance be control register values that are initialized
+> asynchronous to the streams between invocations of a larger algorithm.
 
 Tydi places the following constraints on the user-defined signals.
 
@@ -739,7 +746,9 @@ The user-defined signals flow exclusively in the source to sink direction.
 > While physical streams can be reversed in order to transfer metadata in the
 > sink to source direction, logical streams fundamentally describe dataflow in
 > the source to sink direction. Therefore, if data needs to flow in the
-> opposite direction as well, you should use a second logical stream.
+> opposite direction as well, you should use a second logical stream, and if
+> you need to use any form of handshaking outside of Tydi's streams, you should
+> use another mechanism to describe those signals.
 >
 > The reasoning behind this design choice is mostly practical in nature.
 > Firstly, with the way the logical stream type is currently defined,
@@ -748,12 +757,12 @@ The user-defined signals flow exclusively in the source to sink direction.
 > would be needed to describe this. Secondly, allowing signals to flow in both
 > directions might be interpreted by users as a way for them to implement their
 > own handshake method to use instead of or in addition to the handshakes of
-> the Tydi physical streams. Most handshake methods break however when
+> the Tydi physical streams, but most handshake methods break however when
 > registers or clock domain crossings not specifically tailored for that
 > particular handshake are inserted in between. With a purely unidirectional
 > approach, latency bounds are not necessary for correctness, allowing tooling
-> to automatically generate interconnect IP. Tydi does pose some constraints
-> on such IP, however.
+> to automatically generate interconnect IP that includes registers. Tydi does
+> pose some constraints on such IP, however.
 
 Interconnect components such as register slices and clock domain crossings may
 interpret the signals as being asynchronous. Thus, a sink may not rely upon bit
