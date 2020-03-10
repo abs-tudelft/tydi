@@ -59,10 +59,14 @@ lane.
 
 ### Dimensionality (D)
 
-\\(D\\) must be an integer greater than or equal to zero. It specifies the
-number of `last` bits needed to represent the data.
+\\(D\\) must be an tuple of booleans. Each boolean represents a dimension of
+the represented data; it can be empty if the data is scalar. The boolean
+signifies whether that dimension consists of zero or more elements (true) or
+one or more elements (false). \\(\|D\|\\) (the number of elements in \\(D\\))
+represents the number of `last` bits needed to represent the data.
 
-> Intuitively, each sequence nesting level adds one to this number. For
+> Intuitively, each sequence nesting level adds a dimension, whith the boolean
+> corresponding to the dimension set to whether the sequence is emptyable. For
 > instance, to stream two-dimensional sequences, two `last` bits are needed:
 > one to mark the boundaries of the inner sequence, and one to mark the
 > boundary of each two-dimensional sequence.
@@ -126,7 +130,7 @@ A physical stream is comprised of the following signals.
 | `valid` | Source | Stalling the data stream due to the source not being ready.                            |
 | `ready` | Sink   | Stalling the data stream due to the sink not being ready.                              |
 | `data`  | Source | Data transfer of \\(N\\) \\(\|E\|\\)-bit elements.                                     |
-| `last`  | Source | Indicating the last transfer for \\(D\\) levels of nested sequences.                   |
+| `last`  | Source | Indicating the last transfer for \\(\|D\|\\) levels of nested sequences.               |
 | `stai`  | Source | Start index; encodes the index of the first valid lane.                                |
 | `endi`  | Source | End index; encodes the index of the last valid lane.                                   |
 | `strb`  | Source | Strobe; encodes individual lane validity for \\(C \ge 8\\), empty sequences otherwise. |
@@ -140,7 +144,7 @@ bit vectors with the following widths.
 | `valid` | *scalar*                      |
 | `ready` | *scalar*                      |
 | `data`  | \\(N \times \|E\|\\)          |
-| `last`  | \\(N \times D\\)              |
+| `last`  | \\(N \times \|D\|\\)          |
 | `stai`  | \\(\lceil \log_2{N} \rceil\\) |
 | `endi`  | \\(\lceil \log_2{N} \rceil\\) |
 | `strb`  | \\(N\\)                       |
@@ -270,16 +274,16 @@ transfer.
 The `last` signal consists of `N` concatenated lanes, each carrying a
 termination bit for each nested sequence represented by the physical stream.
 The `last` bit for lane \\(i\\) and dimension \\(j\\) (i.e., bit
-\\(i \cdot D + j\\)) being asserted indicates completion of a sequence with
-nesting level \\(D - j - 1\\), containing all elements streamed between the
+\\(i \cdot \|D\| + j\\)) being asserted indicates completion of a sequence with
+nesting level \\(\|D\| - j - 1\\), containing all elements streamed between the
 previous lane/transfer this occured for dimension \\(j' \ge j\\) (or system
 reset, if never) exclusively and this point inclusively, where nesting level
 is defined to be 0 for the outermost sequence, 1 for its inner sequence, up to
-\\(D - 1\\) for the innermost sequence. It is active-high.
+\\(\|D\| - 1\\) for the innermost sequence. It is active-high.
 
 > For example, one way to represent the value
 > `["Hello", "World"], ["Tydi", "is", "nice"], [""], []` with
-> \\(N = 6, C \ge 8\\) is as follows. Note that \\(D = 2\\) follows
+> \\(N = 6, C \ge 8\\) is as follows. Note that \\(\|D\| = 2\\) follows
 > from the data type, \\(|E|\\) depends on the character encoding, and the
 > example does not depend on \\(U\\).
 > ```text
@@ -488,16 +492,16 @@ on the interface. When two interfaces with differing but compatible
 complexities are connected together, the default value specified in the table
 below must be driven for the omitted signals.
 
-| Name    | Condition                                   | Default   |
-|---------|---------------------------------------------|-----------|
-| `valid` | *see below*                                 | `'1'`     |
-| `ready` | *see below*                                 | `'1'`     |
-| `data`  | \\(\|E\| > 0\\)                             | all `'0'` |
-| `last`  | \\(D \ge 1\\)                               | all `'1'` |
-| `stai`  | \\(C \ge 6 \wedge N > 1\\)                  | 0         |
-| `endi`  | \\((C \ge 5 \vee D \ge 1) \wedge N > 1\\)   | \\(N-1\\) |
-| `strb`  | \\(C \ge 7 \vee D \ge 1\\)                  | all `'1'` |
-| `user`  | \\(\|U\| > 0\\)                             | all `'0'` |
+| Name    | Condition                                       | Default   |
+|---------|-------------------------------------------------|-----------|
+| `valid` | *see below*                                     | `'1'`     |
+| `ready` | *see below*                                     | `'1'`     |
+| `data`  | \\(\|E\| > 0\\)                                 | all `'0'` |
+| `last`  | \\(\|D\| \ge 1\\)                               | all `'1'` |
+| `stai`  | \\(C \ge 6 \wedge N > 1\\)                      | 0         |
+| `endi`  | \\((C \ge 5 \vee \|D\| \ge 1) \wedge N > 1\\)   | \\(N-1\\) |
+| `strb`  | \\(C \ge 7 \vee (\|D\| \ge 1 \wedge \sum{D})\\) | all `'1'` |
+| `user`  | \\(\|U\| > 0\\)                                 | all `'0'` |
 
 `valid` may be omitted for sources that are always valid.
 
