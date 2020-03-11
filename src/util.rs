@@ -50,7 +50,7 @@ impl<T: Identify> UniquelyNamedBuilder<T> {
     }
 
     pub fn finish(self) -> Result<Vec<T>> {
-        let set: HashSet<&str> = self.items.iter().map(|item| item.name()).collect();
+        let set: HashSet<&str> = self.items.iter().map(|item| item.identifier()).collect();
         if self.items.len() != set.len() {
             Err(Error::UnexpectedDuplicate)
         } else {
