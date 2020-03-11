@@ -55,20 +55,11 @@ pub struct Field {
 
 impl Field {
     /// Construct a new record field.
-    pub fn new(name: impl Into<String>, typ: Type) -> Field {
+    pub fn new(name: impl Into<String>, typ: Type, reversed: bool) -> Field {
         Field {
             name: name.into(),
             typ,
-            reversed: false,
-        }
-    }
-
-    /// Construct a new record field.
-    pub fn new_rev(name: impl Into<String>, typ: Type) -> Field {
-        Field {
-            name: name.into(),
-            typ,
-            reversed: true,
+            reversed,
         }
     }
 }
@@ -92,26 +83,31 @@ impl Record {
     }
 
     /// Construct a new record without any fields.
-    pub fn empty(name: impl Into<String>) -> Record {
+    pub fn new_empty(name: impl Into<String>) -> Record {
         Record {
             identifier: name.into(),
             fields: vec![],
         }
     }
 
-    /// Add a field to the record.
-    pub fn add_field(&mut self, name: impl Into<String>, typ: Type) {
-        self.fields.push(Field::new(name, typ));
+    /// Construct a new record with a valid and ready bit.
+    pub fn new_empty_stream(name: impl Into<String>) -> Record {
+        Record {
+            identifier: name.into(),
+            fields: vec![
+                Field::new("valid", Type::Bit, false),
+                Field::new("ready", Type::Bit, true),
+            ],
+        }
     }
 
-    /// Add a reversed field to the record, i.e. in bulk connections it will flow in
-    /// opposite direction w.r.t. the other record fields.
-    pub fn add_field_rev(&mut self, name: impl Into<String>, typ: Type) {
-        self.fields.push(Field::new_rev(name, typ));
+    /// Add a field to the record.
+    pub fn insert_field(&mut self, name: impl Into<String>, typ: Type, reversed: bool) {
+        self.fields.push(Field::new(name, typ, reversed));
     }
 }
 
-/// VHDL types.
+/// Hardware types.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     /// A single bit.
@@ -248,24 +244,66 @@ pub struct Project {
 }
 
 #[cfg(test)]
-pub mod test {
+pub(crate) mod test {
+
     use super::*;
+    use crate::cat;
+
+    pub(crate) mod records {
+
+        use super::*;
+
+        pub(crate) fn prim(bits: u32) -> Type {
+            Type::bitvec(bits)
+        }
+
+        pub(crate) fn rec(name: impl Into<String>) -> Type {
+            Type::record(
+                cat!(name.into(), "type"),
+                vec![
+                    Field::new("a", Type::bitvec(42), false),
+                    Field::new("b", Type::bitvec(1337), false),
+                ],
+            )
+        }
+
+        pub(crate) fn rec_of_single(name: impl Into<String>) -> Type {
+            Type::record(
+                cat!(name.into(), "type"),
+                vec![Field::new("a", Type::bitvec(42), false)],
+            )
+        }
+
+        pub(crate) fn rec_nested(name: impl Into<String>) -> Type {
+            let n: String = name.into();
+            Type::record(
+                cat!(n, "type"),
+                vec![
+                    Field::new("c", rec(cat!(n, "c")), false),
+                    Field::new("d", rec(cat!(n, "d")), false),
+                ],
+            )
+        }
+    }
 
     // Some structs from this mod to be used in tests:
     pub fn test_rec() -> Type {
         Type::record(
             "rec",
             vec![
-                Field::new("a", Type::Bit),
-                Field::new_rev("b", Type::bitvec(4)),
+                Field::new("a", Type::Bit, false),
+                Field::new("b", Type::bitvec(4), true),
             ],
         )
     }
 
     pub fn test_rec_nested() -> Type {
         Type::record(
-            "rec_nested",
-            vec![Field::new("a", Type::Bit), Field::new("b", test_rec())],
+            cat!("rec", "nested"),
+            vec![
+                Field::new("a", Type::Bit, false),
+                Field::new("b", test_rec(), false),
+            ],
         )
     }
 
