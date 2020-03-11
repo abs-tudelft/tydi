@@ -41,7 +41,7 @@ macro_rules! cat {
 /// of a project.
 pub trait GenerateProject {
     /// Generate source files from a [common::Project] and save them to [path].
-    fn generate(&self, project: &Project, path: &Path) -> Result<()>;
+    fn generate(&self, project: &Project, path: impl AsRef<Path>) -> Result<()>;
 }
 
 /// Trait to create common representation types from things in the canonical
@@ -105,7 +105,7 @@ impl Typify for Group {
         let mut rec = Record::new_empty(cat!(n.clone(), "type"));
         for (field_name, field_logical) in self.iter() {
             if let Some(field_common_type) = field_logical.user(cat!(n.clone(), field_name)) {
-                rec.insert_field(field_name, field_common_type, false)
+                rec.insert_field(field_name.to_string(), field_common_type, false)
             }
         }
         Some(Type::Record(rec))
@@ -268,15 +268,15 @@ impl Componentify for Streamlet {
             identifier: self.identifier().to_string(),
             parameters: vec![],
             ports: self
-            .interfaces()
-            .into_iter()
-            .flat_map(|interface| {
-                interface.user(
-                interface.identifier(),
-                cat!(self.identifier().to_string(), interface.identifier()),
-                        )
-                    })
-                    .collect(),
+                .interfaces()
+                .into_iter()
+                .flat_map(|interface| {
+                    interface.user(
+                        interface.identifier(),
+                        cat!(self.identifier().to_string(), interface.identifier()),
+                    )
+                })
+                .collect(),
         })
     }
 

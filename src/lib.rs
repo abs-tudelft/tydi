@@ -191,23 +191,11 @@ impl From<Name> for String {
     }
 }
 
-impl From<&Name> for String {
-    fn from(name: &Name) -> Self {
-        name.0.to_string()
-    }
-}
-
-impl AsRef<str> for Name {
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
-    }
-}
-
 use std::ops::Deref;
 impl Deref for Name {
     type Target = str;
     fn deref(&self) -> &str {
-        self.as_ref()
+        self.0.as_ref()
     }
 }
 

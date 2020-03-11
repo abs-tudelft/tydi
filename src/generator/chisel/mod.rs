@@ -34,7 +34,7 @@ pub struct ChiselBackEnd {
 
 #[allow(unused_variables)]
 impl GenerateProject for ChiselBackEnd {
-    fn generate(&self, project: &Project, path: &Path) -> Result<()> {
+    fn generate(&self, project: &Project, path: impl AsRef<Path>) -> Result<()> {
         unimplemented!();
     }
 }

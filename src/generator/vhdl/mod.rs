@@ -63,12 +63,12 @@ pub struct VHDLConfig {
     ///              package.
     ///   fancy: generates the canonical components that wrap a more user-friendly version for the
     ///          user to implement.
-    #[structopt(short, long)]
+    #[cfg_attr(feature = "cli", structopt(short, long))]
     abstraction: Option<AbstractionLevel>,
 
     /// Suffix of generated files. Default = "gen", such that
     /// generated files are named <name>.gen.vhd.
-    #[structopt(short, long)]
+    #[cfg_attr(feature = "cli", structopt(short, long))]
     suffix: Option<String>,
 }
 
@@ -95,9 +95,9 @@ impl From<VHDLConfig> for VHDLBackEnd {
 }
 
 impl GenerateProject for VHDLBackEnd {
-    fn generate(&self, project: &Project, path: &Path) -> Result<()> {
+    fn generate(&self, project: &Project, path: impl AsRef<Path>) -> Result<()> {
         // Create the project directory.
-        let mut dir = path.to_path_buf();
+        let mut dir = path.as_ref().to_path_buf();
         dir.push(project.identifier.clone());
         std::fs::create_dir_all(dir.as_path())?;
 
