@@ -5,11 +5,10 @@
 use log::{debug, info, LevelFilter};
 use std::convert::TryInto;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
-use tydi::generator::vhdl::VHDLBackEnd;
+use tydi::generator::vhdl::{VHDLBackEnd, VHDLConfig};
 use tydi::generator::{common, GenerateProject};
 use tydi::UniquelyNamedBuilder;
-use tydi::{Error, Logger, Result};
+use tydi::{Logger, Result};
 
 use structopt::StructOpt;
 use tydi::design::{Library, Project};
@@ -19,30 +18,15 @@ static LOGGER: Logger = Logger;
 /// Back-end options.
 #[derive(Debug, StructOpt)]
 enum TargetOpt {
-    #[structopt(help = "Generate a VHDL project.")]
-    VHDL,
-    #[structopt(help = "Generate a Chisel project.")]
+    /// Generate VHDL sources.
+    VHDL(VHDLConfig),
+    /// Generate Chisel sources.
     Chisel,
-}
-
-impl FromStr for TargetOpt {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self> {
-        match s {
-            "vhdl" => Ok(TargetOpt::VHDL),
-            "chisel" => Ok(TargetOpt::Chisel),
-            _ => Err(Error::InvalidTarget(s.to_string())),
-        }
-    }
 }
 
 #[derive(Debug, StructOpt)]
 struct GenerateOpts {
-    #[structopt(help = "Output target. Possible values: vhdl, chisel")]
-    target: TargetOpt,
-
-    #[structopt(help = "Project name.")]
+    /// Name of the project to generate.
     name: String,
 
     #[structopt(
@@ -58,11 +42,13 @@ struct GenerateOpts {
                 If not supplied, the target name is used."
     )]
     output: Option<PathBuf>,
+
+    #[structopt(subcommand)]
+    target: TargetOpt,
 }
 
 /// Top-level CLI commands
 #[derive(Debug, StructOpt)]
-#[structopt(about = "Tydi command-line interface.")]
 enum Command {
     /// Generate HDL output from Streamlet Definition Files.
     Generate(GenerateOpts),
@@ -70,12 +56,14 @@ enum Command {
 
 #[derive(Debug, StructOpt)]
 pub struct Opt {
+    /// Enable verbose logging.
+    #[structopt(short, long)]
+    verbose: bool,
+    /// Enable debug-level logging.
+    #[structopt(short, long)]
+    debug: bool,
     #[structopt(subcommand)]
     cmd: Command,
-    #[structopt(long = "log-verbose", help = "Enables informative logging.")]
-    verbose: bool,
-    #[structopt(long = "log-debug", help = "Enables debug-level logging.")]
-    debug: bool,
 }
 
 /// Return all .sdf files in a path.
@@ -115,8 +103,8 @@ fn generate(opts: GenerateOpts) -> Result<()> {
 
     info!("Generating sources...");
     match opts.target {
-        TargetOpt::VHDL => {
-            let vhdl = VHDLBackEnd::default();
+        TargetOpt::VHDL(cfg) => {
+            let vhdl: VHDLBackEnd = cfg.into();
             vhdl.generate(
                 &common_project,
                 opts.output.unwrap_or(std::env::current_dir()?).as_path(),
@@ -159,13 +147,13 @@ mod tests {
             sdf_file.as_path(),
             "Streamlet x ( a : in Stream<Bits<1>, d=1>, b : out Stream<Bits<32>> )",
         )?;
-        internal_main(Opt::from_iter(vec![
-            "tydi",
-            "--log-debug",
-            "generate",
-            "vhdl",
-            "test",
-        ]))?;
+        internal_main(
+            Opt::from_iter_safe(vec![
+                "tydi", "--debug", "generate", "test", "vhdl", "-a=fancy", "-s=gen",
+            ])
+            .map_err(|e| panic!(format!("{}", e)))
+            .unwrap(),
+        )?;
         let expected_vhdl = tmpdir.path().join("test/test_pkg.gen.vhd");
         std::fs::metadata(expected_vhdl)?;
         std::fs::remove_dir_all(tmpdir.path())?;

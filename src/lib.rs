@@ -191,17 +191,11 @@ impl From<Name> for String {
     }
 }
 
-impl AsRef<str> for Name {
-    fn as_ref(&self) -> &str {
-        self.0.as_ref()
-    }
-}
-
 use std::ops::Deref;
 impl Deref for Name {
     type Target = str;
     fn deref(&self) -> &str {
-        self.as_ref()
+        self.0.as_ref()
     }
 }
 
@@ -247,22 +241,20 @@ impl fmt::Display for Name {
     }
 }
 
-use std::collections::VecDeque;
-
 /// Type-safe path for names.
 ///
 /// Allows wrapping a set of valid names in a hierarchy.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct PathName(VecDeque<Name>);
+pub struct PathName(Vec<Name>);
 
 use std::convert::TryInto;
 impl PathName {
     pub(crate) fn new_empty() -> Self {
-        PathName(VecDeque::new())
+        PathName(Vec::new())
     }
 
-    pub fn new(names: impl IntoIterator<Item = Name>) -> Self {
-        PathName(names.into_iter().collect())
+    pub fn new(names: impl Iterator<Item = Name>) -> Self {
+        PathName(names.collect())
     }
 
     pub fn try_new(
@@ -280,8 +272,32 @@ impl PathName {
         self.0.is_empty()
     }
 
-    pub(crate) fn push_back(&mut self, name: impl Into<Name>) {
-        self.0.push_back(name.into());
+    pub fn push(&mut self, name: impl Into<Name>) {
+        self.0.push(name.into())
+    }
+
+    pub(crate) fn with_parent(&self, name: impl Into<Name>) -> PathName {
+        let mut result: Vec<Name> = Vec::with_capacity(self.len() + 1);
+        result.push(name.into());
+        let mut names = self.0.clone().into_iter();
+        result.extend(&mut names);
+        PathName::new(result.into_iter())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn last(&self) -> Option<&Name> {
+        self.0.last()
+    }
+
+    pub fn parent(&self) -> Option<PathName> {
+        if self.is_empty() {
+            None
+        } else {
+            Some(PathName(self.0[..self.len() - 1].to_vec()))
+        }
     }
 }
 
@@ -304,7 +320,7 @@ impl fmt::Display for PathName {
 
 impl<'a> IntoIterator for &'a PathName {
     type Item = &'a Name;
-    type IntoIter = std::collections::vec_deque::Iter<'a, Name>;
+    type IntoIter = std::slice::Iter<'a, Name>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
@@ -312,17 +328,16 @@ impl<'a> IntoIterator for &'a PathName {
 }
 
 use std::iter::FromIterator;
+
 impl FromIterator<Name> for PathName {
     fn from_iter<I: IntoIterator<Item = Name>>(iter: I) -> Self {
-        PathName(VecDeque::from_iter(iter))
+        PathName(iter.into_iter().collect())
     }
 }
 
 impl From<Name> for PathName {
     fn from(name: Name) -> Self {
-        let mut vec = VecDeque::with_capacity(1);
-        vec.push_back(name);
-        PathName(vec)
+        PathName(vec![name])
     }
 }
 
