@@ -11,7 +11,7 @@ pub struct Project {
 }
 
 impl crate::traits::Identify for Project {
-    fn name(&self) -> &str {
+    fn identifier(&self) -> &str {
         self.name.as_ref()
     }
 }

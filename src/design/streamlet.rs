@@ -29,14 +29,17 @@ impl Streamlet {
 }
 
 impl crate::traits::Identify for Streamlet {
-    fn name(&self) -> &str {
+    fn identifier(&self) -> &str {
         self.name.as_ref()
     }
 }
 
+/// Streamlet interface mode.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Mode {
+    /// The interface is an output of the streamlet.
     Out,
+    /// The interface is an input of the streamlet.
     In,
 }
 
@@ -73,7 +76,7 @@ impl Interface {
 }
 
 impl crate::traits::Identify for Interface {
-    fn name(&self) -> &str {
+    fn identifier(&self) -> &str {
         self.name.as_ref()
     }
 }

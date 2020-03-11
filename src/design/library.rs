@@ -19,7 +19,7 @@ pub struct Library {
 }
 
 impl crate::traits::Identify for Library {
-    fn name(&self) -> &str {
+    fn identifier(&self) -> &str {
         self.name.as_ref()
     }
 }
@@ -59,7 +59,7 @@ impl Library {
             .map_err(|e| ParsingError(e.to_string()))?
             .1;
             debug!("Parsed streamlets: {}", {
-                let sln: Vec<&str> = streamlets.iter().map(|s| s.name()).collect();
+                let sln: Vec<&str> = streamlets.iter().map(|s| s.identifier()).collect();
                 sln.join(", ")
             });
             Library::from_builder(
