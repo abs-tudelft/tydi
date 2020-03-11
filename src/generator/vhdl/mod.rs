@@ -3,11 +3,15 @@
 //! This module contains functionality to convert hardware defined in the common hardware
 //! representation to VHDL source files.
 
-use crate::Result;
-use std::path::Path;
-
 use crate::generator::common::*;
 use crate::generator::GenerateProject;
+use crate::{Error, Result};
+use log::debug;
+use std::path::Path;
+
+use std::str::FromStr;
+#[cfg(feature = "cli")]
+use structopt::StructOpt;
 
 mod impls;
 
@@ -29,17 +33,50 @@ pub trait Analyze {
     fn list_record_types(&self) -> Vec<Type>;
 }
 
+/// Abstraction levels
+#[derive(Debug)]
+#[cfg_attr(feature = "cli", derive(StructOpt))]
+pub enum AbstractionLevel {
+    Canonical,
+    Fancy,
+}
+
+impl FromStr for AbstractionLevel {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "canonical" => Ok(AbstractionLevel::Canonical),
+            "fancy" => Ok(AbstractionLevel::Fancy),
+            _ => Err(Error::InvalidArgument(s.to_string())),
+        }
+    }
+}
+
 /// VHDL back-end configuration parameters.
+#[derive(Debug)]
+#[cfg_attr(feature = "cli", derive(StructOpt))]
 pub struct VHDLConfig {
-    /// An optional suffix appended to generated files.
-    /// The suffix is added as follows: <filename>.<suffix>.vhd
-    gen_suffix: Option<String>,
+    /// Abstraction level of generated files.
+    /// Possible options: canonical, fancy.
+    ///   canonical: generates the canonical Tydi representation of streamlets as components in a
+    ///              package.
+    ///   fancy: generates the canonical components that wrap a more user-friendly version for the
+    ///          user to implement.
+    #[structopt(short, long)]
+    abstraction: Option<AbstractionLevel>,
+
+    /// Suffix of generated files. Default = "gen", such that
+    /// generated files are named <name>.gen.vhd.
+    #[structopt(short, long)]
+    suffix: Option<String>,
 }
 
 impl Default for VHDLConfig {
     fn default() -> Self {
         VHDLConfig {
-            gen_suffix: Some("gen".to_string()),
+            suffix: Some("gen".to_string()),
+            abstraction: Some(AbstractionLevel::Canonical),
         }
     }
 }
@@ -49,6 +86,12 @@ impl Default for VHDLConfig {
 pub struct VHDLBackEnd {
     /// Configuration for the VHDL back-end.
     config: VHDLConfig,
+}
+
+impl From<VHDLConfig> for VHDLBackEnd {
+    fn from(config: VHDLConfig) -> Self {
+        VHDLBackEnd { config }
+    }
 }
 
 impl GenerateProject for VHDLBackEnd {
@@ -61,11 +104,12 @@ impl GenerateProject for VHDLBackEnd {
         for lib in project.libraries.iter() {
             let mut pkg = dir.clone();
             pkg.push(format!("{}_pkg", lib.identifier));
-            pkg.set_extension(match self.config.gen_suffix.clone() {
+            pkg.set_extension(match self.config.suffix.clone() {
                 None => "vhd".to_string(),
-                Some(suffix) => format!("{}.vhd", suffix),
+                Some(s) => format!("{}.vhd", s),
             });
             std::fs::write(pkg.as_path(), lib.declare()?)?;
+            debug!("Wrote {}.", pkg.as_path().to_str().unwrap_or(""));
         }
         Ok(())
     }
@@ -79,8 +123,8 @@ mod test {
 
     #[test]
     fn test_type_conflict() {
-        let t0 = Type::record("a", vec![Field::new("x", Type::Bit)]);
-        let t1 = Type::record("a", vec![Field::new("y", Type::Bit)]);
+        let t0 = Type::record("a", vec![Field::new("x", Type::Bit, false)]);
+        let t1 = Type::record("a", vec![Field::new("y", Type::Bit, false)]);
         let c = Component {
             identifier: "test".to_string(),
             parameters: vec![],
