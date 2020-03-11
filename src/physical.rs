@@ -10,7 +10,7 @@
 //!   [Reference](https://abs-tudelft.github.io/tydi/specification/physical.html#element-content-e-and-usertransfer-content-u)
 //! - [`PhysicalStream`] a physical stream.
 //!   [Reference](https://abs-tudelft.github.io/tydi/specification/physical.html#physical-stream-specification)
-//! - [`SignalMap`] a signal map for the signals in a physical stream.
+//! - [`SignalList`] a signal list for the signals in a physical stream.
 //!   [Reference](https://abs-tudelft.github.io/tydi/specification/physical.html#signals)
 //!
 //! # Examples
@@ -18,7 +18,7 @@
 //! ## Minimal example
 //!
 //! ```rust
-//! use tydi::physical::{PhysicalStream, SignalMap};
+//! use tydi::physical::{PhysicalStream, SignalList};
 //!
 //! // Construct a new physical stream with two elements, named "a" and "b".
 //! // The stream has two elements lanes, no dimensionality data, a complexity
@@ -26,19 +26,19 @@
 //! let physical_stream =
 //!     PhysicalStream::try_new(vec![("a", 4), ("b", 8)], 2, 0, 2, vec![])?;
 //!
-//! // Get the signal map for the physical stream.
-//! let signal_map = physical_stream.signal_map();
+//! // Get the signal list for the physical stream.
+//! let signal_list = physical_stream.signal_list();
 //!
-//! // Validate the signal map bit count. It should equal to (4 + 8) * 2.
-//! assert_eq!(signal_map.bit_count(), 24);
+//! // Validate the signal list bit count. It should equal to (4 + 8) * 2.
+//! assert_eq!(signal_list.bit_count(), 24);
 //!
 //! // For a complexity level of 8 there should be 4 additional signals.
 //! // (2 `strb`, 1 `stai`, 1 `endi`).
-//! let signal_map =
-//!     SignalMap::from(
+//! let signal_list =
+//!     SignalList::from(
 //!         PhysicalStream::try_new(vec![("a", 4), ("b", 8)], 2, 0, 8, vec![])?
 //!     );
-//! assert_eq!(signal_map.bit_count(), 28);
+//! assert_eq!(signal_list.bit_count(), 28);
 //!
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
@@ -49,6 +49,7 @@
 //! [`SignalMap`]: ./struct.SignalMap.html
 //! [Tydi specification]: https://abs-tudelft.github.io/tydi/specification/physical.html
 
+use crate::traits::Identify;
 use crate::{util::log2_ceil, Error, NonNegative, PathName, Positive, Result};
 use indexmap::IndexMap;
 use std::str::FromStr;
@@ -278,7 +279,6 @@ impl fmt::Display for Complexity {
     }
 }
 
-/// Map of named bit fields.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Fields(IndexMap<PathName, BitCount>);
 
@@ -429,57 +429,6 @@ impl PhysicalStream {
             complexity: complexity.into(),
             user: user.into(),
         }
-        // let err = |msg: &str| Err(Error::InvalidArgument(msg.to_string()));
-
-        // let validate = |(k, v): (U, NonNegative)| match (
-        //     k.and_then(|name| {
-        //         let name = name.into();
-        //         if name.is_empty() {
-        //             None
-        //         } else if name.chars().next().unwrap().is_ascii_digit() {
-        //             Some(err("name cannot start with a digit"))
-        //         } else if name.starts_with('_') || name.ends_with('_') {
-        //             Some(err("name cannot start or end with an underscore"))
-        //         } else if !name
-        //             .chars()
-        //             .all(|c| c.is_ascii_alphanumeric() || c.eq(&'_'))
-        //         {
-        //             Some(err(
-        //                 "name must consist of letters, numbers, and/or underscores",
-        //             ))
-        //         } else {
-        //             Some(Ok(name))
-        //         }
-        //     }),
-        //     Positive::new(v),
-        // ) {
-        //     (_, None) => Err(Error::InvalidArgument(
-        //         "bit count cannot be zero".to_string(),
-        //     )),
-        //     (Some(Err(e)), _) => Err(e),
-        //     (k, Some(v)) => Ok((k.map(|name| name.unwrap()), v)),
-        // };
-
-        // let index_map = |iter: T| {
-        //     unique_index_map(iter.into_iter().map(validate).collect::<Result<Vec<_>>>()?).map_err(
-        //         |_| {
-        //             err(
-        //             "field names must be case-insensitively unique within the set of named fields",
-        //         )
-        //         .unwrap_err()
-        //         },
-        //     )
-        // };
-
-        // Ok(PhysicalStream {
-        //     element: index_map(element)?,
-        //     element_lanes: Positive::new(element_lanes).ok_or_else(|| {
-        //         Error::InvalidArgument("element lanes cannot be zero".to_string())
-        //     })?,
-        //     dimensionality,
-        //     complexity: complexity.into(),
-        //     user: index_map(user)?,
-        // })
     }
 
     /// Returns the element fields in this physical stream.
@@ -559,10 +508,10 @@ impl PhysicalStream {
         self.user.values().map(|b| b.get()).sum::<NonNegative>()
     }
 
-    /// Returns the signal map for this physical stream.
-    pub fn signal_map(&self) -> SignalMap {
+    /// Returns the signal list for this physical stream.
+    pub fn signal_list(&self) -> SignalList {
         let opt = |x| if x == 0 { None } else { Some(x) };
-        SignalMap {
+        SignalList {
             data: opt(self.data_bit_count()),
             last: opt(self.last_bit_count()),
             stai: opt(self.stai_bit_count()),
@@ -584,30 +533,114 @@ impl PhysicalStream {
     }
 }
 
-impl From<&PhysicalStream> for SignalMap {
-    fn from(physical_stream: &PhysicalStream) -> SignalMap {
-        physical_stream.signal_map()
+impl From<&PhysicalStream> for SignalList {
+    fn from(physical_stream: &PhysicalStream) -> SignalList {
+        physical_stream.signal_list()
     }
 }
 
-impl From<PhysicalStream> for SignalMap {
-    fn from(physical_stream: PhysicalStream) -> SignalMap {
-        physical_stream.signal_map()
+impl From<PhysicalStream> for SignalList {
+    fn from(physical_stream: PhysicalStream) -> SignalList {
+        physical_stream.signal_list()
     }
 }
 
-/// Signal map for the signals in a physical stream.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Origin {
+    Source,
+    Sink,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Width {
+    /// Non-vectorized single bit.
+    Scalar,
+    /// Vectorized multiple bits.
+    Vector(NonNegative),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Signal {
+    name: String,
+    origin: Origin,
+    width: Width,
+}
+
+impl Identify for Signal {
+    fn identifier(&self) -> &str {
+        self.name.as_str()
+    }
+}
+
+impl Signal {
+    /// Returns a vector-style signal if the input width is Some(NonNegative)
+    pub fn opt_vec(
+        name: impl Into<String>,
+        origin: Origin,
+        width: Option<NonNegative>,
+    ) -> Option<Signal> {
+        match width {
+            None => None,
+            Some(w) => Some(Signal {
+                name: name.into(),
+                origin,
+                width: Width::Vector(w),
+            }),
+        }
+    }
+
+    /// Returns a vector-style signal.
+    pub fn vec(name: impl Into<String>, origin: Origin, width: Positive) -> Signal {
+        Signal {
+            name: name.into(),
+            origin,
+            width: Width::Vector(width.get()),
+        }
+    }
+
+    /// Returns a single bit non-vector style signal.
+    pub fn bit(name: impl Into<String>, origin: Origin) -> Signal {
+        Signal {
+            name: name.into(),
+            origin,
+            width: Width::Scalar,
+        }
+    }
+
+    /// Returns whether the signal is reversed w.r.t. the source
+    pub fn reversed(&self) -> bool {
+        self.origin == Origin::Sink
+    }
+
+    pub fn origin(&self) -> Origin {
+        self.origin
+    }
+
+    pub fn width(&self) -> Width {
+        self.width
+    }
+
+    pub fn with_name(&self, name: String) -> Signal {
+        Signal {
+            name,
+            origin: self.origin,
+            width: self.width,
+        }
+    }
+}
+
+/// Signal list for the signals in a physical stream.
 ///
-/// A signal map can be constructed from a [`PhysicalStream`] using the
-/// [`signal_map`] method or using the `From`/`Into` trait implementation.
+/// A signal list can be constructed from a [`PhysicalStream`] using the
+/// [`signal_list`] method or using the `From`/`Into` trait implementation.
 ///
 /// [Reference]
 ///
 /// [`PhysicalStream`]: ./struct.PhysicalStream.html
-/// [`signal_map`]: ./struct.PhysicalStream.html#method.signal_map
+/// [`signal_list`]: ./struct.PhysicalStream.html#method.signal_list
 /// [Reference]: https://abs-tudelft.github.io/tydi/specification/physical.html#signals
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct SignalMap {
+pub struct SignalList {
     data: Option<NonNegative>,
     last: Option<NonNegative>,
     stai: Option<NonNegative>,
@@ -616,35 +649,53 @@ pub struct SignalMap {
     user: Option<NonNegative>,
 }
 
-impl SignalMap {
-    /// Returns the bit count of the `data` signal.
-    pub fn data(&self) -> Option<NonNegative> {
-        self.data
+impl SignalList {
+    /// Returns the valid signal.
+    pub fn valid(&self) -> Signal {
+        Signal {
+            name: "valid".to_string(),
+            origin: Origin::Source,
+            width: Width::Scalar,
+        }
     }
 
-    /// Returns the bit count of the `last` signal.
-    pub fn last(&self) -> Option<NonNegative> {
-        self.last
+    /// Returns the ready signal.
+    pub fn ready(&self) -> Signal {
+        Signal {
+            name: "ready".to_string(),
+            origin: Origin::Sink,
+            width: Width::Scalar,
+        }
     }
 
-    /// Returns the bit count of the `stai` signal.
-    pub fn stai(&self) -> Option<NonNegative> {
-        self.stai
+    /// Returns the `data` signal, if applicable for this PhysicalStream.
+    pub fn data(&self) -> Option<Signal> {
+        Signal::opt_vec("data", Origin::Source, self.data)
     }
 
-    /// Returns the bit count of the `endi` signal.
-    pub fn endi(&self) -> Option<NonNegative> {
-        self.endi
+    /// Returns the `last` signal, if applicable for this PhysicalStream.
+    pub fn last(&self) -> Option<Signal> {
+        Signal::opt_vec("last", Origin::Source, self.last)
     }
 
-    /// Returns the bit count of the `strb` signal.
-    pub fn strb(&self) -> Option<NonNegative> {
-        self.strb
+    /// Returns the `stai` signal, if applicable for this PhysicalStream.
+    pub fn stai(&self) -> Option<Signal> {
+        Signal::opt_vec("stai", Origin::Source, self.stai)
     }
 
-    /// Returns the bit count of the `user` signal.
-    pub fn user(&self) -> Option<NonNegative> {
-        self.user
+    /// Returns the `endi` signal, if applicable for this PhysicalStream.
+    pub fn endi(&self) -> Option<Signal> {
+        Signal::opt_vec("endi", Origin::Source, self.endi)
+    }
+
+    /// Returns the `strb` signal, if applicable for this PhysicalStream.
+    pub fn strb(&self) -> Option<Signal> {
+        Signal::opt_vec("strb", Origin::Source, self.strb)
+    }
+
+    /// Returns the `user` signal, if applicable for this PhysicalStream.
+    pub fn user(&self) -> Option<Signal> {
+        Signal::opt_vec("user", Origin::Source, self.user)
     }
 
     /// Returns the bit count of all combined signals in this map.
@@ -667,22 +718,24 @@ impl SignalMap {
     }
 }
 
-impl<'a> IntoIterator for &'a SignalMap {
-    type Item = (&'a str, NonNegative);
+impl<'a> IntoIterator for &'a SignalList {
+    type Item = Signal;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
         [
-            ("data", self.data),
-            ("last", self.last),
-            ("stai", self.stai),
-            ("endi", self.endi),
-            ("strb", self.strb),
-            ("user", self.user),
+            Some(self.valid()),
+            Some(self.ready()),
+            self.data(),
+            self.last(),
+            self.stai(),
+            self.endi(),
+            self.strb(),
+            self.user(),
         ]
         .iter()
-        .filter(|(_, count)| count.is_some())
-        .map(|(name, count)| (*name, count.unwrap()))
+        .filter(|o| o.is_some())
+        .map(|s| s.clone().unwrap())
         .collect::<Vec<_>>()
         .into_iter()
     }
@@ -791,8 +844,8 @@ mod tests {
         assert_eq!(physical_stream.strb_bit_count(), 3);
         assert_eq!(physical_stream.user_bit_count(), 1);
         assert_eq!(
-            physical_stream.signal_map(),
-            SignalMap {
+            physical_stream.signal_list(),
+            SignalList {
                 data: Some(75),
                 last: Some(4),
                 stai: Some(2),
@@ -824,8 +877,8 @@ mod tests {
         assert_eq!(physical_stream.strb_bit_count(), 0);
         assert_eq!(physical_stream.user_bit_count(), 0);
         assert_eq!(
-            physical_stream.signal_map(),
-            SignalMap {
+            physical_stream.signal_list(),
+            SignalList {
                 data: Some(8),
                 last: None,
                 stai: None,
@@ -839,7 +892,7 @@ mod tests {
     }
 
     #[test]
-    fn signal_map() -> Result<()> {
+    fn signal_list() -> Result<()> {
         let physical_stream = PhysicalStream::new(
             Fields::new(vec![
                 ("a".try_into()?, BitCount::new(3).unwrap()),
@@ -851,7 +904,7 @@ mod tests {
             Fields::new(vec![])?,
         );
 
-        let signal_map = SignalMap::from(&physical_stream);
+        let signal_list = SignalList::from(&physical_stream);
         assert_eq!(physical_stream.bit_count(), 17);
         assert_eq!(physical_stream.data_bit_count(), 2 * (3 + 2));
         assert_eq!(physical_stream.last_bit_count(), 3);
@@ -861,42 +914,44 @@ mod tests {
         assert_eq!(physical_stream.user_bit_count(), 0);
 
         assert_eq!(
-            physical_stream.data_bit_count(),
-            signal_map.data().unwrap_or(0)
+            Width::Vector(physical_stream.data_bit_count()),
+            signal_list.data().unwrap().width
         );
         assert_eq!(
-            physical_stream.last_bit_count(),
-            signal_map.last().unwrap_or(0)
+            Width::Vector(physical_stream.last_bit_count()),
+            signal_list.last().unwrap().width
         );
         assert_eq!(
-            physical_stream.stai_bit_count(),
-            signal_map.stai().unwrap_or(0)
+            Width::Vector(physical_stream.stai_bit_count()),
+            signal_list.stai().unwrap().width
         );
         assert_eq!(
-            physical_stream.endi_bit_count(),
-            signal_map.endi().unwrap_or(0)
+            Width::Vector(physical_stream.endi_bit_count()),
+            signal_list.endi().unwrap().width
         );
         assert_eq!(
-            physical_stream.strb_bit_count(),
-            signal_map.strb().unwrap_or(0)
+            Width::Vector(physical_stream.strb_bit_count()),
+            signal_list.strb().unwrap().width
         );
         assert_eq!(
-            physical_stream.user_bit_count(),
-            signal_map.user().unwrap_or(0)
+            Width::Vector(physical_stream.user_bit_count()),
+            Width::Vector(0)
         );
 
-        assert_eq!(signal_map.opt_bit_count(), Some(17));
-        assert_eq!(signal_map.bit_count(), 17);
-        assert_eq!(signal_map, SignalMap::from(physical_stream));
+        assert_eq!(signal_list.opt_bit_count(), Some(17));
+        assert_eq!(signal_list.bit_count(), 17);
+        assert_eq!(signal_list, SignalList::from(physical_stream));
 
         assert_eq!(
-            signal_map.into_iter().collect::<Vec<_>>(),
+            signal_list.into_iter().collect::<Vec<_>>(),
             vec![
-                ("data", 10),
-                ("last", 3),
-                ("stai", 1),
-                ("endi", 1),
-                ("strb", 2),
+                Signal::bit("valid", Origin::Source),
+                Signal::bit("ready", Origin::Sink),
+                Signal::opt_vec("data", Origin::Source, Some(10)).unwrap(),
+                Signal::opt_vec("last", Origin::Source, Some(3)).unwrap(),
+                Signal::opt_vec("stai", Origin::Source, Some(1)).unwrap(),
+                Signal::opt_vec("endi", Origin::Source, Some(1)).unwrap(),
+                Signal::opt_vec("strb", Origin::Source, Some(2)).unwrap(),
                 // ("user", 0) ommitted
             ]
         );
