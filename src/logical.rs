@@ -220,6 +220,23 @@ impl Stream {
         }
     }
 
+    pub fn new_basic(data: LogicalStreamType) -> Self {
+        Stream {
+            data: Box::new(data),
+            throughput: PositiveReal::new(1.).unwrap(),
+            dimensionality: 0,
+            synchronicity: Synchronicity::Sync,
+            complexity: Complexity::default(),
+            direction: Direction::Forward,
+            user: None,
+            keep: false,
+        }
+    }
+
+    pub fn data(&self) -> &LogicalStreamType {
+        &self.data
+    }
+
     /// Returns the direction of this stream.
     pub fn direction(&self) -> Direction {
         self.direction
@@ -313,7 +330,7 @@ impl Group {
 
     pub fn iter(&self) -> impl Iterator<Item = (&Name, &LogicalStreamType)> {
         self.0.iter()
-}
+    }
 }
 
 impl From<Group> for LogicalStreamType {
@@ -765,6 +782,12 @@ pub(crate) struct SplitStreams {
     streams: IndexMap<PathName, LogicalStreamType>,
 }
 
+impl SplitStreams {
+    pub fn streams(&self) -> impl Iterator<Item = (&PathName, &LogicalStreamType)> {
+        self.streams.iter()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct LogicalStream {
     signals: Fields,
@@ -772,6 +795,10 @@ pub struct LogicalStream {
 }
 
 impl LogicalStream {
+    pub fn signals(&self) -> impl Iterator<Item = (&PathName, &BitCount)> {
+        self.signals.iter()
+    }
+
     pub fn streams(&self) -> impl Iterator<Item = (&PathName, &PhysicalStream)> {
         self.streams.iter()
     }
@@ -781,63 +808,52 @@ impl LogicalStream {
 pub(crate) mod tests {
     use super::*;
 
+    /// Module containing functions that return common LogicalStreamTypes that are not streams.
+    /// To be used for testing purposes only.
+    pub(crate) mod elements {
+        use super::*;
+
+        pub(crate) fn prim(bits: u32) -> LogicalStreamType {
+            LogicalStreamType::try_new_bits(bits).unwrap()
+        }
+
+        pub(crate) fn group() -> LogicalStreamType {
+            LogicalStreamType::try_new_group(vec![("a", prim(42)), ("b", prim(1337))]).unwrap()
+        }
+
+        pub(crate) fn group_of_single() -> LogicalStreamType {
+            LogicalStreamType::try_new_group(vec![("a", prim(42))]).unwrap()
+        }
+
+        pub(crate) fn group_nested() -> LogicalStreamType {
+            LogicalStreamType::try_new_group(vec![("c", group()), ("d", group())]).unwrap()
+        }
+    }
+
     /// Module containing functions that return common LogicalStreamTypes to be used for testing
     /// purposed only.
     pub(crate) mod streams {
         use super::*;
 
-        use crate::logical::LogicalStreamType;
-
-        #[allow(dead_code)]
-        pub(crate) fn null() -> LogicalStreamType {
-            LogicalStreamType::from(Stream::new(
-                LogicalStreamType::Null,
-                PositiveReal::new(1.).unwrap(),
-                0,
-                Synchronicity::Sync,
-                Complexity::default(),
-                Direction::Forward,
-                None,
-                false,
-            ))
+        pub(crate) fn prim(bits: u32) -> LogicalStreamType {
+            LogicalStreamType::from(Stream::new_basic(elements::prim(bits)))
         }
 
-        pub(crate) fn single_element() -> LogicalStreamType {
-            LogicalStreamType::from(Stream::new(
-                LogicalStreamType::try_new_bits(8).unwrap(),
-                PositiveReal::new(1.).unwrap(),
-                0,
-                Synchronicity::Sync,
-                Complexity::default(),
-                Direction::Forward,
-                None,
-                false,
-            ))
+        pub(crate) fn group() -> LogicalStreamType {
+            LogicalStreamType::try_new_group(vec![("a", prim(42)), ("b", prim(1337))]).unwrap()
         }
 
-        #[allow(dead_code)]
-        pub(crate) fn nested_elements() -> LogicalStreamType {
-            LogicalStreamType::from(Stream::new(
-                LogicalStreamType::try_new_group(vec![
-                    ("a", LogicalStreamType::try_new_bits(1).unwrap()),
-                    (
-                        "b",
-                        LogicalStreamType::try_new_group(vec![
-                            ("c", LogicalStreamType::try_new_bits(2).unwrap()),
-                            ("d", LogicalStreamType::try_new_bits(3).unwrap()),
-                        ])
-                        .unwrap(),
-                    ),
-                ])
-                .unwrap(),
-                PositiveReal::new(1.).unwrap(),
-                0,
-                Synchronicity::Sync,
-                Complexity::default(),
-                Direction::Forward,
-                None,
-                false,
-            ))
+        pub(crate) fn nested() -> LogicalStreamType {
+            LogicalStreamType::from(Stream::new_basic(LogicalStreamType::from(Stream {
+                data: Box::new(elements::prim(8)),
+                throughput: PositiveReal::new(1.).unwrap(),
+                dimensionality: 1,
+                synchronicity: Synchronicity::Sync,
+                complexity: Complexity::default(),
+                direction: Direction::Forward,
+                user: None,
+                keep: false,
+            })))
         }
     }
 
