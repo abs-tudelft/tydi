@@ -267,17 +267,16 @@ impl Componentify for Streamlet {
         Some(Component {
             identifier: self.identifier().to_string(),
             parameters: vec![],
-            ports: {
-                // TODO(johanpel): rust lords make me a flatmap
-                let mut all_ports = Vec::new();
-                self.interfaces().into_iter().for_each(|interface| {
-                    all_ports.extend(interface.user(
-                        interface.identifier(),
-                        cat!(self.identifier().to_string(), interface.identifier()),
-                    ));
-                });
-                all_ports
-            },
+            ports: self
+            .interfaces()
+            .into_iter()
+            .flat_map(|interface| {
+                interface.user(
+                interface.identifier(),
+                cat!(self.identifier().to_string(), interface.identifier()),
+                        )
+                    })
+                    .collect(),
         })
     }
 
