@@ -310,6 +310,10 @@ impl Group {
         }
         Ok(Group(map))
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&Name, &LogicalStreamType)> {
+        self.0.iter()
+}
 }
 
 impl From<Group> for LogicalStreamType {
@@ -629,7 +633,7 @@ impl LogicalStreamType {
                         .map(|(name, stream)| {
                             stream.split().streams.into_iter().map(
                                 move |(mut path_name, stream_)| {
-                                    path_name.push_back(name.clone());
+                                    path_name.push(name.clone());
                                     (path_name, stream_)
                                 },
                             )
@@ -658,9 +662,9 @@ impl LogicalStreamType {
             LogicalStreamType::Group(Group(inner)) => {
                 inner.iter().for_each(|(name, stream)| {
                     stream.fields().iter().for_each(|(path_name, bit_count)| {
-                        let mut path_name = path_name.clone();
-                        path_name.push_back(name.clone());
-                        fields.insert(path_name, *bit_count).unwrap();
+                        fields
+                            .insert(path_name.with_parent(name.clone()), *bit_count)
+                            .unwrap();
                     })
                 });
                 fields
