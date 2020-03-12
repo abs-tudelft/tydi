@@ -69,10 +69,10 @@ pub trait Portify {
 /// Trait to create common representation components from things in the canonical
 /// way and user-friendly way.
 pub trait Componentify {
-    fn user(&self, _name: impl Into<String>) -> Option<Component> {
+    fn user(&self) -> Option<Component> {
         None
     }
-    fn canonical(&self, name: impl Into<String>) -> Component;
+    fn canonical(&self) -> Component;
 }
 
 impl Typify for LogicalStreamType {
@@ -105,7 +105,7 @@ impl Typify for Group {
         let mut rec = Record::new_empty(cat!(n.clone(), "type"));
         for (field_name, field_logical) in self.iter() {
             if let Some(field_common_type) = field_logical.user(cat!(n.clone(), field_name)) {
-                rec.insert_field(field_name.to_string(), field_common_type, false)
+                rec.insert_new_field(field_name.to_string(), field_common_type, false)
             }
         }
         Some(Type::Record(rec))
@@ -150,20 +150,20 @@ impl Typify for Stream {
             });
 
             // Insert data record. There must be something there since it is not null.
-            rec.insert_field("data", self.data().user("data").unwrap(), false);
+            rec.insert_new_field("data", self.data().user("data").unwrap(), false);
 
             // Check signals related to dimensionality, complexity, etc.
             if let Some(sig) = signals.last() {
-                rec.insert_field("last", sig.width().into(), sig.reversed());
+                rec.insert_new_field("last", sig.width().into(), sig.reversed());
             }
             if let Some(sig) = signals.stai() {
-                rec.insert_field("stai", sig.width().into(), sig.reversed());
+                rec.insert_new_field("stai", sig.width().into(), sig.reversed());
             }
             if let Some(sig) = signals.endi() {
-                rec.insert_field("endi", sig.width().into(), sig.reversed());
+                rec.insert_new_field("endi", sig.width().into(), sig.reversed());
             }
             if let Some(sig) = signals.strb() {
-                rec.insert_field("strb", sig.width().into(), sig.reversed());
+                rec.insert_new_field("strb", sig.width().into(), sig.reversed());
             }
 
             Some(Type::Record(rec))
@@ -228,6 +228,8 @@ impl Portify for Interface {
 
         let mut result = Vec::new();
 
+        // TODO(johanpel): asynchronous logicalstreamtypes
+
         // Split the LogicalStreamType up into discrete, simple streams.
         for (path, simple_stream) in self.typ().split().streams() {
             if let Some(typ) = simple_stream.user(cat!(tn.clone(), path)) {
@@ -263,35 +265,31 @@ impl From<crate::design::Mode> for Mode {
 }
 
 impl Componentify for Streamlet {
-    fn user(&self, _: impl Into<String>) -> Option<Component> {
-        Some(Component {
-            identifier: self.identifier().to_string(),
-            parameters: vec![],
-            ports: self
-                .interfaces()
+    fn user(&self) -> Option<Component> {
+        Some(Component::new(
+            self.identifier(),
+            vec![],
+            self.interfaces()
                 .into_iter()
                 .flat_map(|interface| {
-                    interface.user(
+                    let interface_ports = interface.user(
                         interface.identifier(),
                         cat!(self.identifier().to_string(), interface.identifier()),
-                    )
+                    );
+                    interface_ports
                 })
                 .collect(),
-        })
+        ))
     }
 
-    fn canonical(&self, _: impl Into<String>) -> Component {
-        Component {
-            identifier: self.identifier().to_string(),
-            parameters: vec![],
-            ports: {
-                let mut all_ports = Vec::new();
-                self.interfaces().into_iter().for_each(|interface| {
-                    all_ports.extend(interface.canonical(interface.identifier()));
-                });
-                all_ports
-            },
-        }
+    fn canonical(&self) -> Component {
+        Component::new(self.identifier().to_string(), vec![], {
+            let mut all_ports = Vec::new();
+            self.interfaces().into_iter().for_each(|interface| {
+                all_ports.extend(interface.canonical(interface.identifier()));
+            });
+            all_ports
+        })
     }
 }
 
@@ -302,7 +300,7 @@ impl From<crate::design::Library> for Library {
             components: l
                 .streamlets()
                 .into_iter()
-                .map(|s| s.user(s.identifier()))
+                .map(|s| s.user())
                 .filter_map(|s| s)
                 .collect(),
         }
@@ -415,6 +413,7 @@ pub(crate) mod tests {
 
             let typ1 = streams::group().canonical("test");
             dbg!(&typ1);
+            // TODO(johanpel): implement actual test
         }
 
         #[test]
@@ -425,6 +424,7 @@ pub(crate) mod tests {
             let if1 =
                 Interface::try_new("test", crate::design::Mode::Out, streams::group()).unwrap();
             dbg!(if1.canonical("test"));
+            // TODO(johanpel): implement actual test
         }
     }
 
@@ -455,48 +455,48 @@ pub(crate) mod tests {
             let typ0: Type = streams::prim(8).user("test").unwrap();
             assert_eq!(
                 typ0,
-                Type::Record(Record {
-                    identifier: "test_type".to_string(),
-                    fields: vec![
+                Type::record(
+                    "test_type",
+                    vec![
                         Field::new("valid", Type::Bit, false),
                         Field::new("ready", Type::Bit, true),
                         Field::new("data", Type::bitvec(8), false)
                     ]
-                })
+                )
             );
 
             let typ1: Type = streams::group().user("test").unwrap();
             assert_eq!(
                 typ1,
-                Type::Record(Record {
-                    identifier: "test_type".to_string(),
-                    fields: vec![
+                Type::record(
+                    "test_type",
+                    vec![
                         Field::new(
                             "a",
-                            Type::Record(Record {
-                                identifier: "test_a_type".to_string(),
-                                fields: vec![
+                            Type::record(
+                                "test_a_type",
+                                vec![
                                     Field::new("valid", Type::Bit, false),
                                     Field::new("ready", Type::Bit, true),
                                     Field::new("data", Type::bitvec(42), false)
                                 ]
-                            }),
+                            ),
                             false
                         ),
                         Field::new(
                             "b",
-                            Type::Record(Record {
-                                identifier: "test_b_type".to_string(),
-                                fields: vec![
+                            Type::record(
+                                "test_b_type",
+                                vec![
                                     Field::new("valid", Type::Bit, false),
                                     Field::new("ready", Type::Bit, true),
                                     Field::new("data", Type::bitvec(1337), false)
                                 ]
-                            }),
+                            ),
                             false
                         )
                     ]
-                })
+                )
             );
         }
 
@@ -521,7 +521,7 @@ pub(crate) mod tests {
             ]),
         )?;
         // TODO(johanpel): write actual test
-        let common_streamlet = streamlet.user("test").unwrap();
+        let common_streamlet = streamlet.user().unwrap();
         let pkg = Library {
             identifier: "boomer".to_string(),
             components: vec![common_streamlet],
@@ -540,7 +540,7 @@ pub(crate) mod tests {
             ]),
         )?;
         // TODO(johanpel): write actual test
-        let common_streamlet = streamlet.user("test").unwrap();
+        let common_streamlet = streamlet.user().unwrap();
         let pkg = Library {
             identifier: "testing".to_string(),
             components: vec![common_streamlet],
