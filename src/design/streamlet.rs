@@ -3,6 +3,7 @@
 //! A streamlet is a component where every [Interface] has a [LogicalStreamType].
 
 use crate::logical::LogicalStreamType;
+use crate::traits::Identify;
 use crate::util::UniquelyNamedBuilder;
 use crate::{Error, Name, Result};
 use std::convert::TryInto;
@@ -28,7 +29,7 @@ impl Streamlet {
     }
 }
 
-impl crate::traits::Identify for Streamlet {
+impl Identify for Streamlet {
     fn identifier(&self) -> &str {
         self.name.as_ref()
     }

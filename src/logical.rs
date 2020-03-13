@@ -328,6 +328,7 @@ impl Group {
         Ok(Group(map))
     }
 
+    /// Returns an iterator over the fields of the Group.
     pub fn iter(&self) -> impl Iterator<Item = (&Name, &LogicalStreamType)> {
         self.0.iter()
     }
@@ -377,6 +378,27 @@ impl Union {
                 .transpose()?;
         }
         Ok(Union(map))
+    }
+
+    /// Returns the tag name and width of this union.
+    /// [Reference](https://abs-tudelft.github.io/tydi/specification/logical.html)
+    pub fn tag(&self) -> Option<(String, BitCount)> {
+        if self.0.len() > 1 {
+            Some((
+                "tag".to_string(),
+                BitCount::new(log2_ceil(
+                    BitCount::new(self.0.len() as NonNegative).unwrap(),
+                ))
+                .unwrap(),
+            ))
+        } else {
+            None
+        }
+    }
+
+    /// Returns an iterator over the fields of the Union.
+    pub fn iter(&self) -> impl Iterator<Item = (&Name, &LogicalStreamType)> {
+        self.0.iter()
     }
 }
 
@@ -785,6 +807,9 @@ pub(crate) struct SplitStreams {
 impl SplitStreams {
     pub fn streams(&self) -> impl Iterator<Item = (&PathName, &LogicalStreamType)> {
         self.streams.iter()
+    }
+    pub fn signal(&self) -> &LogicalStreamType {
+        &self.signals
     }
 }
 

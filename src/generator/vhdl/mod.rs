@@ -5,10 +5,12 @@
 
 use crate::generator::common::*;
 use crate::generator::GenerateProject;
-use crate::{Error, Result};
+use crate::{Error, Result, Reversed};
 use log::debug;
 use std::path::Path;
 
+use crate::cat;
+use crate::traits::Identify;
 use std::str::FromStr;
 #[cfg(feature = "cli")]
 use structopt::StructOpt;
@@ -22,9 +24,9 @@ pub trait Declare {
 }
 
 /// Generate trait for VHDL identifiers.
-pub trait Identify {
+pub trait VHDLIdentifier {
     /// Generate a VHDL identifier from self.
-    fn identify(&self) -> Result<String>;
+    fn vhdl_identifier(&self) -> Result<String>;
 }
 
 /// Analyze trait for VHDL objects.
@@ -115,21 +117,249 @@ impl GenerateProject for VHDLBackEnd {
     }
 }
 
+/// Trait used to split types, ports, and record fields into a VHDL-friendly versions, since VHDL
+/// does not support bundles of wires with opposite directions.
+trait Split {
+    /// Split up self into a (downstream/forward, upstream/reverse) version, if applicable.
+    fn split(&self) -> (Option<Self>, Option<Self>)
+    where
+        Self: Sized;
+}
+
+impl Split for Type {
+    fn split(&self) -> (Option<Self>, Option<Self>) {
+        match self {
+            Type::Record(rec) => {
+                let (down_rec, up_rec) = rec.split();
+                (down_rec.map(Type::Record), up_rec.map(Type::Record))
+            }
+            _ => (Some(self.clone()), None),
+        }
+    }
+}
+
+impl Split for Field {
+    fn split(&self) -> (Option<Self>, Option<Self>) {
+        // Split the inner type.
+        let (down_type, up_type) = self.typ().split();
+
+        let result = (
+            down_type.map(|t| Field::new(self.identifier(), t, false)),
+            up_type.map(|t| Field::new(self.identifier(), t, false)),
+        );
+
+        if self.is_reversed() {
+            // If this field itself is reversed, swap the result of splitting the field type.
+            (result.1, result.0)
+        } else {
+            result
+        }
+    }
+}
+
+impl Split for Record {
+    fn split(&self) -> (Option<Self>, Option<Self>) {
+        let mut down_rec = Record::new_empty(self.identifier());
+        let mut up_rec = Record::new_empty(self.identifier());
+
+        for f in self.fields().into_iter() {
+            let (down_field, up_field) = f.split();
+            if let Some(df) = down_field {
+                down_rec.insert(df)
+            };
+            if let Some(uf) = up_field {
+                up_rec.insert(uf)
+            };
+        }
+
+        let f = |r: Record| if r.is_empty() { None } else { Some(r) };
+
+        (f(down_rec), f(up_rec))
+    }
+}
+
+impl Split for Port {
+    fn split(&self) -> (Option<Self>, Option<Self>) {
+        let (type_down, type_up) = self.typ().split();
+        (
+            type_down.map(|t| {
+                Port::new(
+                    cat!(self.identifier(), "dn"),
+                    self.mode(),
+                    match t {
+                        Type::Record(r) => Type::Record(r.append_name_nested("dn")),
+                        _ => t,
+                    },
+                )
+            }),
+            type_up.map(|t| {
+                Port::new(
+                    cat!(self.identifier(), "up"),
+                    self.mode().reversed(),
+                    match t {
+                        Type::Record(r) => Type::Record(r.append_name_nested("up")),
+                        _ => t,
+                    },
+                )
+            }),
+        )
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::generator::common::test::*;
+    use crate::Reversed;
     use std::fs;
 
     #[test]
-    fn test_type_conflict() {
+    fn split_primitive() {
+        assert_eq!(Type::bitvec(3).split(), (Some(Type::bitvec(3)), None));
+    }
+
+    #[test]
+    fn split_field() {
+        let f0 = Field::new("test", Type::bitvec(3), false);
+        assert_eq!(f0.split(), (Some(f0), None));
+
+        let f1 = Field::new("test", Type::bitvec(3), true);
+        assert_eq!(f1.split(), (None, Some(f1.reversed())));
+    }
+
+    #[test]
+    fn split_simple_rec() {
+        let rec = Type::record(
+            "ra",
+            vec![
+                Field::new("fc", Type::Bit, false),
+                Field::new("fd", Type::Bit, true),
+            ],
+        );
+
+        assert_eq!(
+            rec.split().0.unwrap(),
+            Type::record("ra", vec![Field::new("fc", Type::Bit, false)])
+        );
+
+        assert_eq!(
+            rec.split().1.unwrap(),
+            Type::record("ra", vec![Field::new("fd", Type::Bit, false)])
+        );
+    }
+
+    #[test]
+    fn split_nested_rec() {
+        let rec = Type::record(
+            "test",
+            vec![
+                Field::new(
+                    "fa",
+                    Type::record(
+                        "ra",
+                        vec![
+                            Field::new("fc", Type::Bit, false),
+                            Field::new("fd", Type::Bit, true),
+                        ],
+                    ),
+                    false,
+                ),
+                Field::new(
+                    "fb",
+                    Type::record(
+                        "rb",
+                        vec![
+                            Field::new("fe", Type::Bit, false),
+                            Field::new("ff", Type::Bit, true),
+                        ],
+                    ),
+                    true,
+                ),
+            ],
+        );
+
+        assert_eq!(
+            rec.split().0.unwrap(),
+            Type::record(
+                "test",
+                vec![
+                    Field::new(
+                        "fa",
+                        Type::record("ra", vec![Field::new("fc", Type::Bit, false)]),
+                        false
+                    ),
+                    Field::new(
+                        "fb",
+                        Type::record("rb", vec![Field::new("ff", Type::Bit, false)]),
+                        false
+                    )
+                ]
+            )
+        );
+
+        assert_eq!(
+            rec.split().1.unwrap(),
+            Type::record(
+                "test",
+                vec![
+                    Field::new(
+                        "fa",
+                        Type::record("ra", vec![Field::new("fd", Type::Bit, false)]),
+                        false
+                    ),
+                    Field::new(
+                        "fb",
+                        Type::record("rb", vec![Field::new("fe", Type::Bit, false)]),
+                        false
+                    )
+                ]
+            )
+        );
+    }
+
+    #[test]
+    fn split_port() {
+        let (dn, up) = Port::new(
+            "test",
+            Mode::Out,
+            Type::record(
+                "test",
+                vec![
+                    Field::new("a", Type::Bit, false),
+                    Field::new("b", Type::Bit, true),
+                ],
+            ),
+        )
+        .split();
+
+        assert_eq!(
+            dn,
+            Some(Port::new(
+                "test_dn",
+                Mode::Out,
+                Type::record("test_dn", vec![Field::new("a", Type::Bit, false)])
+            ))
+        );
+
+        assert_eq!(
+            up,
+            Some(Port::new(
+                "test_up",
+                Mode::In,
+                Type::record("test_up", vec![Field::new("b", Type::Bit, false)])
+            ))
+        );
+    }
+
+    #[test]
+    fn type_conflict() {
         let t0 = Type::record("a", vec![Field::new("x", Type::Bit, false)]);
         let t1 = Type::record("a", vec![Field::new("y", Type::Bit, false)]);
-        let c = Component {
-            identifier: "test".to_string(),
-            parameters: vec![],
-            ports: vec![Port::new("q", Mode::In, t0), Port::new("r", Mode::Out, t1)],
-        };
+        let c = Component::new(
+            "test",
+            vec![],
+            vec![Port::new("q", Mode::In, t0), Port::new("r", Mode::Out, t1)],
+        );
         let p = Library {
             identifier: "lib".to_string(),
             components: vec![c],
@@ -140,7 +370,7 @@ mod test {
     }
 
     #[test]
-    fn test_backend() -> Result<()> {
+    fn backend() -> Result<()> {
         let v = VHDLBackEnd::default();
 
         let tmpdir = tempfile::tempdir()?;

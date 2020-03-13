@@ -28,29 +28,43 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
-use crate::NonNegative;
+use crate::cat;
+use crate::traits::Identify;
+use crate::{NonNegative, Reversed};
 
 /// Inner struct for `Type::Array`
 #[derive(Debug, Clone, PartialEq)]
 pub struct Array {
     /// VHDL identifier for this array type.
-    pub identifier: String,
+    identifier: String,
     /// The size of the array.
     pub size: usize,
     /// The type of the array elements.
     pub typ: Box<Type>,
 }
 
+impl Identify for Array {
+    fn identifier(&self) -> &str {
+        self.identifier.as_str()
+    }
+}
+
 /// A field for a `Record`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
     /// Name of the field.
-    pub name: String,
+    name: String,
     /// Type of the field.
-    pub typ: Type,
+    typ: Type,
     /// Whether the direction of this field should be reversed
     /// w.r.t. the other fields in the record for bulk connections.
-    pub reversed: bool,
+    reversed: bool,
+}
+
+impl Identify for Field {
+    fn identifier(&self) -> &str {
+        self.name.as_str()
+    }
 }
 
 impl Field {
@@ -62,20 +76,41 @@ impl Field {
             reversed,
         }
     }
+
+    pub fn typ(&self) -> &Type {
+        &self.typ
+    }
+
+    pub fn is_reversed(&self) -> bool {
+        self.reversed
+    }
+}
+
+impl Reversed for Field {
+    fn reversed(&self) -> Self {
+        Field::new(self.name.clone(), self.typ.clone(), !self.reversed)
+    }
 }
 
 /// Inner struct for `Type::Record`
 #[derive(Debug, Clone, PartialEq)]
 pub struct Record {
     /// VHDL identifier for this record type.
-    pub identifier: String,
+    identifier: String,
     /// The fields of the record.
-    pub fields: Vec<Field>,
+    fields: Vec<Field>,
+}
+
+impl Identify for Record {
+    fn identifier(&self) -> &str {
+        self.identifier.as_str()
+    }
 }
 
 impl Record {
     /// Construct a new record.
     pub fn new(name: impl Into<String>, fields: Vec<Field>) -> Record {
+        // TODO(johanpel): records should be constructed through a UniquelyNamedBuilder
         Record {
             identifier: name.into(),
             fields,
@@ -101,9 +136,46 @@ impl Record {
         }
     }
 
-    /// Add a field to the record.
-    pub fn insert_field(&mut self, name: impl Into<String>, typ: Type, reversed: bool) {
+    /// Create a new field and add it to the record.
+    pub fn insert_new_field(&mut self, name: impl Into<String>, typ: Type, reversed: bool) {
         self.fields.push(Field::new(name, typ, reversed));
+    }
+
+    /// Add a field to the record.
+    pub fn insert(&mut self, field: Field) {
+        self.fields.push(field);
+    }
+
+    /// Returns true if the record contains a field that is reversed.
+    pub fn has_reversed(&self) -> bool {
+        self.fields.iter().any(|i| i.reversed)
+    }
+
+    /// Returns an iterable over the fields.
+    pub fn fields(&self) -> impl Iterator<Item = &Field> {
+        self.fields.iter()
+    }
+
+    /// Returns true if record contains no fields.
+    pub fn is_empty(&self) -> bool {
+        self.fields.is_empty()
+    }
+
+    /// Append a string to the name of this record, and any nested records.
+    pub fn append_name_nested(&self, with: impl Into<String>) -> Self {
+        let p: String = with.into();
+        let mut result = Record::new_empty(cat!(self.identifier, p.clone()));
+        for f in self.fields() {
+            result.insert(match f.typ() {
+                Type::Record(r) => Field::new(
+                    f.identifier(),
+                    Type::Record(r.append_name_nested(p.clone())),
+                    f.reversed,
+                ),
+                _ => f.clone(),
+            });
+        }
+        result
     }
 }
 
@@ -150,6 +222,14 @@ impl Type {
         }
         result
     }
+
+    // Returns true if the type contains a reversed field.
+    pub fn has_reversed(&self) -> bool {
+        match self {
+            Type::Record(rec) => rec.has_reversed(),
+            _ => false,
+        }
+    }
 }
 
 /// A parameter for components.
@@ -166,21 +246,26 @@ pub enum Mode {
     In,
     /// Output.
     Out,
-    /// Bidirectional.
-    Inout,
-    /// None.
-    None,
+}
+
+impl Reversed for Mode {
+    fn reversed(&self) -> Self {
+        match self {
+            Mode::In => Mode::Out,
+            Mode::Out => Mode::In,
+        }
+    }
 }
 
 /// A port.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Port {
     /// Port identifier.
-    pub identifier: String,
+    identifier: String,
     /// Port mode.
-    pub mode: Mode,
+    mode: Mode,
     /// Port type.
-    pub typ: Type,
+    typ: Type,
 }
 
 impl Port {
@@ -191,20 +276,60 @@ impl Port {
             typ,
         }
     }
+
+    pub fn mode(&self) -> Mode {
+        self.mode
+    }
+
+    pub fn typ(&self) -> Type {
+        self.typ.clone()
+    }
+}
+
+impl Identify for Port {
+    fn identifier(&self) -> &str {
+        self.identifier.as_str()
+    }
 }
 
 /// A component.
 #[derive(Debug, Clone)]
 pub struct Component {
     /// Component identifier.
-    pub identifier: String,
+    identifier: String,
     /// The parameters of the component..
-    pub parameters: Vec<Parameter>,
+    parameters: Vec<Parameter>,
     /// The ports of the component.
-    pub ports: Vec<Port>,
+    ports: Vec<Port>,
+}
+
+impl Identify for Component {
+    fn identifier(&self) -> &str {
+        self.identifier.as_str()
+    }
 }
 
 impl Component {
+    pub fn new(
+        identifier: impl Into<String>,
+        parameters: Vec<Parameter>,
+        ports: Vec<Port>,
+    ) -> Component {
+        Component {
+            identifier: identifier.into(),
+            parameters,
+            ports,
+        }
+    }
+
+    pub fn ports(&self) -> &Vec<Port> {
+        &self.ports
+    }
+
+    pub fn parameters(&self) -> &Vec<Parameter> {
+        &self.parameters
+    }
+
     pub fn flatten_types(&mut self) {
         let mut new_ports: Vec<Port> = Vec::new();
         self.ports.iter().for_each(|port| {
@@ -357,5 +482,18 @@ pub(crate) mod test {
         assert_eq!(flat[2].0[1], "b".to_string());
         assert_eq!(flat[2].1, Type::bitvec(4));
         assert_eq!(flat[2].2, true);
+    }
+
+    #[test]
+    fn rec_has_reversed() {
+        assert!(test_rec().has_reversed());
+        assert!(!Type::record(
+            "test",
+            vec![
+                Field::new("a", Type::Bit, false),
+                Field::new("b", Type::Bit, false),
+            ],
+        )
+        .has_reversed());
     }
 }

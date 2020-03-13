@@ -6,7 +6,7 @@ use std::path::Path;
 
 use crate::design::{Interface, Streamlet};
 use crate::generator::common::{Component, Library, Mode, Port, Project, Record, Type};
-use crate::logical::{Group, LogicalStreamType, Stream};
+use crate::logical::{Group, LogicalStreamType, Stream, Union};
 use crate::physical::{Origin, Signal, Width};
 use crate::traits::Identify;
 use crate::Result;
@@ -15,9 +15,15 @@ pub mod chisel;
 pub mod common;
 pub mod vhdl;
 
+// Generator-global constants:
+
+/// Suffix provided to the canonical representation of streamlet components.
+// TODO(johanpel): come up with a better suffix to make users understand to
+//                 preferably not touch the canonical component.
+pub const CANON_SUFFIX: Option<&str> = Some("com");
+
 /// Concatenate stuff using format with an underscore in between.
 /// Useful if the separator ever changes.
-
 #[macro_export]
 macro_rules! cat {
     ($a:expr) => {{
@@ -69,10 +75,10 @@ pub trait Portify {
 /// Trait to create common representation components from things in the canonical
 /// way and user-friendly way.
 pub trait Componentify {
-    fn user(&self, _name: impl Into<String>) -> Option<Component> {
+    fn user(&self, _suffix: Option<&str>) -> Option<Component> {
         None
     }
-    fn canonical(&self, name: impl Into<String>) -> Component;
+    fn canonical(&self, suffix: Option<&str>) -> Component;
 }
 
 impl Typify for LogicalStreamType {
@@ -80,21 +86,23 @@ impl Typify for LogicalStreamType {
     /// flattened through synthesize.
     fn user(&self, prefix: impl Into<String>) -> Option<Type> {
         match self {
+            LogicalStreamType::Null => None,
             LogicalStreamType::Bits(width) => Some(Type::bitvec(width.get())),
             LogicalStreamType::Group(group) => group.user(prefix),
             LogicalStreamType::Stream(stream) => stream.user(prefix),
-            _ => todo!(),
+            LogicalStreamType::Union(union) => union.user(prefix),
         }
     }
 
     fn canonical(&self, prefix: impl Into<String>) -> Vec<Signal> {
         match self {
+            LogicalStreamType::Null => Vec::new(),
             LogicalStreamType::Bits(width) => {
                 vec![Signal::vec(prefix.into(), Origin::Source, *width)]
             }
             LogicalStreamType::Group(group) => group.canonical(prefix),
             LogicalStreamType::Stream(stream) => stream.canonical(prefix),
-            _ => todo!(),
+            LogicalStreamType::Union(union) => union.canonical(prefix),
         }
     }
 }
@@ -105,7 +113,7 @@ impl Typify for Group {
         let mut rec = Record::new_empty(cat!(n.clone(), "type"));
         for (field_name, field_logical) in self.iter() {
             if let Some(field_common_type) = field_logical.user(cat!(n.clone(), field_name)) {
-                rec.insert_field(field_name.to_string(), field_common_type, false)
+                rec.insert_new_field(field_name.to_string(), field_common_type, false)
             }
         }
         Some(Type::Record(rec))
@@ -122,7 +130,42 @@ impl Typify for Group {
     }
 }
 
+impl Typify for Union {
+    fn user(&self, prefix: impl Into<String>) -> Option<Type> {
+        let n: String = prefix.into();
+        let mut rec = Record::new_empty(cat!(n.clone(), "type"));
+        if let Some((tag_name, tag_bc)) = self.tag() {
+            rec.insert_new_field(tag_name, Type::bitvec(tag_bc.get()), false);
+        }
+        for (field_name, field_logical) in self.iter() {
+            if let Some(field_common_type) = field_logical.user(cat!(n.clone(), field_name)) {
+                rec.insert_new_field(field_name, field_common_type, false);
+            }
+        }
+        Some(Type::Record(rec))
+    }
+
+    fn canonical(&self, prefix: impl Into<String>) -> Vec<Signal> {
+        let n: String = prefix.into();
+        let mut result = Vec::new();
+        if let Some((tag_name, tag_bc)) = self.tag() {
+            result.push(Signal::vec(
+                cat!(n.clone(), tag_name),
+                Origin::Source,
+                tag_bc,
+            ));
+        }
+        for (field_name, field_logical) in self.iter() {
+            let field_result = field_logical.canonical(cat!(n.clone(), field_name));
+            result.extend(field_result);
+        }
+        result
+    }
+}
+
 impl Typify for Stream {
+    /// This implementation for Stream assumes the parent LogicalStreamType has already been
+    /// flattened through synthesize.
     fn user(&self, prefix: impl Into<String>) -> Option<Type> {
         // We need to wrap the Stream back into a LogicalStreamType
         // to be able to use various methods for checks and synthesize.
@@ -150,20 +193,20 @@ impl Typify for Stream {
             });
 
             // Insert data record. There must be something there since it is not null.
-            rec.insert_field("data", self.data().user("data").unwrap(), false);
+            rec.insert_new_field("data", self.data().user("data").unwrap(), false);
 
             // Check signals related to dimensionality, complexity, etc.
             if let Some(sig) = signals.last() {
-                rec.insert_field("last", sig.width().into(), sig.reversed());
+                rec.insert_new_field("last", sig.width().into(), sig.reversed());
             }
             if let Some(sig) = signals.stai() {
-                rec.insert_field("stai", sig.width().into(), sig.reversed());
+                rec.insert_new_field("stai", sig.width().into(), sig.reversed());
             }
             if let Some(sig) = signals.endi() {
-                rec.insert_field("endi", sig.width().into(), sig.reversed());
+                rec.insert_new_field("endi", sig.width().into(), sig.reversed());
             }
             if let Some(sig) = signals.strb() {
-                rec.insert_field("strb", sig.width().into(), sig.reversed());
+                rec.insert_new_field("strb", sig.width().into(), sig.reversed());
             }
 
             Some(Type::Record(rec))
@@ -172,6 +215,8 @@ impl Typify for Stream {
         }
     }
 
+    /// This implementation for Stream assumes the parent LogicalStreamType has already been
+    /// flattened through synthesize.
     fn canonical(&self, prefix: impl Into<String>) -> Vec<Signal> {
         let n: String = prefix.into();
         let mut result = Vec::new();
@@ -203,10 +248,12 @@ impl From<Width> for Type {
 /// Trait that helps to determine the common representation port mode given a streamlet interface
 /// mode.
 pub trait ModeFor {
+    /// Return the port mode of self, given a streamlet interface mode.
     fn mode_for(&self, streamlet_mode: crate::design::Mode) -> Mode;
 }
 
 impl ModeFor for Origin {
+    /// Return the common representation port mode for this signal origin, given the interface mode.
     fn mode_for(&self, streamlet_mode: crate::design::Mode) -> Mode {
         match self {
             Origin::Sink => match streamlet_mode {
@@ -227,6 +274,12 @@ impl Portify for Interface {
         let tn: String = type_name.into();
 
         let mut result = Vec::new();
+
+        let split = self.typ().split();
+
+        if let Some(sig_type) = split.signal().user(tn.clone()) {
+            result.push(Port::new(cat!(n.clone()), self.mode().into(), sig_type));
+        }
 
         // Split the LogicalStreamType up into discrete, simple streams.
         for (path, simple_stream) in self.typ().split().streams() {
@@ -263,12 +316,11 @@ impl From<crate::design::Mode> for Mode {
 }
 
 impl Componentify for Streamlet {
-    fn user(&self, _: impl Into<String>) -> Option<Component> {
-        Some(Component {
-            identifier: self.identifier().to_string(),
-            parameters: vec![],
-            ports: self
-                .interfaces()
+    fn user(&self, suffix: Option<&str>) -> Option<Component> {
+        Some(Component::new(
+            cat!(self.identifier().to_string(), suffix.unwrap_or("")),
+            vec![],
+            self.interfaces()
                 .into_iter()
                 .flat_map(|interface| {
                     interface.user(
@@ -277,21 +329,21 @@ impl Componentify for Streamlet {
                     )
                 })
                 .collect(),
-        })
+        ))
     }
 
-    fn canonical(&self, _: impl Into<String>) -> Component {
-        Component {
-            identifier: self.identifier().to_string(),
-            parameters: vec![],
-            ports: {
+    fn canonical(&self, suffix: Option<&str>) -> Component {
+        Component::new(
+            cat!(self.identifier().to_string(), suffix.unwrap_or("")),
+            vec![],
+            {
                 let mut all_ports = Vec::new();
                 self.interfaces().into_iter().for_each(|interface| {
                     all_ports.extend(interface.canonical(interface.identifier()));
                 });
                 all_ports
             },
-        }
+        )
     }
 }
 
@@ -302,8 +354,13 @@ impl From<crate::design::Library> for Library {
             components: l
                 .streamlets()
                 .into_iter()
-                .map(|s| s.user(s.identifier()))
-                .filter_map(|s| s)
+                .flat_map(|s| {
+                    let mut result = vec![s.canonical(CANON_SUFFIX)];
+                    if let Some(user) = s.user(None) {
+                        result.push(user);
+                    }
+                    result
+                })
                 .collect(),
         }
     }
@@ -415,6 +472,7 @@ pub(crate) mod tests {
 
             let typ1 = streams::group().canonical("test");
             dbg!(&typ1);
+            // TODO(johanpel): implement actual test
         }
 
         #[test]
@@ -425,6 +483,7 @@ pub(crate) mod tests {
             let if1 =
                 Interface::try_new("test", crate::design::Mode::Out, streams::group()).unwrap();
             dbg!(if1.canonical("test"));
+            // TODO(johanpel): implement actual test
         }
     }
 
@@ -455,48 +514,48 @@ pub(crate) mod tests {
             let typ0: Type = streams::prim(8).user("test").unwrap();
             assert_eq!(
                 typ0,
-                Type::Record(Record {
-                    identifier: "test_type".to_string(),
-                    fields: vec![
+                Type::record(
+                    "test_type",
+                    vec![
                         Field::new("valid", Type::Bit, false),
                         Field::new("ready", Type::Bit, true),
                         Field::new("data", Type::bitvec(8), false)
                     ]
-                })
+                )
             );
 
             let typ1: Type = streams::group().user("test").unwrap();
             assert_eq!(
                 typ1,
-                Type::Record(Record {
-                    identifier: "test_type".to_string(),
-                    fields: vec![
+                Type::record(
+                    "test_type",
+                    vec![
                         Field::new(
                             "a",
-                            Type::Record(Record {
-                                identifier: "test_a_type".to_string(),
-                                fields: vec![
+                            Type::record(
+                                "test_a_type",
+                                vec![
                                     Field::new("valid", Type::Bit, false),
                                     Field::new("ready", Type::Bit, true),
                                     Field::new("data", Type::bitvec(42), false)
                                 ]
-                            }),
+                            ),
                             false
                         ),
                         Field::new(
                             "b",
-                            Type::Record(Record {
-                                identifier: "test_b_type".to_string(),
-                                fields: vec![
+                            Type::record(
+                                "test_b_type",
+                                vec![
                                     Field::new("valid", Type::Bit, false),
                                     Field::new("ready", Type::Bit, true),
                                     Field::new("data", Type::bitvec(1337), false)
                                 ]
-                            }),
+                            ),
                             false
                         )
                     ]
-                })
+                )
             );
         }
 
@@ -508,6 +567,7 @@ pub(crate) mod tests {
             let if1 =
                 Interface::try_new("test", crate::design::Mode::Out, streams::group()).unwrap();
             dbg!(if1.user("test", "test"));
+            // TODO(johanpel): write actual test
         }
     }
 
@@ -521,7 +581,7 @@ pub(crate) mod tests {
             ]),
         )?;
         // TODO(johanpel): write actual test
-        let common_streamlet = streamlet.user("test").unwrap();
+        let common_streamlet = streamlet.user(None).unwrap();
         let pkg = Library {
             identifier: "boomer".to_string(),
             components: vec![common_streamlet],
@@ -540,7 +600,7 @@ pub(crate) mod tests {
             ]),
         )?;
         // TODO(johanpel): write actual test
-        let common_streamlet = streamlet.user("test").unwrap();
+        let common_streamlet = streamlet.user(None).unwrap();
         let pkg = Library {
             identifier: "testing".to_string(),
             components: vec![common_streamlet],

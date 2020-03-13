@@ -4,16 +4,15 @@ use std::collections::HashMap;
 
 use crate::error::Error::BackEndError;
 use crate::generator::common::{Component, Library, Mode, Port, Type};
-use crate::generator::vhdl::{Analyze, Declare, Identify};
+use crate::generator::vhdl::{Analyze, Declare, VHDLIdentifier};
+use crate::traits::Identify;
 use crate::Result;
 
-impl Identify for Mode {
-    fn identify(&self) -> Result<String> {
+impl VHDLIdentifier for Mode {
+    fn vhdl_identifier(&self) -> Result<String> {
         match self {
             Mode::In => Ok("in".to_string()),
             Mode::Out => Ok("out".to_string()),
-            Mode::Inout => Ok("inout".to_string()),
-            _ => Err(BackEndError("Mode not synthesizable.".to_string())),
         }
     }
 }
@@ -31,10 +30,15 @@ impl Declare for Type {
                 ))
             }
             Type::Record(rec) => {
-                let mut result = format!("record {}\n", rec.identifier);
-                for field in &rec.fields {
+                let mut result = format!("record {}\n", rec.identifier());
+                for field in rec.fields() {
                     result.push_str(
-                        format!("  {} : {};\n", field.name, field.typ.identify()?).as_str(),
+                        format!(
+                            "  {} : {};\n",
+                            field.identifier(),
+                            field.typ().vhdl_identifier()?
+                        )
+                        .as_str(),
                     );
                 }
                 result.push_str("end record;");
@@ -50,13 +54,13 @@ impl Declare for Type {
     }
 }
 
-impl Identify for Type {
-    fn identify(&self) -> Result<String> {
+impl VHDLIdentifier for Type {
+    fn vhdl_identifier(&self) -> Result<String> {
         // Records and arrays use type definitions.
         // Any other types are used directly.
         match self {
-            Type::Record(rec) => Ok(rec.identifier.clone()),
-            Type::Array(arr) => Ok(arr.identifier.clone()),
+            Type::Record(rec) => Ok(rec.identifier().to_string()),
+            Type::Array(arr) => Ok(arr.identifier().to_string()),
             _ => self.declare(),
         }
     }
@@ -69,8 +73,8 @@ impl Analyze for Type {
             Type::Record(rec) => {
                 let mut result: Vec<Type> = vec![];
                 result.push(self.clone());
-                for f in rec.fields.iter() {
-                    let children = f.typ.list_record_types();
+                for f in rec.fields().into_iter() {
+                    let children = f.typ().list_record_types();
                     result.extend(children.into_iter());
                 }
                 result
@@ -84,35 +88,35 @@ impl Declare for Port {
     fn declare(&self) -> Result<String> {
         Ok(format!(
             "{} : {} {}",
-            self.identifier,
-            self.mode.identify()?,
-            self.typ.identify()?
+            self.identifier(),
+            self.mode().vhdl_identifier()?,
+            self.typ().vhdl_identifier()?
         ))
     }
 }
 
-impl Identify for Port {
-    fn identify(&self) -> Result<String> {
-        Ok(self.identifier.to_string())
+impl VHDLIdentifier for Port {
+    fn vhdl_identifier(&self) -> Result<String> {
+        Ok(self.identifier().to_string())
     }
 }
 
 impl Analyze for Port {
     fn list_record_types(&self) -> Vec<Type> {
-        self.typ.list_record_types()
+        self.typ().list_record_types()
     }
 }
 
 impl Declare for Component {
     fn declare(&self) -> Result<String> {
         let mut result = String::new();
-        result.push_str(format!("component {}\n", self.identifier).as_str());
-        if !self.ports.is_empty() {
-            let mut ports = self.ports.iter().peekable();
+        result.push_str(format!("component {}\n", self.identifier()).as_str());
+        if !self.ports().is_empty() {
+            let mut ports = self.ports().iter().peekable();
             result.push_str("  port(\n");
             while let Some(p) = ports.next() {
                 result.push_str("    ");
-                result.push_str(p.declare()?.to_string().as_str());
+                result.push_str(p.declare()?.as_str());
                 if ports.peek().is_some() {
                     result.push_str(";\n");
                 } else {
@@ -129,7 +133,7 @@ impl Declare for Component {
 impl Analyze for Component {
     fn list_record_types(&self) -> Vec<Type> {
         let mut result: Vec<Type> = vec![];
-        for p in &self.ports {
+        for p in self.ports().iter() {
             let children = p.list_record_types();
             result.extend(children.into_iter());
         }
@@ -149,9 +153,9 @@ impl Declare for Library {
         for c in &self.components {
             let comp_records = c.list_record_types();
             for r in comp_records.iter() {
-                match type_ids.get(&r.identify()?) {
+                match type_ids.get(&r.vhdl_identifier()?) {
                     None => {
-                        type_ids.insert(r.identify()?, r.clone());
+                        type_ids.insert(r.vhdl_identifier()?, r.clone());
                         result.push_str(format!("{}\n\n", r.declare()?).as_str());
                     }
                     Some(already_defined_type) => {
@@ -159,7 +163,7 @@ impl Declare for Library {
                             return Err(BackEndError(format!(
                                 "Type name conflict: {}",
                                 already_defined_type
-                                    .identify()
+                                    .vhdl_identifier()
                                     .unwrap_or_else(|_| "".to_string())
                             )));
                         }
@@ -182,8 +186,8 @@ mod test {
     fn test_mode_decl() {
         let m0 = Mode::In;
         let m1 = Mode::Out;
-        assert_eq!(m0.identify().unwrap(), "in");
-        assert_eq!(m1.identify().unwrap(), "out");
+        assert_eq!(m0.vhdl_identifier().unwrap(), "in");
+        assert_eq!(m1.vhdl_identifier().unwrap(), "out");
     }
 
     #[test]
