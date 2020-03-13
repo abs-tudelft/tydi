@@ -1,1 +1,11 @@
+# Clion
+.idea
+
+# Book
 book/book
+
+# Crate
+/target
+**/*.rs.bk
+Cargo.lock
+tarpaulin-report.html
