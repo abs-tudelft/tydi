@@ -1,11 +1,13 @@
+![Tydi logo](./tydi_logo.svg)
+
 # Tydi: an open specification for complex data structures over hardware streams
 
 # 1. Introduction
 
-Tydi is an open-source project that aims to standardize interfaces for 
+Tydi is an open-source project that aims to standardize interfaces for
 hardware components used in modern streaming dataflow designs.
 
-The project consists of two parts: the Tydi specification and a set of 
+The project consists of two parts: the Tydi specification and a set of
 reference implementations of useful tools.
 
 ## Specification
@@ -17,16 +19,16 @@ reading [here](./specification/index.md).
 
 ## Tools
 
-Using the Tydi specifications, reference implementations of tools are 
+Using the Tydi specifications, reference implementations of tools are
 implemented and open-sourced.
 
 1. [Generators](./tools/generators.md) (under construction)
 2. [Compositors](./tools/compositors.md) (under construction)
 
-**Generators** create HDL templates, that users may fill in with their 
-desired behavior. Tydi aims to impose *no restrictions* on what 
+**Generators** create HDL templates, that users may fill in with their
+desired behavior. Tydi aims to impose *no restrictions* on what
 hardware-description languages are used to work with the specification.
-Tydi aims to provide generators for old HDLs, such as VHDL and Verilog, 
+Tydi aims to provide generators for old HDLs, such as VHDL and Verilog,
 but also modern HDL
 
 **Compositors** are tools that combine streamlets into larger designs.
