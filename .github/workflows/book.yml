@@ -5,6 +5,8 @@ on:
     branches:
     - master
   pull_request:
+    paths:
+    - 'book/**'
 
 jobs:
   build:
@@ -37,5 +39,5 @@ jobs:
     - uses: alex-page/blazing-fast-gh-pages-deploy@v1.1.0
       with:
         repo-token: ${{ secrets.GH_PAT }}
-        site-directory: ./book/book
+        site-directory: ./book
         commit-message: Deploy to GitHub Pages
