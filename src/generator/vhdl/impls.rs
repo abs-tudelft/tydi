@@ -59,8 +59,8 @@ impl VHDLIdentifier for Type {
         // Records and arrays use type definitions.
         // Any other types are used directly.
         match self {
-            Type::Record(rec) => Ok(rec.identifier().clone().to_string()),
-            Type::Array(arr) => Ok(arr.identifier().clone().to_string()),
+            Type::Record(rec) => Ok(rec.identifier().to_string()),
+            Type::Array(arr) => Ok(arr.identifier().to_string()),
             _ => self.declare(),
         }
     }

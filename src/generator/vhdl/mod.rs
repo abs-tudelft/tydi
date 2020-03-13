@@ -117,9 +117,10 @@ impl GenerateProject for VHDLBackEnd {
     }
 }
 
-// Trait to split types and record fields into a VHDL-friendly version.
+/// Trait used to split types, ports, and record fields into a VHDL-friendly versions, since VHDL
+/// does not support bundles of wires with opposite directions.
 trait Split {
-    // Split up self into a (downstream, upstream) version, if applicable.
+    /// Split up self into a (downstream/forward, upstream/reverse) version, if applicable.
     fn split(&self) -> (Option<Self>, Option<Self>)
     where
         Self: Sized;
@@ -184,25 +185,25 @@ impl Split for Port {
     fn split(&self) -> (Option<Self>, Option<Self>) {
         let (type_down, type_up) = self.typ().split();
         (
-            type_down.and_then(|t| {
-                Some(Port::new(
+            type_down.map(|t| {
+                Port::new(
                     cat!(self.identifier(), "dn"),
                     self.mode(),
                     match t {
                         Type::Record(r) => Type::Record(r.append_name_nested("dn")),
                         _ => t,
                     },
-                ))
+                )
             }),
-            type_up.and_then(|t| {
-                Some(Port::new(
+            type_up.map(|t| {
+                Port::new(
                     cat!(self.identifier(), "up"),
                     self.mode().reversed(),
                     match t {
                         Type::Record(r) => Type::Record(r.append_name_nested("up")),
                         _ => t,
                     },
-                ))
+                )
             }),
         )
     }
@@ -212,7 +213,6 @@ impl Split for Port {
 mod test {
     use super::*;
     use crate::generator::common::test::*;
-    use crate::generator::Componentify;
     use crate::Reversed;
     use std::fs;
 
@@ -352,25 +352,6 @@ mod test {
                 Type::record("test_up", vec![Field::new("b", Type::Bit, false)])
             ))
         );
-    }
-
-    #[test]
-    fn streamlet_async() {
-        let (_, streamlet) =
-            crate::parser::nom::streamlet("Streamlet test (a : in Bits<1>, b : out Bits<1>)")
-                .unwrap();
-        println!("{}", streamlet.canonical().declare().unwrap());
-        println!("{}", streamlet.user().unwrap().declare().unwrap());
-    }
-
-    #[test]
-    fn streamlet_streams() {
-        let (_, streamlet) = crate::parser::nom::streamlet(
-            "Streamlet test (a : in Stream<Bits<1>>, b : out Stream<Bits<1>>)",
-        )
-        .unwrap();
-        println!("{}", streamlet.canonical().declare().unwrap());
-        println!("{}", streamlet.user().unwrap().declare().unwrap());
     }
 
     #[test]
