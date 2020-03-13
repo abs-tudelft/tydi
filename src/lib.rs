@@ -191,6 +191,12 @@ impl From<Name> for String {
     }
 }
 
+impl From<&Name> for String {
+    fn from(name: &Name) -> Self {
+        name.0.clone()
+    }
+}
+
 use std::ops::Deref;
 impl Deref for Name {
     type Target = str;
