@@ -157,11 +157,12 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#tydi-an-open-specification-for-complex-data-structures-over-hardware-streams" id="tydi-an-open-specification-for-complex-data-structures-over-hardware-streams">Tydi: an open specification for complex data structures over hardware streams</a></h1>
+                        <p><img src="./tydi_logo.svg" alt="Tydi logo" /></p>
+<h1><a class="header" href="#tydi-an-open-specification-for-complex-data-structures-over-hardware-streams" id="tydi-an-open-specification-for-complex-data-structures-over-hardware-streams">Tydi: an open specification for complex data structures over hardware streams</a></h1>
 <h1><a class="header" href="#1-introduction" id="1-introduction">1. Introduction</a></h1>
-<p>Tydi is an open-source project that aims to standardize interfaces for 
+<p>Tydi is an open-source project that aims to standardize interfaces for
 hardware components used in modern streaming dataflow designs.</p>
-<p>The project consists of two parts: the Tydi specification and a set of 
+<p>The project consists of two parts: the Tydi specification and a set of
 reference implementations of useful tools.</p>
 <h2><a class="header" href="#specification" id="specification">Specification</a></h2>
 <p>The Tydi (Typed dataflow interface) specification is at the core of the
@@ -169,16 +170,16 @@ project: it defines what an interface should look like and constrains its
 behavior, based on a constructively defined, low-level data type. Start
 reading <a href="./specification/index.html">here</a>.</p>
 <h2><a class="header" href="#tools" id="tools">Tools</a></h2>
-<p>Using the Tydi specifications, reference implementations of tools are 
+<p>Using the Tydi specifications, reference implementations of tools are
 implemented and open-sourced.</p>
 <ol>
 <li><a href="./tools/generators.html">Generators</a> (under construction)</li>
 <li><a href="./tools/compositors.html">Compositors</a> (under construction)</li>
 </ol>
-<p><strong>Generators</strong> create HDL templates, that users may fill in with their 
-desired behavior. Tydi aims to impose <em>no restrictions</em> on what 
+<p><strong>Generators</strong> create HDL templates, that users may fill in with their
+desired behavior. Tydi aims to impose <em>no restrictions</em> on what
 hardware-description languages are used to work with the specification.
-Tydi aims to provide generators for old HDLs, such as VHDL and Verilog, 
+Tydi aims to provide generators for old HDLs, such as VHDL and Verilog,
 but also modern HDL</p>
 <p><strong>Compositors</strong> are tools that combine streamlets into larger designs.</p>
 <h1><a class="header" href="#tydi-specification" id="tydi-specification">Tydi specification</a></h1>
