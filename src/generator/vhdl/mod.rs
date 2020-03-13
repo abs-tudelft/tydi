@@ -131,10 +131,7 @@ impl Split for Type {
         match self {
             Type::Record(rec) => {
                 let (down_rec, up_rec) = rec.split();
-                (
-                    down_rec.and_then(|r| Some(Type::Record(r))),
-                    up_rec.and_then(|r| Some(Type::Record(r))),
-                )
+                (down_rec.map(Type::Record), up_rec.map(Type::Record))
             }
             _ => (Some(self.clone()), None),
         }
@@ -147,8 +144,8 @@ impl Split for Field {
         let (down_type, up_type) = self.typ().split();
 
         let result = (
-            down_type.and_then(|t| Some(Field::new(self.identifier(), t, false))),
-            up_type.and_then(|t| Some(Field::new(self.identifier(), t, false))),
+            down_type.map(|t| Field::new(self.identifier(), t, false)),
+            up_type.map(|t| Field::new(self.identifier(), t, false)),
         );
 
         if self.is_reversed() {
@@ -167,11 +164,11 @@ impl Split for Record {
 
         for f in self.fields().into_iter() {
             let (down_field, up_field) = f.split();
-            if down_field.is_some() {
-                down_rec.insert(down_field.unwrap())
+            if let Some(df) = down_field {
+                down_rec.insert(df)
             };
-            if up_field.is_some() {
-                up_rec.insert(up_field.unwrap())
+            if let Some(uf) = up_field {
+                up_rec.insert(uf)
             };
         }
 

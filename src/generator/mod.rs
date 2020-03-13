@@ -75,7 +75,7 @@ pub trait Portify {
 /// Trait to create common representation components from things in the canonical
 /// way and user-friendly way.
 pub trait Componentify {
-    fn user(&self, suffix: Option<&str>) -> Option<Component> {
+    fn user(&self, _suffix: Option<&str>) -> Option<Component> {
         None
     }
     fn canonical(&self, suffix: Option<&str>) -> Component;

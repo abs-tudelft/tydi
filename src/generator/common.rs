@@ -148,7 +148,7 @@ impl Record {
 
     /// Returns true if the record contains a field that is reversed.
     pub fn has_reversed(&self) -> bool {
-        self.fields.iter().fold(false, |b, i| b || i.reversed)
+        self.fields.iter().any(|i| i.reversed)
     }
 
     /// Returns an iterable over the fields.
