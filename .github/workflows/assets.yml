@@ -1,0 +1,89 @@
+name: Assets
+
+on:
+  release:
+    types:
+    - created
+
+env:
+  ARGS: --release --bin tydi --features=cli
+
+jobs:
+  darwin:
+    name: Darwin
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: $ARGS
+    - name: Create archive
+      run: tar -czf tydi-${{ github.event.release.tag_name }}-x86_64-apple-darwin.tar.gz target/release/tydi
+    - uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: tydi-${{ github.event.release.tag_name }}-x86_64-apple-darwin.tar.gz
+        asset_name: tydi-${{ github.event.release.tag_name }}-x86_64-apple-darwin.tar.gz
+        asset_content_type: application/gzip
+
+  linux:
+    name: Linux
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - x86_64-pc-windows-gnu
+          - powerpc64le-unknown-linux-gnu
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: ${{ matrix.target }}
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: $ARGS --target ${{ matrix.target }}
+        use-cross: true
+    - name: Create archive
+      run: tar -czf tydi-${{ github.event.release.tag_name }}-${{ matrix.target }}.tar.gz target/${{ matrix.target }}/release/tydi
+    - uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: tydi-${{ github.event.release.tag_name }}-${{ matrix.target }}.tar.gz
+        asset_name: tydi-${{ github.event.release.tag_name }}-${{ matrix.target }}.tar.gz
+        asset_content_type: application/gzip
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: $ARGS
+    - name: Create archive
+      run: Compress-Archive target\release\tydi.exe tydi-${{ github.event.release.tag_name }}-x86_64-pc-windows-gnu.zip
+    - uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: tydi-${{ github.event.release.tag_name }}-x86_64-pc-windows-gnu.zip
+        asset_name: tydi-${{ github.event.release.tag_name }}-x86_64-pc-windows-gnu.zip
+        asset_content_type: application/zip
