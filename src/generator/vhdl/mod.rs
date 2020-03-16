@@ -17,10 +17,16 @@ use structopt::StructOpt;
 
 mod impls;
 
-/// Generate trait for VHDL declarations.
+/// Generate trait for generic VHDL declarations.
 pub trait Declare {
     /// Generate a VHDL declaration from self.
     fn declare(&self) -> Result<String>;
+}
+
+/// Generate trait for VHDL type declarations.
+pub trait DeclareType {
+    /// Generate a VHDL declaration from self.
+    fn declare(&self, is_root_type: bool) -> Result<String>;
 }
 
 /// Generate trait for VHDL identifiers.

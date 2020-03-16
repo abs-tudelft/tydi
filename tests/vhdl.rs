@@ -1,50 +1,53 @@
 /// Integration tests using the VHDL back-end.
 extern crate tydi;
 
-use tydi::generator::vhdl::Declare;
-use tydi::generator::Componentify;
-use tydi::Name;
-use tydi::UniquelyNamedBuilder;
+#[cfg(test)]
+mod tests {
+    use tydi::generator::vhdl::Declare;
+    use tydi::generator::Componentify;
+    use tydi::Name;
+    use tydi::UniquelyNamedBuilder;
 
-#[test]
-fn streamlet_async() {
-    let (_, streamlet) =
-        tydi::parser::nom::streamlet("Streamlet test (a : in Bits<1>, b : out Bits<2>)").unwrap();
-    assert_eq!(
-        streamlet.canonical(None).declare().unwrap(),
-        "component test
+    #[test]
+    fn streamlet_async() {
+        let (_, streamlet) =
+            tydi::parser::nom::streamlet("Streamlet test (a : in Bits<1>, b : out Bits<2>)")
+                .unwrap();
+        assert_eq!(
+            streamlet.canonical(None).declare().unwrap(),
+            "component test
   port(
     a : in std_logic_vector(0 downto 0);
     b : out std_logic_vector(1 downto 0)
   );
 end component;"
-    );
-    assert_eq!(
-        streamlet.user(None).unwrap().declare().unwrap(),
-        "component test
+        );
+        assert_eq!(
+            streamlet.user(None).unwrap().declare().unwrap(),
+            "component test
   port(
     a : in std_logic_vector(0 downto 0);
     b : out std_logic_vector(1 downto 0)
   );
 end component;"
-    );
-}
+        );
+    }
 
-#[test]
-fn streamlet_async_nested() {
-    let (_, streamlet) = tydi::parser::nom::streamlet(
-        "Streamlet test (a : in Group<b: Bits<1>, c: Bits<2>>, d : out Bits<1>)",
-    )
-    .unwrap();
-    let lib = tydi::design::library::Library::from_builder(
-        Name::try_new("test").unwrap(),
-        UniquelyNamedBuilder::new().with_items(vec![streamlet]),
-    );
+    #[test]
+    fn streamlet_async_nested() {
+        let (_, streamlet) = tydi::parser::nom::streamlet(
+            "Streamlet test (a : in Group<b: Bits<1>, c: Bits<2>>, d : out Bits<1>)",
+        )
+        .unwrap();
+        let lib = tydi::design::library::Library::from_builder(
+            Name::try_new("test").unwrap(),
+            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+        );
 
-    let lib: tydi::generator::common::Library = lib.unwrap().into();
-    assert_eq!(
-        lib.declare().unwrap(),
-        "package test is
+        let lib: tydi::generator::common::Library = lib.unwrap().into();
+        assert_eq!(
+            lib.declare().unwrap(),
+            "package test is
 
 component test_com
   port(
@@ -67,24 +70,24 @@ component test
 end component;
 
 end test;"
-    );
-}
+        );
+    }
 
-#[test]
-fn streamlet_streams() {
-    let (_, streamlet) = tydi::parser::nom::streamlet(
-        "Streamlet test (a : in Stream<Bits<1>>, b : out Stream<Bits<2>, d=2>)",
-    )
-    .unwrap();
-    let lib = tydi::design::library::Library::from_builder(
-        Name::try_new("test").unwrap(),
-        UniquelyNamedBuilder::new().with_items(vec![streamlet]),
-    );
+    #[test]
+    fn streamlet_streams() {
+        let (_, streamlet) = tydi::parser::nom::streamlet(
+            "Streamlet test (a : in Stream<Bits<1>>, b : out Stream<Bits<2>, d=2>)",
+        )
+        .unwrap();
+        let lib = tydi::design::library::Library::from_builder(
+            Name::try_new("test").unwrap(),
+            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+        );
 
-    let lib: tydi::generator::common::Library = lib.unwrap().into();
-    assert_eq!(
-        lib.declare().unwrap(),
-        "package test is
+        let lib: tydi::generator::common::Library = lib.unwrap().into();
+        assert_eq!(
+            lib.declare().unwrap(),
+            "package test is
 
 component test_com
   port(
@@ -99,46 +102,54 @@ component test_com
   );
 end component;
 
-record test_a_type
+record test_a_dn_type
   valid : std_logic;
-  ready : std_logic;
   data : std_logic_vector(0 downto 0);
 end record;
 
-record test_b_type
-  valid : std_logic;
+record test_a_up_type
   ready : std_logic;
+end record;
+
+record test_b_dn_type
+  valid : std_logic;
   data : std_logic_vector(1 downto 0);
   last : std_logic_vector(1 downto 0);
   strb : std_logic_vector(0 downto 0);
 end record;
 
+record test_b_up_type
+  ready : std_logic;
+end record;
+
 component test
   port(
-    a : in test_a_type;
-    b : out test_b_type
+    a_dn : in test_a_dn_type;
+    a_up : out test_a_up_type;
+    b_dn : out test_b_dn_type;
+    b_up : in test_b_up_type
   );
 end component;
 
 end test;"
-    );
-}
+        );
+    }
 
-#[test]
-fn streamlet_group_async_streams() {
-    let (_, streamlet) = tydi::parser::nom::streamlet(
-        "Streamlet test (a : in Group<b:Bits<2>, c:Stream<Bits<1>>>, d : out Stream<Bits<1>>)",
-    )
-    .unwrap();
-    let lib = tydi::design::library::Library::from_builder(
-        Name::try_new("test").unwrap(),
-        UniquelyNamedBuilder::new().with_items(vec![streamlet]),
-    );
+    #[test]
+    fn streamlet_group_async_streams() {
+        let (_, streamlet) = tydi::parser::nom::streamlet(
+            "Streamlet test (a : in Group<b:Bits<2>, c:Stream<Bits<1>>>, d : out Stream<Bits<1>>)",
+        )
+        .unwrap();
+        let lib = tydi::design::library::Library::from_builder(
+            Name::try_new("test").unwrap(),
+            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+        );
 
-    let lib: tydi::generator::common::Library = lib.unwrap().into();
-    assert_eq!(
-        lib.declare().unwrap(),
-        "package test is
+        let lib: tydi::generator::common::Library = lib.unwrap().into();
+        assert_eq!(
+            lib.declare().unwrap(),
+            "package test is
 
 component test_com
   port(
@@ -156,51 +167,59 @@ record test_a_type
   b : std_logic_vector(1 downto 0);
 end record;
 
-record test_a_c_type
+record test_a_c_dn_type
   valid : std_logic;
-  ready : std_logic;
   data : std_logic_vector(0 downto 0);
 end record;
 
-record test_d_type
-  valid : std_logic;
+record test_a_c_up_type
   ready : std_logic;
+end record;
+
+record test_d_dn_type
+  valid : std_logic;
   data : std_logic_vector(0 downto 0);
+end record;
+
+record test_d_up_type
+  ready : std_logic;
 end record;
 
 component test
   port(
     a : in test_a_type;
-    a_c : in test_a_c_type;
-    d : out test_d_type
+    a_c_dn : in test_a_c_dn_type;
+    a_c_up : out test_a_c_up_type;
+    d_dn : out test_d_dn_type;
+    d_up : in test_d_up_type
   );
 end component;
 
 end test;"
-    );
-}
+        );
+    }
 
-#[test]
-fn streamlet_async_all() {
-    let (_, streamlet) = tydi::parser::nom::streamlet(
-        "Streamlet test (
+    #[test]
+    fn streamlet_async_all() {
+        let (_, streamlet) = tydi::parser::nom::streamlet(
+            "Streamlet test (
             a : in Null,
             b : in Bits<1>,
             c : in Group<d:Bits<1>, e:Bits<2>>,
             f : in Union<g:Null, h:Bits<3>>,
             i : out Group<q:Null, r:Bits<1>, s:Group<t:Bits<1>, u:Bits<2>>, v:Union<g:Null, w:Bits<3>>>
         )",
-    )
-    .unwrap();
-    let lib = tydi::design::library::Library::from_builder(
-        Name::try_new("test").unwrap(),
-        UniquelyNamedBuilder::new().with_items(vec![streamlet]),
-    );
+        )
+            .unwrap();
+        let lib = tydi::design::library::Library::from_builder(
+            Name::try_new("test").unwrap(),
+            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+        );
 
-    let lib: tydi::generator::common::Library = lib.unwrap().into();
-    assert_eq!(
-        lib.declare().unwrap(),
-        "package test is
+        let lib: tydi::generator::common::Library = lib.unwrap().into();
+        assert_eq!(
+            lib.declare().unwrap(),
+            "package test is
 
 component test_com
   port(
@@ -253,5 +272,6 @@ component test
 end component;
 
 end test;"
-    );
+        );
+    }
 }

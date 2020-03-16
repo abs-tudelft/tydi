@@ -147,8 +147,17 @@ impl Record {
     }
 
     /// Returns true if the record contains a field that is reversed.
-    pub fn has_reversed(&self) -> bool {
+    /// Does not include nested records.
+    pub fn has_reversed_field(&self) -> bool {
         self.fields.iter().any(|i| i.reversed)
+    }
+
+    /// Returns true if the record contains a field that is reversed,
+    /// including any nested records.
+    pub fn has_reversed(&self) -> bool {
+        self.fields
+            .iter()
+            .any(|i| i.reversed || i.typ.has_reversed())
     }
 
     /// Returns an iterable over the fields.
@@ -284,6 +293,10 @@ impl Port {
     pub fn typ(&self) -> Type {
         self.typ.clone()
     }
+
+    pub fn has_reversed(&self) -> bool {
+        self.typ.has_reversed()
+    }
 }
 
 impl Identify for Port {
@@ -416,8 +429,8 @@ pub(crate) mod test {
         Type::record(
             "rec",
             vec![
-                Field::new("a", Type::Bit, false),
-                Field::new("b", Type::bitvec(4), true),
+                Field::new("c", Type::Bit, false),
+                Field::new("d", Type::bitvec(4), true),
             ],
         )
     }
@@ -458,35 +471,36 @@ pub(crate) mod test {
     }
 
     #[test]
-    fn test_flatten_rec() {
+    fn flatten_rec() {
         let flat = test_rec().flatten(vec![], false);
-        assert_eq!(flat[0].0, vec!["a".to_string()]);
+        assert_eq!(flat[0].0, vec!["c".to_string()]);
         assert_eq!(flat[0].1, Type::Bit);
         assert_eq!(flat[0].2, false);
-        assert_eq!(flat[1].0, vec!["b".to_string()]);
+        assert_eq!(flat[1].0, vec!["d".to_string()]);
         assert_eq!(flat[1].1, Type::bitvec(4));
         assert_eq!(flat[1].2, true);
     }
 
     #[test]
-    fn test_flatten_rec_nested() {
+    fn flatten_rec_nested() {
         let flat = test_rec_nested().flatten(vec![], false);
         assert_eq!(flat[0].0[0], "a".to_string());
         assert_eq!(flat[0].1, Type::Bit);
         assert_eq!(flat[0].2, false);
         assert_eq!(flat[1].0[0], "b".to_string());
-        assert_eq!(flat[1].0[1], "a".to_string());
+        assert_eq!(flat[1].0[1], "c".to_string());
         assert_eq!(flat[1].1, Type::Bit);
         assert_eq!(flat[1].2, false);
         assert_eq!(flat[2].0[0], "b".to_string());
-        assert_eq!(flat[2].0[1], "b".to_string());
+        assert_eq!(flat[2].0[1], "d".to_string());
         assert_eq!(flat[2].1, Type::bitvec(4));
         assert_eq!(flat[2].2, true);
     }
 
     #[test]
-    fn rec_has_reversed() {
+    fn has_reversed() {
         assert!(test_rec().has_reversed());
+        assert!(test_rec_nested().has_reversed());
         assert!(!Type::record(
             "test",
             vec![
