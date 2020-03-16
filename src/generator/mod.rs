@@ -110,7 +110,7 @@ impl Typify for LogicalStreamType {
 impl Typify for Group {
     fn user(&self, prefix: impl Into<String>) -> Option<Type> {
         let n: String = prefix.into();
-        let mut rec = Record::new_empty(cat!(n.clone(), "type"));
+        let mut rec = Record::new_empty(n.clone());
         for (field_name, field_logical) in self.iter() {
             if let Some(field_common_type) = field_logical.user(cat!(n.clone(), field_name)) {
                 rec.insert_new_field(field_name.to_string(), field_common_type, false)
@@ -133,7 +133,7 @@ impl Typify for Group {
 impl Typify for Union {
     fn user(&self, prefix: impl Into<String>) -> Option<Type> {
         let n: String = prefix.into();
-        let mut rec = Record::new_empty(cat!(n.clone(), "type"));
+        let mut rec = Record::new_empty(n.clone());
         if let Some((tag_name, tag_bc)) = self.tag() {
             rec.insert_new_field(tag_name, Type::bitvec(tag_bc.get()), false);
         }
@@ -188,8 +188,8 @@ impl Typify for Stream {
 
             // Set up the resulting record.
             let mut rec = Record::new_empty_stream(match name.len() {
-                0 => cat!(prefix.into(), "type"),
-                _ => cat!(prefix.into(), name, "type"),
+                0 => prefix.into(),
+                _ => cat!(prefix.into(), name),
             });
 
             // Insert data record. There must be something there since it is not null.
@@ -515,7 +515,7 @@ pub(crate) mod tests {
             assert_eq!(
                 typ0,
                 Type::record(
-                    "test_type",
+                    "test",
                     vec![
                         Field::new("valid", Type::Bit, false),
                         Field::new("ready", Type::Bit, true),
@@ -528,12 +528,12 @@ pub(crate) mod tests {
             assert_eq!(
                 typ1,
                 Type::record(
-                    "test_type",
+                    "test",
                     vec![
                         Field::new(
                             "a",
                             Type::record(
-                                "test_a_type",
+                                "test_a",
                                 vec![
                                     Field::new("valid", Type::Bit, false),
                                     Field::new("ready", Type::Bit, true),
@@ -545,7 +545,7 @@ pub(crate) mod tests {
                         Field::new(
                             "b",
                             Type::record(
-                                "test_b_type",
+                                "test_b",
                                 vec![
                                     Field::new("valid", Type::Bit, false),
                                     Field::new("ready", Type::Bit, true),

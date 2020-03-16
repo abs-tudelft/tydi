@@ -1,12 +1,11 @@
 //! Implementations of VHDL traits for common representation.
 
-use std::collections::HashMap;
-
 use crate::error::Error::BackEndError;
-use crate::generator::common::{Component, Library, Mode, Port, Type};
-use crate::generator::vhdl::{Analyze, Declare, VHDLIdentifier};
+use crate::generator::common::{Component, Library, Mode, Port, Record, Type};
+use crate::generator::vhdl::{Analyze, Declare, DeclareType, Split, VHDLIdentifier};
 use crate::traits::Identify;
-use crate::Result;
+use crate::{cat, Result};
+use std::collections::HashMap;
 
 impl VHDLIdentifier for Mode {
     fn vhdl_identifier(&self) -> Result<String> {
@@ -17,8 +16,24 @@ impl VHDLIdentifier for Mode {
     }
 }
 
-impl Declare for Type {
-    fn declare(&self) -> Result<String> {
+fn declare_rec(rec: &Record) -> Result<String> {
+    let mut result = format!("record {}\n", rec.vhdl_identifier()?);
+    for field in rec.fields() {
+        result.push_str(
+            format!(
+                "  {} : {};\n",
+                field.identifier(),
+                field.typ().vhdl_identifier()?
+            )
+            .as_str(),
+        );
+    }
+    result.push_str("end record;");
+    Ok(result)
+}
+
+impl DeclareType for Type {
+    fn declare(&self, is_root: bool) -> Result<String> {
         match self {
             Type::Bit => Ok("std_logic".to_string()),
             Type::BitVec { width } => {
@@ -30,25 +45,28 @@ impl Declare for Type {
                 ))
             }
             Type::Record(rec) => {
-                let mut result = format!("record {}\n", rec.identifier());
-                for field in rec.fields() {
-                    result.push_str(
-                        format!(
-                            "  {} : {};\n",
-                            field.identifier(),
-                            field.typ().vhdl_identifier()?
-                        )
-                        .as_str(),
-                    );
+                let mut result = String::new();
+                if rec.has_reversed() {
+                    let (dn, up) = rec.split();
+                    let suffixed_dn =
+                        dn.unwrap()
+                            .append_name_nested(if is_root { "dn" } else { "" });
+                    let suffixed_up =
+                        up.unwrap()
+                            .append_name_nested(if is_root { "up" } else { "" });
+                    result.push_str(declare_rec(&suffixed_dn)?.as_str());
+                    result.push_str("\n\n");
+                    result.push_str(declare_rec(&suffixed_up)?.as_str());
+                } else {
+                    result.push_str(declare_rec(&rec)?.as_str());
                 }
-                result.push_str("end record;");
                 Ok(result)
             }
             Type::Array(arr) => Ok(format!(
                 "array ({} to {}) of {}",
                 0,
                 arr.size - 1,
-                arr.typ.declare()?
+                arr.typ.declare(is_root)?
             )),
         }
     }
@@ -59,10 +77,16 @@ impl VHDLIdentifier for Type {
         // Records and arrays use type definitions.
         // Any other types are used directly.
         match self {
-            Type::Record(rec) => Ok(rec.identifier().to_string()),
+            Type::Record(rec) => rec.vhdl_identifier(),
             Type::Array(arr) => Ok(arr.identifier().to_string()),
-            _ => self.declare(),
+            _ => self.declare(true),
         }
+    }
+}
+
+impl VHDLIdentifier for Record {
+    fn vhdl_identifier(&self) -> Result<String> {
+        Ok(cat!(self.identifier().to_string(), "type"))
     }
 }
 
@@ -116,7 +140,27 @@ impl Declare for Component {
             result.push_str("  port(\n");
             while let Some(p) = ports.next() {
                 result.push_str("    ");
-                result.push_str(p.declare()?.as_str());
+                // If the port type has reversed fields, we need to split it up because VHDL.
+                if p.has_reversed() {
+                    let (dn, up) = p.split();
+                    match dn {
+                        None => unreachable!(),
+                        Some(dn_port) => {
+                            result.push_str(dn_port.declare()?.as_str());
+                            result.push_str(";\n");
+                        }
+                    };
+                    match up {
+                        None => unreachable!(),
+                        Some(up_port) => {
+                            result.push_str("    ");
+                            result.push_str(up_port.declare()?.as_str());
+                        }
+                    };
+                } else {
+                    result.push_str(p.declare()?.as_str());
+                }
+
                 if ports.peek().is_some() {
                     result.push_str(";\n");
                 } else {
@@ -156,7 +200,7 @@ impl Declare for Library {
                 match type_ids.get(&r.vhdl_identifier()?) {
                     None => {
                         type_ids.insert(r.vhdl_identifier()?, r.clone());
-                        result.push_str(format!("{}\n\n", r.declare()?).as_str());
+                        result.push_str(format!("{}\n\n", r.declare(true)?).as_str());
                     }
                     Some(already_defined_type) => {
                         if r != already_defined_type {
@@ -196,23 +240,30 @@ mod test {
         let t1 = Type::BitVec { width: 8 };
         let t2 = test_rec();
         let t3 = test_rec_nested();
-        assert_eq!(t0.declare().unwrap(), "std_logic");
-        assert_eq!(t1.declare().unwrap(), "std_logic_vector(7 downto 0)");
+        assert_eq!(t0.declare(true).unwrap(), "std_logic");
+        assert_eq!(t1.declare(true).unwrap(), "std_logic_vector(7 downto 0)");
         assert_eq!(
-            t2.declare().unwrap(),
+            t2.declare(true).unwrap(),
             concat!(
-                "record rec\n",
-                "  a : std_logic;\n",
-                "  b : std_logic_vector(3 downto 0);\n",
+                "record rec_dn_type\n",
+                "  c : std_logic;\n",
+                "end record;\n",
+                "\n",
+                "record rec_up_type\n",
+                "  d : std_logic_vector(3 downto 0);\n",
                 "end record;"
             )
         );
         assert_eq!(
-            t3.declare().unwrap(),
+            t3.declare(true).unwrap(),
             concat!(
-                "record rec_nested\n",
+                "record rec_nested_dn_type\n",
                 "  a : std_logic;\n",
-                "  b : rec;\n",
+                "  b : rec_dn_type;\n",
+                "end record;\n",
+                "\n",
+                "record rec_nested_up_type\n",
+                "  b : rec_up_type;\n",
                 "end record;"
             )
         );
@@ -221,7 +272,10 @@ mod test {
     #[test]
     fn test_port_decl() {
         let p = Port::new("test", Mode::In, Type::BitVec { width: 10 });
-        println!("{}", p.declare().unwrap());
+        assert_eq!(
+            "test : in std_logic_vector(9 downto 0)",
+            p.declare().unwrap()
+        );
     }
 
     #[test]
@@ -232,8 +286,10 @@ mod test {
             concat!(
                 "component test_comp\n",
                 "  port(\n",
-                "    a : in rec;\n",
-                "    b : out rec_nested\n",
+                "    a_dn : in rec_dn_type;\n",
+                "    a_up : out rec_up_type;\n",
+                "    b_dn : out rec_nested_dn_type;\n",
+                "    b_up : in rec_nested_up_type\n",
                 "  );\n",
                 "end component;"
             )
@@ -249,25 +305,35 @@ mod test {
         assert_eq!(
             p.declare().unwrap(),
             concat!(
-                "package test is\n\n",
-                "record rec\n",
-                "  a : std_logic;\n",
-                "  b : std_logic_vector(3 downto 0);\n",
+                "package test is\n",
+                "\n",
+                "record rec_dn_type\n",
+                "  c : std_logic;\n",
                 "end record;\n",
                 "\n",
-                "record rec_nested\n",
+                "record rec_up_type\n",
+                "  d : std_logic_vector(3 downto 0);\n",
+                "end record;\n",
+                "\n",
+                "record rec_nested_dn_type\n",
                 "  a : std_logic;\n",
-                "  b : rec;\n",
+                "  b : rec_dn_type;\n",
+                "end record;\n",
+                "\n",
+                "record rec_nested_up_type\n",
+                "  b : rec_up_type;\n",
                 "end record;\n",
                 "\n",
                 "component test_comp\n",
                 "  port(\n",
-                "    a : in rec;\n",
-                "    b : out rec_nested\n",
+                "    a_dn : in rec_dn_type;\n",
+                "    a_up : out rec_up_type;\n",
+                "    b_dn : out rec_nested_dn_type;\n",
+                "    b_up : in rec_nested_up_type\n",
                 "  );\n",
                 "end component;\n",
                 "\n",
-                "end test;"
+                "end test;",
             )
         )
     }
