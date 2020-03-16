@@ -515,7 +515,7 @@ pub(crate) mod tests {
             assert_eq!(
                 typ0,
                 Type::record(
-                    "test_type",
+                    "test",
                     vec![
                         Field::new("valid", Type::Bit, false),
                         Field::new("ready", Type::Bit, true),
@@ -528,12 +528,12 @@ pub(crate) mod tests {
             assert_eq!(
                 typ1,
                 Type::record(
-                    "test_type",
+                    "test",
                     vec![
                         Field::new(
                             "a",
                             Type::record(
-                                "test_a_type",
+                                "test_a",
                                 vec![
                                     Field::new("valid", Type::Bit, false),
                                     Field::new("ready", Type::Bit, true),
@@ -545,7 +545,7 @@ pub(crate) mod tests {
                         Field::new(
                             "b",
                             Type::record(
-                                "test_b_type",
+                                "test_b",
                                 vec![
                                     Field::new("valid", Type::Bit, false),
                                     Field::new("ready", Type::Bit, true),

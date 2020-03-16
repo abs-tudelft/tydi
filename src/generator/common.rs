@@ -50,6 +50,23 @@ impl Identify for Array {
 }
 
 /// A field for a `Record`.
+///
+/// A field may be "reversed" with respect to the other fields in the record.
+/// This means that when the type is used to describe a connection between an input and output port
+/// of some component, this field will have its port modes swapped.
+///
+/// # Example:
+/// ```
+/// use tydi::generator::common::{Port, Mode, Record, Field, Type};
+///
+/// let port = Port::new("example",
+///     Mode::In,
+///     Type::record("rec", vec![              // Shortcut to Type::Record(Record::new(...
+///         Field::new("a", Type::Bit, false), // This field will have a port Mode::In
+///         Field::new("b", Type::Bit, true)   // This field will have a port Mode::Out
+///     ])
+/// );
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
     /// Name of the field.
@@ -77,10 +94,12 @@ impl Field {
         }
     }
 
+    /// Returns the type of this field.
     pub fn typ(&self) -> &Type {
         &self.typ
     }
 
+    /// Returns true if this field is reversed.
     pub fn is_reversed(&self) -> bool {
         self.reversed
     }
@@ -278,6 +297,7 @@ pub struct Port {
 }
 
 impl Port {
+    /// Create a new port.
     pub fn new(name: impl Into<String>, mode: Mode, typ: Type) -> Port {
         Port {
             identifier: name.into(),
@@ -286,14 +306,17 @@ impl Port {
         }
     }
 
+    /// Return the port mode.
     pub fn mode(&self) -> Mode {
         self.mode
     }
 
+    /// Return the type of the port.
     pub fn typ(&self) -> Type {
         self.typ.clone()
     }
 
+    /// Returns true if the port type contains reversed fields.
     pub fn has_reversed(&self) -> bool {
         self.typ.has_reversed()
     }
@@ -323,6 +346,7 @@ impl Identify for Component {
 }
 
 impl Component {
+    /// Create a new component.
     pub fn new(
         identifier: impl Into<String>,
         parameters: Vec<Parameter>,
@@ -335,10 +359,12 @@ impl Component {
         }
     }
 
+    /// Return a reference to the ports of this component.
     pub fn ports(&self) -> &Vec<Port> {
         &self.ports
     }
 
+    /// Return a reference to the parameters of this component.
     pub fn parameters(&self) -> &Vec<Parameter> {
         &self.parameters
     }
@@ -397,7 +423,7 @@ pub(crate) mod test {
 
         pub(crate) fn rec(name: impl Into<String>) -> Type {
             Type::record(
-                cat!(name.into(), "type"),
+                name.into(),
                 vec![
                     Field::new("a", Type::bitvec(42), false),
                     Field::new("b", Type::bitvec(1337), false),
@@ -406,18 +432,15 @@ pub(crate) mod test {
         }
 
         pub(crate) fn rec_of_single(name: impl Into<String>) -> Type {
-            Type::record(
-                cat!(name.into(), "type"),
-                vec![Field::new("a", Type::bitvec(42), false)],
-            )
+            Type::record(name.into(), vec![Field::new("a", Type::bitvec(42), false)])
         }
 
         pub(crate) fn rec_nested(name: impl Into<String>) -> Type {
             let n: String = name.into();
             Type::record(
-                cat!(n, "type"),
+                n.clone(),
                 vec![
-                    Field::new("c", rec(cat!(n, "c")), false),
+                    Field::new("c", rec(cat!(n.clone(), "c")), false),
                     Field::new("d", rec(cat!(n, "d")), false),
                 ],
             )
