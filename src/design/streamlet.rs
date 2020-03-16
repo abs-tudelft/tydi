@@ -1,8 +1,8 @@
 //! This module contains the Streamlet structure.
 //!
-//! A streamlet is a component where every [Interface] has a [LogicalStreamType].
+//! A streamlet is a component where every [Interface] has a [LogicalType].
 
-use crate::logical::LogicalStreamType;
+use crate::logical::LogicalType;
 use crate::traits::Identify;
 use crate::util::UniquelyNamedBuilder;
 use crate::{Document, Error, Name, Result};
@@ -83,7 +83,7 @@ impl FromStr for Mode {
 pub struct Interface {
     name: Name,
     mode: Mode,
-    typ: LogicalStreamType,
+    typ: LogicalType,
     doc: Option<String>,
 }
 
@@ -92,7 +92,7 @@ impl Interface {
         self.mode
     }
 
-    pub fn typ(&self) -> LogicalStreamType {
+    pub fn typ(&self) -> LogicalType {
         self.typ.clone()
     }
 }
@@ -107,13 +107,13 @@ impl Interface {
     pub fn try_new(
         name: impl TryInto<Name, Error = impl Into<Box<dyn std::error::Error>>>,
         mode: Mode,
-        typ: impl TryInto<LogicalStreamType, Error = impl Into<Box<dyn std::error::Error>>>,
+        typ: impl TryInto<LogicalType, Error = impl Into<Box<dyn std::error::Error>>>,
         doc: Option<String>,
     ) -> Result<Self> {
         let n: Name = name
             .try_into()
             .map_err(|e| Error::InterfaceError(e.into().to_string()))?;
-        let t: LogicalStreamType = typ
+        let t: LogicalType = typ
             .try_into()
             .map_err(|e| Error::InterfaceError(e.into().to_string()))?;
         match n.to_string().as_str() {
@@ -151,8 +151,8 @@ pub mod tests {
             Streamlet::from_builder(
                 Name::try_new(name).unwrap(),
                 UniquelyNamedBuilder::new().with_items(vec![
-                    Interface::try_new("a", Mode::In, LogicalStreamType::Null, None).unwrap(),
-                    Interface::try_new("b", Mode::Out, LogicalStreamType::Null, None).unwrap(),
+                    Interface::try_new("a", Mode::In, LogicalType::Null, None).unwrap(),
+                    Interface::try_new("b", Mode::Out, LogicalType::Null, None).unwrap(),
                 ]),
                 None,
             )

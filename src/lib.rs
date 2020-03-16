@@ -282,11 +282,18 @@ impl PathName {
         self.0.push(name.into())
     }
 
+    pub(crate) fn with_parents(&self, path: impl Into<PathName>) -> PathName {
+        let parent = path.into();
+        let mut result: Vec<Name> = Vec::with_capacity(self.len() + parent.len());
+        result.extend(parent.0.into_iter());
+        result.extend(self.0.clone().into_iter());
+        PathName::new(result.into_iter())
+    }
+
     pub(crate) fn with_parent(&self, name: impl Into<Name>) -> PathName {
         let mut result: Vec<Name> = Vec::with_capacity(self.len() + 1);
         result.push(name.into());
-        let mut names = self.0.clone().into_iter();
-        result.extend(&mut names);
+        result.extend(self.0.clone().into_iter());
         PathName::new(result.into_iter())
     }
 
@@ -321,6 +328,12 @@ impl fmt::Display for PathName {
             result.push_str("");
         }
         write!(f, "{}", result)
+    }
+}
+
+impl AsRef<[Name]> for PathName {
+    fn as_ref(&self) -> &[Name] {
+        self.0.as_slice()
     }
 }
 
