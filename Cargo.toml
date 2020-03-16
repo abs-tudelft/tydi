@@ -1,6 +1,6 @@
 [package]
 name = "tydi"
-version = "0.0.2"
+version = "0.0.3"
 description = "An HDL code generation utility for components described using the Tydi open specification."
 authors = ["Johan Peltenburg", "Jeroen van Straten", "Matthijs Brobbel"]
 edition = "2018"
