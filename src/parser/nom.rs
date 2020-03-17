@@ -241,9 +241,11 @@ pub fn mode(input: &str) -> Result<&str, Mode> {
 }
 
 pub fn interface(input: &str) -> Result<&str, Interface> {
-    map(
+    map_res(
         tuple((w(name), w(tag(":")), mode, multispace1, logical_stream_type)),
-        |(n, _, m, _, t): (Name, _, Mode, _, LogicalStreamType)| Interface::new(n, m, t),
+        |(n, _, m, _, t): (Name, _, Mode, _, LogicalStreamType)| {
+            Interface::try_new(n, m, t).map_err(|_| ())
+        },
     )(input)
 }
 

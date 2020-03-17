@@ -325,15 +325,24 @@ impl Componentify for Streamlet {
         Some(Component::new(
             cat!(self.identifier().to_string(), suffix.unwrap_or("")),
             vec![],
-            self.interfaces()
-                .into_iter()
-                .flat_map(|interface| {
-                    interface.user(
-                        interface.identifier(),
-                        cat!(self.identifier().to_string(), interface.identifier()),
-                    )
-                })
-                .collect(),
+            {
+                let mut all_ports: Vec<Port> = vec![
+                    Port::new("clk", Mode::In, Type::Bit),
+                    Port::new("rst", Mode::In, Type::Bit),
+                ];
+                all_ports.extend(
+                    self.interfaces()
+                        .into_iter()
+                        .flat_map(|interface| {
+                            interface.user(
+                                interface.identifier(),
+                                cat!(self.identifier().to_string(), interface.identifier()),
+                            )
+                        })
+                        .collect::<Vec<Port>>(),
+                );
+                all_ports
+            },
         ))
     }
 
@@ -342,7 +351,12 @@ impl Componentify for Streamlet {
             cat!(self.identifier().to_string(), suffix.unwrap_or("")),
             vec![],
             {
-                let mut all_ports = Vec::new();
+                // Always add clock and reset for now.
+                // TODO(johanpel): at some point we need to associate interfaces with clock domains.
+                let mut all_ports = vec![
+                    Port::new("clk", Mode::In, Type::Bit),
+                    Port::new("rst", Mode::In, Type::Bit),
+                ];
                 self.interfaces().into_iter().for_each(|interface| {
                     all_ports.extend(interface.canonical(interface.identifier()));
                 });

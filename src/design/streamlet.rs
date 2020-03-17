@@ -59,6 +59,9 @@ impl FromStr for Mode {
     }
 }
 
+/// A Streamlet interface.
+///
+/// The names "clk" and "rst" are reserved.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Interface {
     name: Name,
@@ -82,25 +85,25 @@ impl crate::traits::Identify for Interface {
     }
 }
 
-type BoxedStdError = Box<dyn std::error::Error>;
-
 impl Interface {
-    pub fn new(name: impl Into<Name>, mode: Mode, typ: impl Into<LogicalStreamType>) -> Self {
-        Interface {
-            name: name.into(),
-            mode,
-            typ: typ.into(),
-        }
-    }
     pub fn try_new(
-        name: impl TryInto<Name, Error = impl Into<BoxedStdError>>,
+        name: impl TryInto<Name, Error = impl Into<Box<dyn std::error::Error>>>,
         mode: Mode,
-        typ: impl TryInto<LogicalStreamType, Error = impl Into<BoxedStdError>>,
+        typ: impl TryInto<LogicalStreamType, Error = impl Into<Box<dyn std::error::Error>>>,
     ) -> Result<Self> {
-        Ok(Interface {
-            name: name.try_into().map_err(Into::into)?,
-            mode,
-            typ: typ.try_into().map_err(Into::into)?,
-        })
+        let n: Name = name
+            .try_into()
+            .map_err(|e| Error::InterfaceError(e.into().to_string()))?;
+        let t: LogicalStreamType = typ
+            .try_into()
+            .map_err(|e| Error::InterfaceError(e.into().to_string()))?;
+        match n.to_string().as_str() {
+            "clk" | "rst" => Err(Error::InterfaceError(format!("Name {} forbidden.", n))),
+            _ => Ok(Interface {
+                name: n,
+                mode,
+                typ: t,
+            }),
+        }
     }
 }

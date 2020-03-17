@@ -17,6 +17,8 @@ mod tests {
             streamlet.canonical(None).declare().unwrap(),
             "component test
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a : in std_logic_vector(0 downto 0);
     b : out std_logic_vector(1 downto 0)
   );
@@ -26,6 +28,8 @@ end component;"
             streamlet.user(None).unwrap().declare().unwrap(),
             "component test
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a : in std_logic_vector(0 downto 0);
     b : out std_logic_vector(1 downto 0)
   );
@@ -51,6 +55,8 @@ end component;"
 
 component test_com
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a_b : in std_logic_vector(0 downto 0);
     a_c : in std_logic_vector(1 downto 0);
     d : out std_logic_vector(0 downto 0)
@@ -64,6 +70,8 @@ end record;
 
 component test
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a : in test_a_type;
     d : out std_logic_vector(0 downto 0)
   );
@@ -91,6 +99,8 @@ end test;"
 
 component test_com
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a_valid : in std_logic;
     a_ready : out std_logic;
     a_data : in std_logic_vector(0 downto 0);
@@ -124,6 +134,8 @@ end record;
 
 component test
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a_dn : in test_a_dn_type;
     a_up : out test_a_up_type;
     b_dn : out test_b_dn_type;
@@ -153,6 +165,8 @@ end test;"
 
 component test_com
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a_valid : in std_logic;
     a_ready : out std_logic;
     a_data : in std_logic_vector(2 downto 0)
@@ -175,6 +189,8 @@ end record;
 
 component test
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a_dn : in test_a_dn_type;
     a_up : out test_a_up_type
   );
@@ -202,6 +218,8 @@ end test;"
 
 component test_com
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a_b : in std_logic_vector(1 downto 0);
     a_c_valid : in std_logic;
     a_c_ready : out std_logic;
@@ -236,6 +254,8 @@ end record;
 
 component test
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a : in test_a_type;
     a_c_dn : in test_a_c_dn_type;
     a_c_up : out test_a_c_up_type;
@@ -272,6 +292,8 @@ end test;"
 
 component test_com
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     b : in std_logic_vector(0 downto 0);
     c_d : in std_logic_vector(0 downto 0);
     c_e : in std_logic_vector(1 downto 0);
@@ -313,6 +335,8 @@ end record;
 
 component test
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     b : in std_logic_vector(0 downto 0);
     c : in test_c_type;
     f : in test_f_type;
