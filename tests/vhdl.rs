@@ -136,6 +136,55 @@ end test;"
     }
 
     #[test]
+    fn streamlet_stream_group() {
+        let (_, streamlet) = tydi::parser::nom::streamlet(
+            "Streamlet test (a : in Stream<Group<b:Bits<1>, c:Bits<2>>>)",
+        )
+        .unwrap();
+        let lib = tydi::design::library::Library::from_builder(
+            Name::try_new("test").unwrap(),
+            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+        );
+
+        let lib: tydi::generator::common::Library = lib.unwrap().into();
+        assert_eq!(
+            lib.declare().unwrap(),
+            "package test is
+
+component test_com
+  port(
+    a_valid : in std_logic;
+    a_ready : out std_logic;
+    a_data : in std_logic_vector(2 downto 0)
+  );
+end component;
+
+record test_a_data_dn_type
+  b : std_logic_vector(0 downto 0);
+  c : std_logic_vector(1 downto 0);
+end record;
+
+record test_a_dn_type
+  valid : std_logic;
+  data : test_a_data_dn_type;
+end record;
+
+record test_a_up_type
+  ready : std_logic;
+end record;
+
+component test
+  port(
+    a_dn : in test_a_dn_type;
+    a_up : out test_a_up_type
+  );
+end component;
+
+end test;"
+        );
+    }
+
+    #[test]
     fn streamlet_group_async_streams() {
         let (_, streamlet) = tydi::parser::nom::streamlet(
             "Streamlet test (a : in Group<b:Bits<2>, c:Stream<Bits<1>>>, d : out Stream<Bits<1>>)",
@@ -246,12 +295,6 @@ record test_f_type
   h : std_logic_vector(2 downto 0);
 end record;
 
-record test_i_type
-  r : std_logic_vector(0 downto 0);
-  s : test_i_s_type;
-  v : test_i_v_type;
-end record;
-
 record test_i_s_type
   t : std_logic_vector(0 downto 0);
   u : std_logic_vector(1 downto 0);
@@ -260,6 +303,12 @@ end record;
 record test_i_v_type
   tag : std_logic_vector(0 downto 0);
   w : std_logic_vector(2 downto 0);
+end record;
+
+record test_i_type
+  r : std_logic_vector(0 downto 0);
+  s : test_i_s_type;
+  v : test_i_v_type;
 end record;
 
 component test

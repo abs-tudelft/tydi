@@ -843,7 +843,7 @@ pub(crate) mod tests {
         }
 
         pub(crate) fn group() -> LogicalStreamType {
-            LogicalStreamType::try_new_group(vec![("a", prim(42)), ("b", prim(1337))]).unwrap()
+            LogicalStreamType::try_new_group(vec![("c", prim(42)), ("d", prim(1337))]).unwrap()
         }
 
         pub(crate) fn group_of_single() -> LogicalStreamType {
@@ -851,7 +851,7 @@ pub(crate) mod tests {
         }
 
         pub(crate) fn group_nested() -> LogicalStreamType {
-            LogicalStreamType::try_new_group(vec![("c", group()), ("d", group())]).unwrap()
+            LogicalStreamType::try_new_group(vec![("a", group()), ("b", group())]).unwrap()
         }
     }
 

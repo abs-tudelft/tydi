@@ -425,8 +425,18 @@ pub(crate) mod test {
             Type::record(
                 name.into(),
                 vec![
-                    Field::new("a", Type::bitvec(42), false),
-                    Field::new("b", Type::bitvec(1337), false),
+                    Field::new("c", Type::bitvec(42), false),
+                    Field::new("d", Type::bitvec(1337), false),
+                ],
+            )
+        }
+
+        pub(crate) fn rec_rev(name: impl Into<String>) -> Type {
+            Type::record(
+                name.into(),
+                vec![
+                    Field::new("c", Type::bitvec(42), false),
+                    Field::new("d", Type::bitvec(1337), true),
                 ],
             )
         }
@@ -435,37 +445,27 @@ pub(crate) mod test {
             Type::record(name.into(), vec![Field::new("a", Type::bitvec(42), false)])
         }
 
+        pub(crate) fn rec_rev_nested(name: impl Into<String>) -> Type {
+            let n: String = name.into();
+            Type::record(
+                n.clone(),
+                vec![
+                    Field::new("a", rec(cat!(n.clone(), "a")), false),
+                    Field::new("b", rec_rev(cat!(n, "b")), false),
+                ],
+            )
+        }
+
         pub(crate) fn rec_nested(name: impl Into<String>) -> Type {
             let n: String = name.into();
             Type::record(
                 n.clone(),
                 vec![
-                    Field::new("c", rec(cat!(n.clone(), "c")), false),
-                    Field::new("d", rec(cat!(n, "d")), false),
+                    Field::new("a", rec(cat!(n.clone(), "a")), false),
+                    Field::new("b", rec(cat!(n, "b")), false),
                 ],
             )
         }
-    }
-
-    // Some structs from this mod to be used in tests:
-    pub fn test_rec() -> Type {
-        Type::record(
-            "rec",
-            vec![
-                Field::new("c", Type::Bit, false),
-                Field::new("d", Type::bitvec(4), true),
-            ],
-        )
-    }
-
-    pub fn test_rec_nested() -> Type {
-        Type::record(
-            cat!("rec", "nested"),
-            vec![
-                Field::new("a", Type::Bit, false),
-                Field::new("b", test_rec(), false),
-            ],
-        )
     }
 
     pub fn test_comp() -> Component {
@@ -473,8 +473,8 @@ pub(crate) mod test {
             identifier: "test_comp".to_string(),
             parameters: vec![],
             ports: vec![
-                Port::new("a", Mode::In, test_rec()),
-                Port::new("b", Mode::Out, test_rec_nested()),
+                Port::new("a", Mode::In, records::rec_rev("a")),
+                Port::new("b", Mode::Out, records::rec_rev_nested("b")),
             ],
         }
     }
@@ -495,35 +495,41 @@ pub(crate) mod test {
 
     #[test]
     fn flatten_rec() {
-        let flat = test_rec().flatten(vec![], false);
+        let flat = records::rec("test").flatten(vec![], false);
         assert_eq!(flat[0].0, vec!["c".to_string()]);
-        assert_eq!(flat[0].1, Type::Bit);
+        assert_eq!(flat[0].1, Type::bitvec(42));
         assert_eq!(flat[0].2, false);
         assert_eq!(flat[1].0, vec!["d".to_string()]);
-        assert_eq!(flat[1].1, Type::bitvec(4));
-        assert_eq!(flat[1].2, true);
+        assert_eq!(flat[1].1, Type::bitvec(1337));
+        assert_eq!(flat[1].2, false);
     }
 
     #[test]
     fn flatten_rec_nested() {
-        let flat = test_rec_nested().flatten(vec![], false);
+        let flat = records::rec_nested("test").flatten(vec![], false);
+        dbg!(&flat);
         assert_eq!(flat[0].0[0], "a".to_string());
-        assert_eq!(flat[0].1, Type::Bit);
+        assert_eq!(flat[0].0[1], "c".to_string());
+        assert_eq!(flat[0].1, Type::bitvec(42));
         assert_eq!(flat[0].2, false);
-        assert_eq!(flat[1].0[0], "b".to_string());
-        assert_eq!(flat[1].0[1], "c".to_string());
-        assert_eq!(flat[1].1, Type::Bit);
+        assert_eq!(flat[1].0[0], "a".to_string());
+        assert_eq!(flat[1].0[1], "d".to_string());
+        assert_eq!(flat[1].1, Type::bitvec(1337));
         assert_eq!(flat[1].2, false);
         assert_eq!(flat[2].0[0], "b".to_string());
-        assert_eq!(flat[2].0[1], "d".to_string());
-        assert_eq!(flat[2].1, Type::bitvec(4));
-        assert_eq!(flat[2].2, true);
+        assert_eq!(flat[2].0[1], "c".to_string());
+        assert_eq!(flat[2].1, Type::bitvec(42));
+        assert_eq!(flat[2].2, false);
+        assert_eq!(flat[3].0[0], "b".to_string());
+        assert_eq!(flat[3].0[1], "d".to_string());
+        assert_eq!(flat[3].1, Type::bitvec(1337));
+        assert_eq!(flat[3].2, false);
     }
 
     #[test]
     fn has_reversed() {
-        assert!(test_rec().has_reversed());
-        assert!(test_rec_nested().has_reversed());
+        assert!(records::rec_rev("test").has_reversed());
+        assert!(records::rec_rev_nested("test").has_reversed());
         assert!(!Type::record(
             "test",
             vec![

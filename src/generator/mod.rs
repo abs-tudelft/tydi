@@ -167,6 +167,7 @@ impl Typify for Stream {
     /// This implementation for Stream assumes the parent LogicalStreamType has already been
     /// flattened through synthesize.
     fn user(&self, prefix: impl Into<String>) -> Option<Type> {
+        let pre: String = prefix.into();
         // We need to wrap the Stream back into a LogicalStreamType
         // to be able to use various methods for checks and synthesize.
         let logical = LogicalStreamType::from(self.clone());
@@ -188,12 +189,16 @@ impl Typify for Stream {
 
             // Set up the resulting record.
             let mut rec = Record::new_empty_stream(match name.len() {
-                0 => prefix.into(),
-                _ => cat!(prefix.into(), name),
+                0 => pre.clone(),
+                _ => cat!(pre.clone(), name),
             });
 
             // Insert data record. There must be something there since it is not null.
-            rec.insert_new_field("data", self.data().user("data").unwrap(), false);
+            rec.insert_new_field(
+                "data",
+                self.data().user(cat!(pre, name, "data")).unwrap(),
+                false,
+            );
 
             // Check signals related to dimensionality, complexity, etc.
             if let Some(sig) = signals.last() {
@@ -415,12 +420,12 @@ pub(crate) mod tests {
                 typ0,
                 vec![
                     Signal::vec(
-                        "test_a".to_string(),
+                        "test_c".to_string(),
                         Origin::Source,
                         Positive::new(42).unwrap()
                     ),
                     Signal::vec(
-                        "test_b".to_string(),
+                        "test_d".to_string(),
                         Origin::Source,
                         Positive::new(1337).unwrap()
                     )
@@ -432,22 +437,22 @@ pub(crate) mod tests {
                 typ1,
                 vec![
                     Signal::vec(
-                        "test_c_a".to_string(),
+                        "test_a_c".to_string(),
                         Origin::Source,
                         Positive::new(42).unwrap()
                     ),
                     Signal::vec(
-                        "test_c_b".to_string(),
+                        "test_a_d".to_string(),
                         Origin::Source,
                         Positive::new(1337).unwrap()
                     ),
                     Signal::vec(
-                        "test_d_a".to_string(),
+                        "test_b_c".to_string(),
                         Origin::Source,
                         Positive::new(42).unwrap()
                     ),
                     Signal::vec(
-                        "test_d_b".to_string(),
+                        "test_b_d".to_string(),
                         Origin::Source,
                         Positive::new(1337).unwrap()
                     ),
