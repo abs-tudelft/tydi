@@ -1,36 +1,13 @@
-//! Common hardware representation for back-ends.
+//! Common hardware representation.
 //!
-//! The goal of this module is to define a common representation of the hardware structure to be
-//! generated, before selecting a specific back-end to generate some language-specific sources.
-//!
-//! # Examples:
-//!
-//! ```
-//! use tydi::generator::{
-//!     chisel::ChiselBackEnd, vhdl::VHDLBackEnd,
-//!     common::Project,
-//!     GenerateProject
-//! };
-//!
-//! let tmpdir = tempfile::tempdir()?;
-//! let path = tmpdir.path().join("output");
-//!
-//! let proj = Project {
-//!     identifier: "MyProj".to_string(),
-//!     libraries: vec![ /*stuff*/]
-//! };
-//!
-//! let vhdl = VHDLBackEnd::default();
-//! //let chisel = ChiselBackEnd::default();
-//!
-//! vhdl.generate(&proj, &path.join("vhdl"));
-//! //chisel.generate(&proj, &path.join("chisel"));
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! ```
+//! The goal of this module is to define some common constructs seen in structural hardware
+//! generation that back-ends may or may not use.
 
 use crate::cat;
 use crate::traits::Identify;
 use crate::{NonNegative, Reversed};
+
+pub mod convert;
 
 /// Inner struct for `Type::Array`
 #[derive(Debug, Clone, PartialEq)]
@@ -389,22 +366,20 @@ impl Component {
 
 /// A library of components and types.
 #[derive(Debug)]
-pub struct Library {
+pub struct Package {
     /// The identifier.
     pub identifier: String,
-    /// The components declared within the library.
+    /// The components declared within the library.66
     pub components: Vec<Component>,
 }
 
 /// A project with libraries
-// TODO(johanpel): consider renaming this, because project might imply some EDA tool-specific
-//                 project
 #[derive(Debug)]
 pub struct Project {
     /// The name of the project.
     pub identifier: String,
     /// The libraries contained within the projects.
-    pub libraries: Vec<Library>,
+    pub libraries: Vec<Package>,
 }
 
 #[cfg(test)]
@@ -476,20 +451,6 @@ pub(crate) mod test {
                 Port::new("a", Mode::In, records::rec_rev("a")),
                 Port::new("b", Mode::Out, records::rec_rev_nested("b")),
             ],
-        }
-    }
-
-    pub fn test_lib() -> Library {
-        Library {
-            identifier: "lib".to_string(),
-            components: vec![test_comp()],
-        }
-    }
-
-    pub fn test_proj() -> Project {
-        Project {
-            identifier: "proj".to_string(),
-            libraries: vec![test_lib()],
         }
     }
 

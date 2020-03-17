@@ -1,7 +1,7 @@
 //! Implementations of VHDL traits for common representation.
 
 use crate::error::Error::BackEndError;
-use crate::generator::common::{Component, Library, Mode, Port, Record, Type};
+use crate::generator::common::{Component, Mode, Package, Port, Record, Type};
 use crate::generator::vhdl::{Analyze, Declare, DeclareType, Split, VHDLIdentifier};
 use crate::traits::Identify;
 use crate::{cat, Result};
@@ -192,15 +192,16 @@ impl Analyze for Component {
     }
 }
 
-impl Declare for Library {
+impl Declare for Package {
     fn declare(&self) -> Result<String> {
+        let mut result = String::new();
+        result.push_str(format!("package {} is\n\n", self.identifier).as_str());
+
         // Whatever generated the common representation is responsible to not to use the same
         // identifiers for different types.
         // Use a set to remember which type identifiers we've already used, so we don't declare
         // them twice, and produce an error otherwise.
         let mut type_ids = HashMap::<String, Type>::new();
-        let mut result = String::new();
-        result.push_str(format!("package {} is\n\n", self.identifier).as_str());
         for c in &self.components {
             let comp_records = c.list_record_types();
             for r in comp_records.iter() {
@@ -324,7 +325,7 @@ end component;"
 
     #[test]
     fn package_decl() {
-        let p = Library {
+        let p = Package {
             identifier: "test".to_string(),
             components: vec![test_comp()],
         };

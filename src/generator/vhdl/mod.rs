@@ -3,6 +3,7 @@
 //! This module contains functionality to convert hardware defined in the common hardware
 //! representation to VHDL source files.
 
+use crate::design::Project;
 use crate::generator::common::*;
 use crate::generator::GenerateProject;
 use crate::{Error, Result, Reversed};
@@ -10,6 +11,7 @@ use log::debug;
 use std::path::Path;
 
 use crate::cat;
+use crate::generator::common::convert::Packify;
 use crate::traits::Identify;
 use std::str::FromStr;
 #[cfg(feature = "cli")]
@@ -29,6 +31,12 @@ pub trait DeclareType {
     fn declare(&self, is_root_type: bool) -> Result<String>;
 }
 
+/// Generate trait for VHDL package declarations.
+pub trait DeclareLibrary {
+    /// Generate a VHDL declaration from self.
+    fn declare(&self, abstraction: AbstractionLevel) -> Result<String>;
+}
+
 /// Generate trait for VHDL identifiers.
 pub trait VHDLIdentifier {
     /// Generate a VHDL identifier from self.
@@ -42,11 +50,17 @@ pub trait Analyze {
 }
 
 /// Abstraction levels
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "cli", derive(StructOpt))]
 pub enum AbstractionLevel {
     Canonical,
     Fancy,
+}
+
+impl Default for AbstractionLevel {
+    fn default() -> Self {
+        AbstractionLevel::Fancy
+    }
 }
 
 impl FromStr for AbstractionLevel {
@@ -54,7 +68,7 @@ impl FromStr for AbstractionLevel {
 
     fn from_str(s: &str) -> Result<Self> {
         match s {
-            "canonical" => Ok(AbstractionLevel::Canonical),
+            "canon" => Ok(AbstractionLevel::Canonical),
             "fancy" => Ok(AbstractionLevel::Fancy),
             _ => Err(Error::InvalidArgument(s.to_string())),
         }
@@ -80,6 +94,12 @@ pub struct VHDLConfig {
     suffix: Option<String>,
 }
 
+impl VHDLConfig {
+    pub fn abstraction(&self) -> AbstractionLevel {
+        self.abstraction.unwrap_or_default()
+    }
+}
+
 impl Default for VHDLConfig {
     fn default() -> Self {
         VHDLConfig {
@@ -96,6 +116,12 @@ pub struct VHDLBackEnd {
     config: VHDLConfig,
 }
 
+impl VHDLBackEnd {
+    pub fn config(&self) -> &VHDLConfig {
+        &self.config
+    }
+}
+
 impl From<VHDLConfig> for VHDLBackEnd {
     fn from(config: VHDLConfig) -> Self {
         VHDLBackEnd { config }
@@ -106,17 +132,24 @@ impl GenerateProject for VHDLBackEnd {
     fn generate(&self, project: &Project, path: impl AsRef<Path>) -> Result<()> {
         // Create the project directory.
         let mut dir = path.as_ref().to_path_buf();
-        dir.push(project.identifier.clone());
+        dir.push(project.identifier());
         std::fs::create_dir_all(dir.as_path())?;
 
-        for lib in project.libraries.iter() {
+        for lib in project.libraries().iter() {
             let mut pkg = dir.clone();
-            pkg.push(format!("{}_pkg", lib.identifier));
+            pkg.push(format!("{}_pkg", lib.identifier()));
             pkg.set_extension(match self.config.suffix.clone() {
                 None => "vhd".to_string(),
                 Some(s) => format!("{}.vhd", s),
             });
-            std::fs::write(pkg.as_path(), lib.declare()?)?;
+            std::fs::write(
+                pkg.as_path(),
+                match self.config().abstraction() {
+                    AbstractionLevel::Canonical => lib.canonical(),
+                    AbstractionLevel::Fancy => lib.fancy(),
+                }
+                .declare()?,
+            )?;
             debug!("Wrote {}.", pkg.as_path().to_str().unwrap_or(""));
         }
         Ok(())
@@ -215,7 +248,6 @@ impl Split for Port {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::generator::common::test::*;
     use crate::Reversed;
     use std::fs;
 
@@ -366,7 +398,7 @@ mod test {
             vec![],
             vec![Port::new("q", Mode::In, t0), Port::new("r", Mode::Out, t1)],
         );
-        let p = Library {
+        let p = Package {
             identifier: "lib".to_string(),
             components: vec![c],
         };
@@ -382,7 +414,9 @@ mod test {
         let tmpdir = tempfile::tempdir()?;
         let path = tmpdir.path().join("__test");
 
-        assert!(v.generate(&test_proj(), &path).is_ok());
+        assert!(v
+            .generate(&crate::design::project::tests::proj::empty_proj(), &path)
+            .is_ok());
 
         // Check if files were correctly generated.
         assert!(fs::metadata(&path).is_ok());

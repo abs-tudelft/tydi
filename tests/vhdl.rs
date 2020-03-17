@@ -3,8 +3,8 @@ extern crate tydi;
 
 #[cfg(test)]
 mod tests {
+    use tydi::generator::common::convert::{Componentify, Packify};
     use tydi::generator::vhdl::Declare;
-    use tydi::generator::Componentify;
     use tydi::Name;
     use tydi::UniquelyNamedBuilder;
 
@@ -48,7 +48,7 @@ end component;"
             UniquelyNamedBuilder::new().with_items(vec![streamlet]),
         );
 
-        let lib: tydi::generator::common::Library = lib.unwrap().into();
+        let lib: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             lib.declare().unwrap(),
             "package test is
@@ -92,7 +92,7 @@ end test;"
             UniquelyNamedBuilder::new().with_items(vec![streamlet]),
         );
 
-        let lib: tydi::generator::common::Library = lib.unwrap().into();
+        let lib: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             lib.declare().unwrap(),
             "package test is
@@ -158,7 +158,7 @@ end test;"
             UniquelyNamedBuilder::new().with_items(vec![streamlet]),
         );
 
-        let lib: tydi::generator::common::Library = lib.unwrap().into();
+        let lib: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             lib.declare().unwrap(),
             "package test is
@@ -211,9 +211,9 @@ end test;"
             UniquelyNamedBuilder::new().with_items(vec![streamlet]),
         );
 
-        let lib: tydi::generator::common::Library = lib.unwrap().into();
+        let pkg: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
-            lib.declare().unwrap(),
+            pkg.declare().unwrap(),
             "package test is
 
 component test_com
@@ -285,9 +285,9 @@ end test;"
             UniquelyNamedBuilder::new().with_items(vec![streamlet]),
         );
 
-        let lib: tydi::generator::common::Library = lib.unwrap().into();
+        let pkg: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
-            lib.declare().unwrap(),
+            pkg.declare().unwrap(),
             "package test is
 
 component test_com

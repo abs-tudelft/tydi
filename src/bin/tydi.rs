@@ -6,7 +6,7 @@ use log::{debug, info, LevelFilter};
 use std::convert::TryInto;
 use std::path::{Path, PathBuf};
 use tydi::generator::vhdl::{VHDLBackEnd, VHDLConfig};
-use tydi::generator::{common, GenerateProject};
+use tydi::generator::GenerateProject;
 use tydi::UniquelyNamedBuilder;
 use tydi::{Logger, Result};
 
@@ -97,16 +97,12 @@ fn generate(opts: GenerateOpts) -> Result<()> {
     // Construct the project from the libraries.
     let project = Project::from_builder(opts.name.try_into()?, lib_builder)?;
 
-    // Convert the Tydi project to the common hardware representation.
-    info!("Lowering Streamlet abstraction...");
-    let common_project: common::Project = project.into();
-
     info!("Generating sources...");
     match opts.target {
         TargetOpt::VHDL(cfg) => {
             let vhdl: VHDLBackEnd = cfg.into();
             vhdl.generate(
-                &common_project,
+                &project,
                 opts.output.unwrap_or(std::env::current_dir()?).as_path(),
             )?;
         }

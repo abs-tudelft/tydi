@@ -30,3 +30,20 @@ impl Project {
         self.libraries.clone()
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    /// Some projects that can be used throughout the crate for testing.
+    pub mod proj {
+        use super::*;
+
+        pub(crate) fn empty_proj() -> Project {
+            Project {
+                name: Name::try_new("proj").unwrap(),
+                libraries: vec![crate::design::library::tests::libs::empty_lib()],
+            }
+        }
+    }
+}

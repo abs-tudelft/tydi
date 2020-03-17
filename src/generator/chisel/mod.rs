@@ -1,6 +1,7 @@
 //! Chisel back-end.
 
-use crate::generator::{common::Project, GenerateProject};
+use crate::design::Project;
+use crate::generator::GenerateProject;
 use crate::Result;
 use std::path::Path;
 
