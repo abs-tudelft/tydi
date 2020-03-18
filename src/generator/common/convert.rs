@@ -255,21 +255,33 @@ impl ModeFor for Origin {
 
 impl Portify for Interface {
     fn canonical(&self, prefix: impl Into<String>) -> Vec<Port> {
-        let signals = self.typ().canonical(prefix.into());
-        let mut ports: Vec<Port> = signals
-            .iter()
-            .map(|s| {
-                Port::new_documented(
-                    s.identifier(),
+        let n: String = prefix.into();
+        let mut ports = Vec::new();
+
+        let synth = self.typ().synthesize();
+
+        for (path, width) in synth.signals() {
+            ports.push(Port::new(
+                cat!(n.clone(), path.to_string()),
+                match self.mode() {
+                    crate::design::Mode::Out => Mode::Out,
+                    crate::design::Mode::In => Mode::In,
+                },
+                Type::bitvec(width.get()),
+            ));
+        }
+
+        for (path, phys) in synth.streams() {
+            for s in phys.signal_list().into_iter() {
+                let port_name = cat!(n.clone(), path, s.identifier());
+                ports.push(Port::new(
+                    port_name,
                     s.origin().mode_for(self.mode()),
                     s.width().into(),
-                    None,
-                )
-            })
-            .collect();
-        if !ports.is_empty() && self.doc().is_some() {
-            ports[0].set_doc(self.doc().unwrap());
+                ));
+            }
         }
+
         ports
     }
 
@@ -515,7 +527,7 @@ pub(crate) mod tests {
         }
     }
 
-    mod user {
+    mod fancy {
         use super::*;
         use crate::generator::common::Field;
 

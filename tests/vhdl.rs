@@ -298,12 +298,12 @@ component test_com
     c_d : in std_logic_vector(0 downto 0);
     c_e : in std_logic_vector(1 downto 0);
     f_tag : in std_logic_vector(0 downto 0);
-    f_h : in std_logic_vector(2 downto 0);
+    f_union : in std_logic_vector(2 downto 0);
     i_r : out std_logic_vector(0 downto 0);
-    i_s_t : out std_logic_vector(0 downto 0);
-    i_s_u : out std_logic_vector(1 downto 0);
-    i_v_tag : out std_logic_vector(0 downto 0);
-    i_v_w : out std_logic_vector(2 downto 0)
+    i_s__t : out std_logic_vector(0 downto 0);
+    i_s__u : out std_logic_vector(1 downto 0);
+    i_v__tag : out std_logic_vector(0 downto 0);
+    i_v__union : out std_logic_vector(2 downto 0)
   );
 end component;
 
