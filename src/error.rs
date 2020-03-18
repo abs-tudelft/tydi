@@ -26,6 +26,8 @@ pub enum Error {
     InvalidTarget(String),
     /// Back-end error.
     BackEndError(String),
+    /// Forbidden interface name.
+    InterfaceError(String),
 }
 
 impl fmt::Display for Error {
@@ -40,6 +42,7 @@ impl fmt::Display for Error {
             Error::ParsingError(ref msg) => write!(f, "Parsing error: {}", msg),
             Error::InvalidTarget(ref msg) => write!(f, "Invalid target: {}", msg),
             Error::BackEndError(ref msg) => write!(f, "Back-end error: {}", msg),
+            Error::InterfaceError(ref msg) => write!(f, "Interface error: {}", msg),
         }
     }
 }

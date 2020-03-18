@@ -3,8 +3,8 @@ extern crate tydi;
 
 #[cfg(test)]
 mod tests {
+    use tydi::generator::common::convert::{Componentify, Packify};
     use tydi::generator::vhdl::Declare;
-    use tydi::generator::Componentify;
     use tydi::Name;
     use tydi::UniquelyNamedBuilder;
 
@@ -17,15 +17,19 @@ mod tests {
             streamlet.canonical(None).declare().unwrap(),
             "component test
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a : in std_logic_vector(0 downto 0);
     b : out std_logic_vector(1 downto 0)
   );
 end component;"
         );
         assert_eq!(
-            streamlet.user(None).unwrap().declare().unwrap(),
+            streamlet.fancy(None).unwrap().declare().unwrap(),
             "component test
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a : in std_logic_vector(0 downto 0);
     b : out std_logic_vector(1 downto 0)
   );
@@ -44,13 +48,15 @@ end component;"
             UniquelyNamedBuilder::new().with_items(vec![streamlet]),
         );
 
-        let lib: tydi::generator::common::Library = lib.unwrap().into();
+        let lib: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             lib.declare().unwrap(),
             "package test is
 
 component test_com
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a_b : in std_logic_vector(0 downto 0);
     a_c : in std_logic_vector(1 downto 0);
     d : out std_logic_vector(0 downto 0)
@@ -64,6 +70,8 @@ end record;
 
 component test
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a : in test_a_type;
     d : out std_logic_vector(0 downto 0)
   );
@@ -84,13 +92,15 @@ end test;"
             UniquelyNamedBuilder::new().with_items(vec![streamlet]),
         );
 
-        let lib: tydi::generator::common::Library = lib.unwrap().into();
+        let lib: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             lib.declare().unwrap(),
             "package test is
 
 component test_com
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a_valid : in std_logic;
     a_ready : out std_logic;
     a_data : in std_logic_vector(0 downto 0);
@@ -124,10 +134,65 @@ end record;
 
 component test
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a_dn : in test_a_dn_type;
     a_up : out test_a_up_type;
     b_dn : out test_b_dn_type;
     b_up : in test_b_up_type
+  );
+end component;
+
+end test;"
+        );
+    }
+
+    #[test]
+    fn streamlet_stream_group() {
+        let (_, streamlet) = tydi::parser::nom::streamlet(
+            "Streamlet test (a : in Stream<Group<b:Bits<1>, c:Bits<2>>>)",
+        )
+        .unwrap();
+        let lib = tydi::design::library::Library::from_builder(
+            Name::try_new("test").unwrap(),
+            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+        );
+
+        let lib: tydi::generator::common::Package = lib.unwrap().fancy();
+        assert_eq!(
+            lib.declare().unwrap(),
+            "package test is
+
+component test_com
+  port(
+    clk : in std_logic;
+    rst : in std_logic;
+    a_valid : in std_logic;
+    a_ready : out std_logic;
+    a_data : in std_logic_vector(2 downto 0)
+  );
+end component;
+
+record test_a_data_dn_type
+  b : std_logic_vector(0 downto 0);
+  c : std_logic_vector(1 downto 0);
+end record;
+
+record test_a_dn_type
+  valid : std_logic;
+  data : test_a_data_dn_type;
+end record;
+
+record test_a_up_type
+  ready : std_logic;
+end record;
+
+component test
+  port(
+    clk : in std_logic;
+    rst : in std_logic;
+    a_dn : in test_a_dn_type;
+    a_up : out test_a_up_type
   );
 end component;
 
@@ -146,13 +211,15 @@ end test;"
             UniquelyNamedBuilder::new().with_items(vec![streamlet]),
         );
 
-        let lib: tydi::generator::common::Library = lib.unwrap().into();
+        let pkg: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
-            lib.declare().unwrap(),
+            pkg.declare().unwrap(),
             "package test is
 
 component test_com
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a_b : in std_logic_vector(1 downto 0);
     a_c_valid : in std_logic;
     a_c_ready : out std_logic;
@@ -187,6 +254,8 @@ end record;
 
 component test
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     a : in test_a_type;
     a_c_dn : in test_a_c_dn_type;
     a_c_up : out test_a_c_up_type;
@@ -216,13 +285,15 @@ end test;"
             UniquelyNamedBuilder::new().with_items(vec![streamlet]),
         );
 
-        let lib: tydi::generator::common::Library = lib.unwrap().into();
+        let pkg: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
-            lib.declare().unwrap(),
+            pkg.declare().unwrap(),
             "package test is
 
 component test_com
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     b : in std_logic_vector(0 downto 0);
     c_d : in std_logic_vector(0 downto 0);
     c_e : in std_logic_vector(1 downto 0);
@@ -246,12 +317,6 @@ record test_f_type
   h : std_logic_vector(2 downto 0);
 end record;
 
-record test_i_type
-  r : std_logic_vector(0 downto 0);
-  s : test_i_s_type;
-  v : test_i_v_type;
-end record;
-
 record test_i_s_type
   t : std_logic_vector(0 downto 0);
   u : std_logic_vector(1 downto 0);
@@ -262,8 +327,16 @@ record test_i_v_type
   w : std_logic_vector(2 downto 0);
 end record;
 
+record test_i_type
+  r : std_logic_vector(0 downto 0);
+  s : test_i_s_type;
+  v : test_i_v_type;
+end record;
+
 component test
   port(
+    clk : in std_logic;
+    rst : in std_logic;
     b : in std_logic_vector(0 downto 0);
     c : in test_c_type;
     f : in test_f_type;

@@ -4,10 +4,11 @@ use crate::design::{Interface, Mode, Streamlet};
 use crate::logical::{Direction, Group, LogicalStreamType, Stream, Synchronicity, Union};
 use crate::physical::Complexity;
 use crate::{Name, PositiveReal};
+
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until, take_while},
-    character::complete::{digit1, multispace1, one_of},
+    character::complete::{digit1, multispace1, none_of, one_of},
     combinator::{map, map_res, opt, recognize},
     multi::{many0, many1, separated_list},
     number::complete::float,
@@ -50,11 +51,11 @@ use std::collections::HashMap;
 type Result<I, T> = nom::IResult<I, T, nom::error::VerboseError<I>>;
 
 fn ws0(input: &str) -> Result<&str, Vec<&str>> {
-    many0(alt((multispace1, comment)))(input)
+    many0(multispace1)(input)
 }
 
 fn ws1(input: &str) -> Result<&str, Vec<&str>> {
-    many1(alt((multispace1, comment)))(input)
+    many1(multispace1)(input)
 }
 
 fn w<'a, T>(f: impl Fn(&'a str) -> Result<&'a str, T>) -> impl Fn(&'a str) -> Result<&'a str, T> {
@@ -68,8 +69,54 @@ pub fn name(input: &str) -> Result<&str, Name> {
     )(input)
 }
 
+/// Delimited comments, not meant for doc strings, so if it succeeds,
+/// it produces an empty str.
+pub fn comment_delimited(input: &str) -> Result<&str, &str> {
+    map(delimited(tag("/*"), take_until("*/"), tag("*/")), |_| "")(input)
+}
+
+pub fn take_until_newline_or_eof(input: &str) -> Result<&str, &str> {
+    take_while(|ch| ch != '\n')(input)
+}
+
+/// Line or eof delimited comment, not meant for doc string, so if it succeeds,
+/// it produces an empty str.
+pub fn comment_line(input: &str) -> Result<&str, &str> {
+    map(
+        tuple((tag("//"), none_of("/"), take_until_newline_or_eof)),
+        |_| "",
+    )(input)
+}
+
+/// Line comment meant for doc strings.
+pub fn comment_doc(input: &str) -> Result<&str, &str> {
+    map(
+        tuple((tag("///"), take_until_newline_or_eof)),
+        |(_, s): (_, &str)| s,
+    )(input)
+}
+
 pub fn comment(input: &str) -> Result<&str, &str> {
-    delimited(tag("/*"), take_until("*/"), tag("*/"))(input)
+    alt((comment_doc, comment_line, comment_delimited))(input)
+}
+
+pub fn comment_doc_block(input: &str) -> Result<&str, Vec<&str>> {
+    many0(w(comment))(input)
+}
+
+pub fn doc(input: &str) -> Result<&str, Option<String>> {
+    map(comment_doc_block, |v| {
+        let s: String = v
+            .into_iter()
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<&str>>()
+            .join("\n");
+        if s.is_empty() {
+            None
+        } else {
+            Some(s)
+        }
+    })(input)
 }
 
 pub fn bool(input: &str) -> Result<&str, bool> {
@@ -241,23 +288,33 @@ pub fn mode(input: &str) -> Result<&str, Mode> {
 }
 
 pub fn interface(input: &str) -> Result<&str, Interface> {
-    map(
-        tuple((w(name), w(tag(":")), mode, multispace1, logical_stream_type)),
-        |(n, _, m, _, t): (Name, _, Mode, _, LogicalStreamType)| Interface::new(n, m, t),
+    map_res(
+        tuple((
+            w(doc),
+            w(name),
+            w(tag(":")),
+            mode,
+            multispace1,
+            logical_stream_type,
+        )),
+        |(d, n, _, m, _, t): (Option<String>, Name, _, Mode, _, LogicalStreamType)| {
+            Interface::try_new(n, m, t, d).map_err(|_| ())
+        },
     )(input)
 }
 
 pub fn streamlet(input: &str) -> Result<&str, Streamlet> {
     map_res(
         tuple((
+            w(doc),
             w(tag("Streamlet")),
             w(name),
             w(tag("(")),
             separated_list(w(tag(",")), w(interface)),
             tag(")"),
         )),
-        |(_, n, _, il, _): (_, Name, _, Vec<Interface>, _)| {
-            Streamlet::from_builder(n, il.into_iter().collect())
+        |(d, _, n, _, il, _): (Option<String>, _, Name, _, Vec<Interface>, _)| {
+            Streamlet::from_builder(n, il.into_iter().collect(), d)
         },
     )(input)
 }
@@ -272,18 +329,28 @@ pub fn list_of_streamlets(input: &str) -> Result<&str, Vec<Streamlet>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::design::streamlet::tests::streamlets;
     use crate::util::UniquelyNamedBuilder;
 
     #[test]
     fn parse_comment() {
+        assert_eq!(comment("/* this is a comment */"), Ok(("", "")));
+        assert_eq!(comment("/* this is a ****** / comment */"), Ok(("", "")));
+        assert_eq!(comment("// this is a line comment..."), Ok(("", "")));
         assert_eq!(
-            comment("/* this is a comment */"),
-            Ok(("", " this is a comment "))
+            comment("/// this is a doc comment..."),
+            Ok(("", " this is a doc comment..."))
         );
+    }
+
+    #[test]
+    fn parse_docstring() {
         assert_eq!(
-            comment("/* this is a ****** / comment */"),
-            Ok(("", " this is a ****** / comment "))
-        );
+            doc("/// hello
+// not a doc string
+/// docstring"),
+            Ok(("", Some(" hello\n docstring".to_string())))
+        )
     }
 
     #[test]
@@ -386,15 +453,23 @@ mod tests {
             interface("a :  in Null"),
             Ok((
                 "",
-                Interface::try_new("a", Mode::In, LogicalStreamType::Null).unwrap()
+                Interface::try_new("a", Mode::In, LogicalStreamType::Null, None).unwrap()
             ))
         );
         assert_eq!(
-            interface("b:out Bits<1>"),
+            interface(
+                "/// This is a sweet interface
+            b:out Bits<1>"
+            ),
             Ok((
                 "",
-                Interface::try_new("b", Mode::Out, LogicalStreamType::try_new_bits(1).unwrap(),)
-                    .unwrap()
+                Interface::try_new(
+                    "b",
+                    Mode::Out,
+                    LogicalStreamType::try_new_bits(1).unwrap(),
+                    Some(" This is a sweet interface".to_string())
+                )
+                .unwrap()
             ))
         );
     }
@@ -453,40 +528,61 @@ mod tests {
                             Interface::try_new(
                                 "a",
                                 Mode::In,
-                                Group::try_new(vec![("a", 1), ("b", 2)]).unwrap()
+                                Group::try_new(vec![("a", 1), ("b", 2)]).unwrap(),
+                                None
                             )
                             .unwrap()
                         )
                         .with_item(
-                            Interface::try_new("c", Mode::Out, LogicalStreamType::Null).unwrap()
-                        )
+                            Interface::try_new("c", Mode::Out, LogicalStreamType::Null, None)
+                                .unwrap()
+                        ),
+                    None
                 )
                 .unwrap()
             ))
         );
     }
 
-    fn test_streamlet(name: impl Into<String>) -> Streamlet {
-        Streamlet::from_builder(
-            Name::try_new(name).unwrap(),
-            UniquelyNamedBuilder::new().with_items(vec![
-                Interface::try_new("a", Mode::In, LogicalStreamType::Null).unwrap(),
-                Interface::try_new("b", Mode::Out, LogicalStreamType::Null).unwrap(),
-            ]),
-        )
-        .unwrap()
-    }
-
     #[test]
-    fn parse_single_streamlet() {
+    fn parse_streamlet_docstring() {
         assert_eq!(
-            list_of_streamlets("Streamlet x ( a : in Null, b : out Null )"),
+            streamlet(
+                "/// Test
+// some other stuff
+  /* that people could put here */
+/* even though */ // it's not pretty
+    ///  unaligned doc string
+
+            Streamlet x (
+            /// Such a weird interface
+            a : in Null,
+            /// And another one
+            b : out Null )"
+            ),
             Ok((
                 "",
-                UniquelyNamedBuilder::new()
-                    .with_items(vec![test_streamlet("x"),])
-                    .finish()
-                    .unwrap()
+                Streamlet::from_builder(
+                    Name::try_new("x").unwrap(),
+                    UniquelyNamedBuilder::new().with_items(vec![
+                        Interface::try_new(
+                            "a",
+                            Mode::In,
+                            LogicalStreamType::Null,
+                            Some(" Such a weird interface".to_string())
+                        )
+                        .unwrap(),
+                        Interface::try_new(
+                            "b",
+                            Mode::Out,
+                            LogicalStreamType::Null,
+                            Some(" And another one".to_string())
+                        )
+                        .unwrap(),
+                    ]),
+                    Some(" Test\n  unaligned doc string".to_string()),
+                )
+                .unwrap()
             ))
         );
     }
@@ -495,19 +591,20 @@ mod tests {
     fn parse_list_of_streamlets() {
         assert_eq!(
             list_of_streamlets(concat!(
-                "/* Some comment */\n",
                 "Streamlet a ( a: in Null, b: out Null)\n",
-                "/* Another comment */\n",
+                "/* A comment */\n",
                 "Streamlet b ( a: in Null, b: out Null)\n",
+                "/// Multi-line...\n",
+                "/// doc string...\n",
                 "Streamlet c ( a: in Null, b: out Null)",
             )),
             Ok((
                 "",
                 UniquelyNamedBuilder::new()
                     .with_items(vec![
-                        test_streamlet("a"),
-                        test_streamlet("b"),
-                        test_streamlet("c"),
+                        streamlets::nulls_streamlet("a"),
+                        streamlets::nulls_streamlet("b"),
+                        streamlets::nulls_streamlet("c").with_doc(" Multi-line...\n doc string..."),
                     ])
                     .finish()
                     .unwrap()

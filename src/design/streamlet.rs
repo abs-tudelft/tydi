@@ -5,7 +5,7 @@
 use crate::logical::LogicalStreamType;
 use crate::traits::Identify;
 use crate::util::UniquelyNamedBuilder;
-use crate::{Error, Name, Result};
+use crate::{Document, Error, Name, Result};
 use std::convert::TryInto;
 use std::str::FromStr;
 
@@ -14,6 +14,7 @@ use std::str::FromStr;
 pub struct Streamlet {
     name: Name,
     interfaces: Vec<Interface>,
+    doc: Option<String>,
 }
 
 impl Streamlet {
@@ -21,11 +22,27 @@ impl Streamlet {
         self.interfaces.clone()
     }
 
-    pub fn from_builder(name: Name, builder: UniquelyNamedBuilder<Interface>) -> Result<Self> {
+    pub fn from_builder(
+        name: Name,
+        builder: UniquelyNamedBuilder<Interface>,
+        doc: Option<String>,
+    ) -> Result<Self> {
         Ok(Streamlet {
             name,
             interfaces: builder.finish()?,
+            doc,
         })
+    }
+
+    pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
+        self.doc = Some(doc.into());
+        self
+    }
+}
+
+impl Document for Streamlet {
+    fn doc(&self) -> Option<String> {
+        self.doc.clone()
     }
 }
 
@@ -59,11 +76,15 @@ impl FromStr for Mode {
     }
 }
 
+/// A Streamlet interface.
+///
+/// The names "clk" and "rst" are reserved.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Interface {
     name: Name,
     mode: Mode,
     typ: LogicalStreamType,
+    doc: Option<String>,
 }
 
 impl Interface {
@@ -82,25 +103,60 @@ impl crate::traits::Identify for Interface {
     }
 }
 
-type BoxedStdError = Box<dyn std::error::Error>;
-
 impl Interface {
-    pub fn new(name: impl Into<Name>, mode: Mode, typ: impl Into<LogicalStreamType>) -> Self {
-        Interface {
-            name: name.into(),
-            mode,
-            typ: typ.into(),
+    pub fn try_new(
+        name: impl TryInto<Name, Error = impl Into<Box<dyn std::error::Error>>>,
+        mode: Mode,
+        typ: impl TryInto<LogicalStreamType, Error = impl Into<Box<dyn std::error::Error>>>,
+        doc: Option<String>,
+    ) -> Result<Self> {
+        let n: Name = name
+            .try_into()
+            .map_err(|e| Error::InterfaceError(e.into().to_string()))?;
+        let t: LogicalStreamType = typ
+            .try_into()
+            .map_err(|e| Error::InterfaceError(e.into().to_string()))?;
+        match n.to_string().as_str() {
+            "clk" | "rst" => Err(Error::InterfaceError(format!("Name {} forbidden.", n))),
+            _ => Ok(Interface {
+                name: n,
+                mode,
+                typ: t,
+                doc,
+            }),
         }
     }
-    pub fn try_new(
-        name: impl TryInto<Name, Error = impl Into<BoxedStdError>>,
-        mode: Mode,
-        typ: impl TryInto<LogicalStreamType, Error = impl Into<BoxedStdError>>,
-    ) -> Result<Self> {
-        Ok(Interface {
-            name: name.try_into().map_err(Into::into)?,
-            mode,
-            typ: typ.try_into().map_err(Into::into)?,
-        })
+
+    pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
+        self.doc = Some(doc.into());
+        self
+    }
+}
+
+impl Document for Interface {
+    fn doc(&self) -> Option<String> {
+        self.doc.clone()
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    /// Streamlets that can be used throughout tests.
+    pub mod streamlets {
+        use super::*;
+
+        pub(crate) fn nulls_streamlet(name: impl Into<String>) -> Streamlet {
+            Streamlet::from_builder(
+                Name::try_new(name).unwrap(),
+                UniquelyNamedBuilder::new().with_items(vec![
+                    Interface::try_new("a", Mode::In, LogicalStreamType::Null, None).unwrap(),
+                    Interface::try_new("b", Mode::Out, LogicalStreamType::Null, None).unwrap(),
+                ]),
+                None,
+            )
+            .unwrap()
+        }
     }
 }

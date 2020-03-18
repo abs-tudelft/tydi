@@ -76,11 +76,11 @@ impl Library {
 }
 
 #[cfg(test)]
-mod test {
+pub mod tests {
     use super::*;
 
     #[test]
-    fn test_library() -> Result<()> {
+    pub(crate) fn test_library() -> Result<()> {
         let tmpdir = tempfile::tempdir().map_err(|e| FileIOError(e.to_string()))?;
         let path = tmpdir.path().join("test.sdf");
         std::fs::write(path.as_path(), "").map_err(|e| FileIOError(e.to_string()))?;
@@ -89,5 +89,17 @@ mod test {
             Library::from_builder(Name::try_new("test")?, UniquelyNamedBuilder::new()),
         );
         Ok(())
+    }
+
+    /// Libraries that can be used for testing purposes throughout the crate.
+    pub(crate) mod libs {
+        use super::*;
+
+        pub(crate) fn empty_lib() -> Library {
+            Library {
+                name: Name::try_new("lib").unwrap(),
+                streamlets: vec![],
+            }
+        }
     }
 }

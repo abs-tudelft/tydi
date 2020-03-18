@@ -1,53 +1,13 @@
-//! Common hardware representation for back-ends.
+//! Common hardware representation.
 //!
-//! The goal of this module is to define a common representation of the hardware structure to be
-//! generated, before selecting a specific back-end to generate some language-specific sources.
-//!
-//! # Examples:
-//!
-//! ```
-//! use tydi::generator::{
-//!     chisel::ChiselBackEnd, vhdl::VHDLBackEnd,
-//!     common::Project,
-//!     GenerateProject
-//! };
-//!
-//! let tmpdir = tempfile::tempdir()?;
-//! let path = tmpdir.path().join("output");
-//!
-//! let proj = Project {
-//!     identifier: "MyProj".to_string(),
-//!     libraries: vec![ /*stuff*/]
-//! };
-//!
-//! let vhdl = VHDLBackEnd::default();
-//! //let chisel = ChiselBackEnd::default();
-//!
-//! vhdl.generate(&proj, &path.join("vhdl"));
-//! //chisel.generate(&proj, &path.join("chisel"));
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! ```
+//! The goal of this module is to define some common constructs seen in structural hardware
+//! generation that back-ends may or may not use.
 
-use crate::cat;
 use crate::traits::Identify;
+use crate::{cat, Document};
 use crate::{NonNegative, Reversed};
 
-/// Inner struct for `Type::Array`
-#[derive(Debug, Clone, PartialEq)]
-pub struct Array {
-    /// VHDL identifier for this array type.
-    identifier: String,
-    /// The size of the array.
-    pub size: usize,
-    /// The type of the array elements.
-    pub typ: Box<Type>,
-}
-
-impl Identify for Array {
-    fn identifier(&self) -> &str {
-        self.identifier.as_str()
-    }
-}
+pub mod convert;
 
 /// A field for a `Record`.
 ///
@@ -217,10 +177,9 @@ pub enum Type {
         /// The width of the vector.
         width: NonNegative,
     },
-    /// A statically-sized array.
-    Array(Array),
     /// A record.
     Record(Record),
+    // TODO: Arrays, unions, etc...
 }
 
 /// Bundle of names and types. Useful to represent flattened types.
@@ -294,6 +253,8 @@ pub struct Port {
     mode: Mode,
     /// Port type.
     typ: Type,
+    /// Port documentation.
+    doc: Option<String>,
 }
 
 impl Port {
@@ -303,6 +264,22 @@ impl Port {
             identifier: name.into(),
             mode,
             typ,
+            doc: None,
+        }
+    }
+
+    /// Create a new port.
+    pub fn new_documented(
+        name: impl Into<String>,
+        mode: Mode,
+        typ: Type,
+        doc: Option<String>,
+    ) -> Port {
+        Port {
+            identifier: name.into(),
+            mode,
+            typ,
+            doc,
         }
     }
 
@@ -320,11 +297,27 @@ impl Port {
     pub fn has_reversed(&self) -> bool {
         self.typ.has_reversed()
     }
+
+    /// Set the documentation string of this port.
+    pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
+        self.doc = Some(doc.into());
+        self
+    }
+
+    pub fn set_doc(&mut self, doc: impl Into<String>) {
+        self.doc = Some(doc.into())
+    }
 }
 
 impl Identify for Port {
     fn identifier(&self) -> &str {
         self.identifier.as_str()
+    }
+}
+
+impl Document for Port {
+    fn doc(&self) -> Option<String> {
+        self.doc.clone()
     }
 }
 
@@ -337,11 +330,19 @@ pub struct Component {
     parameters: Vec<Parameter>,
     /// The ports of the component.
     ports: Vec<Port>,
+    /// Documentation.
+    doc: Option<String>,
 }
 
 impl Identify for Component {
     fn identifier(&self) -> &str {
         self.identifier.as_str()
+    }
+}
+
+impl Document for Component {
+    fn doc(&self) -> Option<String> {
+        self.doc.clone()
     }
 }
 
@@ -351,11 +352,13 @@ impl Component {
         identifier: impl Into<String>,
         parameters: Vec<Parameter>,
         ports: Vec<Port>,
+        doc: Option<String>,
     ) -> Component {
         Component {
             identifier: identifier.into(),
             parameters,
             ports,
+            doc,
         }
     }
 
@@ -376,35 +379,39 @@ impl Component {
                 .typ
                 .flatten(vec![port.identifier.clone()], port.mode == Mode::Out);
             for tup in bundle {
-                new_ports.push(Port::new(
+                new_ports.push(Port::new_documented(
                     tup.0.join("_"),
                     if tup.2 { Mode::Out } else { Mode::In },
                     tup.1,
+                    None,
                 ));
             }
         });
         self.ports = new_ports;
     }
+
+    pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
+        self.doc = Some(doc.into());
+        self
+    }
 }
 
 /// A library of components and types.
 #[derive(Debug)]
-pub struct Library {
+pub struct Package {
     /// The identifier.
     pub identifier: String,
-    /// The components declared within the library.
+    /// The components declared within the library.66
     pub components: Vec<Component>,
 }
 
 /// A project with libraries
-// TODO(johanpel): consider renaming this, because project might imply some EDA tool-specific
-//                 project
 #[derive(Debug)]
 pub struct Project {
     /// The name of the project.
     pub identifier: String,
     /// The libraries contained within the projects.
-    pub libraries: Vec<Library>,
+    pub libraries: Vec<Package>,
 }
 
 #[cfg(test)]
@@ -425,8 +432,18 @@ pub(crate) mod test {
             Type::record(
                 name.into(),
                 vec![
-                    Field::new("a", Type::bitvec(42), false),
-                    Field::new("b", Type::bitvec(1337), false),
+                    Field::new("c", Type::bitvec(42), false),
+                    Field::new("d", Type::bitvec(1337), false),
+                ],
+            )
+        }
+
+        pub(crate) fn rec_rev(name: impl Into<String>) -> Type {
+            Type::record(
+                name.into(),
+                vec![
+                    Field::new("c", Type::bitvec(42), false),
+                    Field::new("d", Type::bitvec(1337), true),
                 ],
             )
         }
@@ -435,37 +452,27 @@ pub(crate) mod test {
             Type::record(name.into(), vec![Field::new("a", Type::bitvec(42), false)])
         }
 
+        pub(crate) fn rec_rev_nested(name: impl Into<String>) -> Type {
+            let n: String = name.into();
+            Type::record(
+                n.clone(),
+                vec![
+                    Field::new("a", rec(cat!(n.clone(), "a")), false),
+                    Field::new("b", rec_rev(cat!(n, "b")), false),
+                ],
+            )
+        }
+
         pub(crate) fn rec_nested(name: impl Into<String>) -> Type {
             let n: String = name.into();
             Type::record(
                 n.clone(),
                 vec![
-                    Field::new("c", rec(cat!(n.clone(), "c")), false),
-                    Field::new("d", rec(cat!(n, "d")), false),
+                    Field::new("a", rec(cat!(n.clone(), "a")), false),
+                    Field::new("b", rec(cat!(n, "b")), false),
                 ],
             )
         }
-    }
-
-    // Some structs from this mod to be used in tests:
-    pub fn test_rec() -> Type {
-        Type::record(
-            "rec",
-            vec![
-                Field::new("c", Type::Bit, false),
-                Field::new("d", Type::bitvec(4), true),
-            ],
-        )
-    }
-
-    pub fn test_rec_nested() -> Type {
-        Type::record(
-            cat!("rec", "nested"),
-            vec![
-                Field::new("a", Type::Bit, false),
-                Field::new("b", test_rec(), false),
-            ],
-        )
     }
 
     pub fn test_comp() -> Component {
@@ -473,57 +480,50 @@ pub(crate) mod test {
             identifier: "test_comp".to_string(),
             parameters: vec![],
             ports: vec![
-                Port::new("a", Mode::In, test_rec()),
-                Port::new("b", Mode::Out, test_rec_nested()),
+                Port::new_documented("a", Mode::In, records::rec_rev("a"), None),
+                Port::new_documented("b", Mode::Out, records::rec_rev_nested("b"), None),
             ],
-        }
-    }
-
-    pub fn test_lib() -> Library {
-        Library {
-            identifier: "lib".to_string(),
-            components: vec![test_comp()],
-        }
-    }
-
-    pub fn test_proj() -> Project {
-        Project {
-            identifier: "proj".to_string(),
-            libraries: vec![test_lib()],
+            doc: None,
         }
     }
 
     #[test]
     fn flatten_rec() {
-        let flat = test_rec().flatten(vec![], false);
+        let flat = records::rec("test").flatten(vec![], false);
         assert_eq!(flat[0].0, vec!["c".to_string()]);
-        assert_eq!(flat[0].1, Type::Bit);
+        assert_eq!(flat[0].1, Type::bitvec(42));
         assert_eq!(flat[0].2, false);
         assert_eq!(flat[1].0, vec!["d".to_string()]);
-        assert_eq!(flat[1].1, Type::bitvec(4));
-        assert_eq!(flat[1].2, true);
+        assert_eq!(flat[1].1, Type::bitvec(1337));
+        assert_eq!(flat[1].2, false);
     }
 
     #[test]
     fn flatten_rec_nested() {
-        let flat = test_rec_nested().flatten(vec![], false);
+        let flat = records::rec_nested("test").flatten(vec![], false);
+        dbg!(&flat);
         assert_eq!(flat[0].0[0], "a".to_string());
-        assert_eq!(flat[0].1, Type::Bit);
+        assert_eq!(flat[0].0[1], "c".to_string());
+        assert_eq!(flat[0].1, Type::bitvec(42));
         assert_eq!(flat[0].2, false);
-        assert_eq!(flat[1].0[0], "b".to_string());
-        assert_eq!(flat[1].0[1], "c".to_string());
-        assert_eq!(flat[1].1, Type::Bit);
+        assert_eq!(flat[1].0[0], "a".to_string());
+        assert_eq!(flat[1].0[1], "d".to_string());
+        assert_eq!(flat[1].1, Type::bitvec(1337));
         assert_eq!(flat[1].2, false);
         assert_eq!(flat[2].0[0], "b".to_string());
-        assert_eq!(flat[2].0[1], "d".to_string());
-        assert_eq!(flat[2].1, Type::bitvec(4));
-        assert_eq!(flat[2].2, true);
+        assert_eq!(flat[2].0[1], "c".to_string());
+        assert_eq!(flat[2].1, Type::bitvec(42));
+        assert_eq!(flat[2].2, false);
+        assert_eq!(flat[3].0[0], "b".to_string());
+        assert_eq!(flat[3].0[1], "d".to_string());
+        assert_eq!(flat[3].1, Type::bitvec(1337));
+        assert_eq!(flat[3].2, false);
     }
 
     #[test]
     fn has_reversed() {
-        assert!(test_rec().has_reversed());
-        assert!(test_rec_nested().has_reversed());
+        assert!(records::rec_rev("test").has_reversed());
+        assert!(records::rec_rev_nested("test").has_reversed());
         assert!(!Type::record(
             "test",
             vec![
