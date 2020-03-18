@@ -3,28 +3,11 @@
 //! The goal of this module is to define some common constructs seen in structural hardware
 //! generation that back-ends may or may not use.
 
-use crate::cat;
 use crate::traits::Identify;
+use crate::{cat, Document};
 use crate::{NonNegative, Reversed};
 
 pub mod convert;
-
-/// Inner struct for `Type::Array`
-#[derive(Debug, Clone, PartialEq)]
-pub struct Array {
-    /// VHDL identifier for this array type.
-    identifier: String,
-    /// The size of the array.
-    pub size: usize,
-    /// The type of the array elements.
-    pub typ: Box<Type>,
-}
-
-impl Identify for Array {
-    fn identifier(&self) -> &str {
-        self.identifier.as_str()
-    }
-}
 
 /// A field for a `Record`.
 ///
@@ -194,10 +177,9 @@ pub enum Type {
         /// The width of the vector.
         width: NonNegative,
     },
-    /// A statically-sized array.
-    Array(Array),
     /// A record.
     Record(Record),
+    // TODO: Arrays, unions, etc...
 }
 
 /// Bundle of names and types. Useful to represent flattened types.
@@ -271,6 +253,8 @@ pub struct Port {
     mode: Mode,
     /// Port type.
     typ: Type,
+    /// Port documentation.
+    doc: Option<String>,
 }
 
 impl Port {
@@ -280,6 +264,22 @@ impl Port {
             identifier: name.into(),
             mode,
             typ,
+            doc: None,
+        }
+    }
+
+    /// Create a new port.
+    pub fn new_documented(
+        name: impl Into<String>,
+        mode: Mode,
+        typ: Type,
+        doc: Option<String>,
+    ) -> Port {
+        Port {
+            identifier: name.into(),
+            mode,
+            typ,
+            doc,
         }
     }
 
@@ -297,11 +297,27 @@ impl Port {
     pub fn has_reversed(&self) -> bool {
         self.typ.has_reversed()
     }
+
+    /// Set the documentation string of this port.
+    pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
+        self.doc = Some(doc.into());
+        self
+    }
+
+    pub fn set_doc(&mut self, doc: impl Into<String>) {
+        self.doc = Some(doc.into())
+    }
 }
 
 impl Identify for Port {
     fn identifier(&self) -> &str {
         self.identifier.as_str()
+    }
+}
+
+impl Document for Port {
+    fn doc(&self) -> Option<String> {
+        self.doc.clone()
     }
 }
 
@@ -314,11 +330,19 @@ pub struct Component {
     parameters: Vec<Parameter>,
     /// The ports of the component.
     ports: Vec<Port>,
+    /// Documentation.
+    doc: Option<String>,
 }
 
 impl Identify for Component {
     fn identifier(&self) -> &str {
         self.identifier.as_str()
+    }
+}
+
+impl Document for Component {
+    fn doc(&self) -> Option<String> {
+        self.doc.clone()
     }
 }
 
@@ -328,11 +352,13 @@ impl Component {
         identifier: impl Into<String>,
         parameters: Vec<Parameter>,
         ports: Vec<Port>,
+        doc: Option<String>,
     ) -> Component {
         Component {
             identifier: identifier.into(),
             parameters,
             ports,
+            doc,
         }
     }
 
@@ -353,14 +379,20 @@ impl Component {
                 .typ
                 .flatten(vec![port.identifier.clone()], port.mode == Mode::Out);
             for tup in bundle {
-                new_ports.push(Port::new(
+                new_ports.push(Port::new_documented(
                     tup.0.join("_"),
                     if tup.2 { Mode::Out } else { Mode::In },
                     tup.1,
+                    None,
                 ));
             }
         });
         self.ports = new_ports;
+    }
+
+    pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
+        self.doc = Some(doc.into());
+        self
     }
 }
 
@@ -448,9 +480,10 @@ pub(crate) mod test {
             identifier: "test_comp".to_string(),
             parameters: vec![],
             ports: vec![
-                Port::new("a", Mode::In, records::rec_rev("a")),
-                Port::new("b", Mode::Out, records::rec_rev_nested("b")),
+                Port::new_documented("a", Mode::In, records::rec_rev("a"), None),
+                Port::new_documented("b", Mode::Out, records::rec_rev_nested("b"), None),
             ],
+            doc: None,
         }
     }
 

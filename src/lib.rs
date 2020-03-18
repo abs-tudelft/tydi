@@ -88,7 +88,7 @@ pub mod parser;
 // Root re-exports
 // TODO(mb): discuss
 pub use error::{Error, Result};
-pub use traits::{Reverse, Reversed};
+pub use traits::{Document, Identify, Reverse, Reversed};
 pub use util::{Logger, UniquelyNamedBuilder};
 
 // Types for positive and non-negative integers.

@@ -4,7 +4,7 @@ use crate::error::Error::BackEndError;
 use crate::generator::common::{Component, Mode, Package, Port, Record, Type};
 use crate::generator::vhdl::{Analyze, Declare, DeclareType, Split, VHDLIdentifier};
 use crate::traits::Identify;
-use crate::{cat, Result};
+use crate::{cat, Document, Result};
 use std::collections::HashMap;
 
 impl VHDLIdentifier for Mode {
@@ -79,7 +79,6 @@ impl DeclareType for Type {
                 ))
             }
             Type::Record(rec) => rec.declare(is_root_type),
-            Type::Array(_) => unimplemented!(),
         }
     }
 }
@@ -90,7 +89,6 @@ impl VHDLIdentifier for Type {
         // Any other types are used directly.
         match self {
             Type::Record(rec) => rec.vhdl_identifier(),
-            Type::Array(_) => unimplemented!(),
             _ => self.declare(true),
         }
     }
@@ -122,12 +120,22 @@ impl Analyze for Type {
 
 impl Declare for Port {
     fn declare(&self) -> Result<String> {
-        Ok(format!(
-            "{} : {} {}",
-            self.identifier(),
-            self.mode().vhdl_identifier()?,
-            self.typ().vhdl_identifier()?
-        ))
+        let mut result = String::new();
+        if let Some(doc) = self.doc() {
+            result.push_str("--");
+            result.push_str(doc.replace("\n", "\n    --").as_str());
+            result.push_str("\n    ");
+        }
+        result.push_str(
+            format!(
+                "{} : {} {}",
+                self.identifier(),
+                self.mode().vhdl_identifier()?,
+                self.typ().vhdl_identifier()?
+            )
+            .as_str(),
+        );
+        Ok(result)
     }
 }
 
@@ -140,6 +148,11 @@ impl VHDLIdentifier for Port {
 impl Declare for Component {
     fn declare(&self) -> Result<String> {
         let mut result = String::new();
+        if let Some(doc) = self.doc() {
+            result.push_str("--");
+            result.push_str(doc.replace("\n", "\n--").as_str());
+            result.push_str("\n");
+        }
         result.push_str(format!("component {}\n", self.identifier()).as_str());
         if !self.ports().is_empty() {
             let mut ports = self.ports().iter().peekable();
@@ -307,11 +320,13 @@ mod test {
 
     #[test]
     fn comp_decl() {
-        let c = test_comp();
+        let c = test_comp().with_doc(" My awesome\n Component".to_string());
         assert_eq!(
             c.declare().unwrap(),
             concat!(
-                "component test_comp
+                "-- My awesome
+-- Component
+component test_comp
   port(
     a_dn : in a_dn_type;
     a_up : out a_up_type;

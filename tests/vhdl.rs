@@ -25,7 +25,7 @@ mod tests {
 end component;"
         );
         assert_eq!(
-            streamlet.user(None).unwrap().declare().unwrap(),
+            streamlet.fancy(None).unwrap().declare().unwrap(),
             "component test
   port(
     clk : in std_logic;

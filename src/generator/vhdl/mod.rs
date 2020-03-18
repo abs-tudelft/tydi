@@ -357,7 +357,7 @@ mod test {
 
     #[test]
     fn split_port() {
-        let (dn, up) = Port::new(
+        let (dn, up) = Port::new_documented(
             "test",
             Mode::Out,
             Type::record(
@@ -367,44 +367,29 @@ mod test {
                     Field::new("b", Type::Bit, true),
                 ],
             ),
+            None,
         )
         .split();
 
         assert_eq!(
             dn,
-            Some(Port::new(
+            Some(Port::new_documented(
                 "test_dn",
                 Mode::Out,
-                Type::record("test_dn", vec![Field::new("a", Type::Bit, false)])
+                Type::record("test_dn", vec![Field::new("a", Type::Bit, false)]),
+                None
             ))
         );
 
         assert_eq!(
             up,
-            Some(Port::new(
+            Some(Port::new_documented(
                 "test_up",
                 Mode::In,
-                Type::record("test_up", vec![Field::new("b", Type::Bit, false)])
+                Type::record("test_up", vec![Field::new("b", Type::Bit, false)]),
+                None
             ))
         );
-    }
-
-    #[test]
-    fn type_conflict() {
-        let t0 = Type::record("a", vec![Field::new("x", Type::Bit, false)]);
-        let t1 = Type::record("a", vec![Field::new("y", Type::Bit, false)]);
-        let c = Component::new(
-            "test",
-            vec![],
-            vec![Port::new("q", Mode::In, t0), Port::new("r", Mode::Out, t1)],
-        );
-        let p = Package {
-            identifier: "lib".to_string(),
-            components: vec![c],
-        };
-        let result = p.declare();
-        // TODO(johanpel): make sure this tests for the right error:
-        assert!(result.is_err());
     }
 
     #[test]

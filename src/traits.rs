@@ -55,3 +55,9 @@ where
 pub trait Identify {
     fn identifier(&self) -> &str;
 }
+
+/// Trait for things that have documentation.
+pub trait Document {
+    /// Return optionally existing user-written documentation of self.
+    fn doc(&self) -> Option<String>;
+}
