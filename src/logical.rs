@@ -1024,16 +1024,16 @@ pub(crate) mod tests {
             LogicalType::try_new_bits(bits).unwrap()
         }
 
-        pub(crate) fn group() -> LogicalStreamType {
-            LogicalStreamType::try_new_group(vec![("c", prim(42)), ("d", prim(1337))]).unwrap()
+        pub(crate) fn group() -> LogicalType {
+            LogicalType::try_new_group(vec![("c", prim(42)), ("d", prim(1337))]).unwrap()
         }
 
         pub(crate) fn group_of_single() -> LogicalType {
             LogicalType::try_new_group(vec![("a", prim(42))]).unwrap()
         }
 
-        pub(crate) fn group_nested() -> LogicalStreamType {
-            LogicalStreamType::try_new_group(vec![("a", group()), ("b", group())]).unwrap()
+        pub(crate) fn group_nested() -> LogicalType {
+            LogicalType::try_new_group(vec![("a", group()), ("b", group())]).unwrap()
         }
     }
 
@@ -1085,7 +1085,7 @@ pub(crate) mod tests {
             vec![group.fields()]
         );
 
-        let needle: PathName = "a".try_into()?;
+        let needle: PathName = "c".try_into()?;
         let nested =
             LogicalType::try_new_group(vec![("in", stream.clone()), ("out", stream)]).unwrap();
         assert_eq!(

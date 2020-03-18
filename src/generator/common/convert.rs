@@ -4,7 +4,7 @@
 
 use crate::design::{Interface, Streamlet};
 use crate::generator::common::{Component, Mode, Package, Port, Project, Record, Type};
-use crate::logical::{Group, LogicalStreamType, Stream, Union};
+use crate::logical::{Group, LogicalType, Stream, Union};
 use crate::physical::{Origin, Signal, Width};
 use crate::traits::Identify;
 use crate::{cat, Document};
@@ -59,30 +59,28 @@ pub trait Projectify {
     fn fancy(&self) -> Project;
 }
 
-impl Typify for LogicalStreamType {
+impl Typify for LogicalType {
     fn canonical(&self, prefix: impl Into<String>) -> Vec<Signal> {
-        // This implementation for LogicalStreamType assumes the LogicalStreamType has already been
+        // This implementation for LogicalType assumes the LogicalType has already been
         // flattened through synthesize.
         match self {
-            LogicalStreamType::Null => Vec::new(),
-            LogicalStreamType::Bits(width) => {
-                vec![Signal::vec(prefix.into(), Origin::Source, *width)]
-            }
-            LogicalStreamType::Group(group) => group.canonical(prefix),
-            LogicalStreamType::Stream(stream) => stream.canonical(prefix),
-            LogicalStreamType::Union(union) => union.canonical(prefix),
+            LogicalType::Null => Vec::new(),
+            LogicalType::Bits(width) => vec![Signal::vec(prefix.into(), Origin::Source, *width)],
+            LogicalType::Group(group) => group.canonical(prefix),
+            LogicalType::Stream(stream) => stream.canonical(prefix),
+            LogicalType::Union(union) => union.canonical(prefix),
         }
     }
 
     fn fancy(&self, prefix: impl Into<String>) -> Option<Type> {
-        // This implementation for LogicalStreamType assumes the LogicalStreamType has already been
+        // This implementation for LogicalType assumes the LogicalType has already been
         // flattened through synthesize.
         match self {
-            LogicalStreamType::Null => None,
-            LogicalStreamType::Bits(width) => Some(Type::bitvec(width.get())),
-            LogicalStreamType::Group(group) => group.fancy(prefix),
-            LogicalStreamType::Stream(stream) => stream.fancy(prefix),
-            LogicalStreamType::Union(union) => union.fancy(prefix),
+            LogicalType::Null => None,
+            LogicalType::Bits(width) => Some(Type::bitvec(width.get())),
+            LogicalType::Group(group) => group.fancy(prefix),
+            LogicalType::Stream(stream) => stream.fancy(prefix),
+            LogicalType::Union(union) => union.fancy(prefix),
         }
     }
 }
@@ -145,12 +143,12 @@ impl Typify for Union {
 
 impl Typify for Stream {
     fn canonical(&self, prefix: impl Into<String>) -> Vec<Signal> {
-        // This implementation for Stream assumes the parent LogicalStreamType has already been
+        // This implementation for Stream assumes the parent LogicalType has already been
         // flattened through synthesize.
         let n: String = prefix.into();
         let mut result = Vec::new();
 
-        let logical = LogicalStreamType::from(self.clone());
+        let logical = LogicalType::from(self.clone());
         assert!(logical.is_element_only());
         if !logical.is_null() {
             let synth = logical.synthesize();
@@ -165,15 +163,15 @@ impl Typify for Stream {
     }
 
     fn fancy(&self, prefix: impl Into<String>) -> Option<Type> {
-        // This implementation for Stream assumes the parent LogicalStreamType has already been
+        // This implementation for Stream assumes the parent LogicalType has already been
         // flattened through synthesize.
         let pre: String = prefix.into();
-        // We need to wrap the Stream back into a LogicalStreamType
+        // We need to wrap the Stream back into a LogicalType
         // to be able to use various methods for checks and synthesize.
-        let logical = LogicalStreamType::from(self.clone());
+        let logical = LogicalType::from(self.clone());
 
         // At this point, it should not be possible that this is a
-        // non-element-only LogicalStreamType.
+        // non-element-only LogicalType.
         assert!(logical.is_element_only());
 
         // Check if the logical stream is null.
@@ -279,14 +277,14 @@ impl Portify for Interface {
 
         let mut result = Vec::new();
 
-        let split = self.typ().split();
+        let split = self.typ().split_streams();
 
         if let Some(sig_type) = split.signal().fancy(tn.clone()) {
             result.push(Port::new(cat!(n.clone()), self.mode().into(), sig_type));
         }
 
-        // Split the LogicalStreamType up into discrete, simple streams.
-        for (path, simple_stream) in self.typ().split().streams() {
+        // Split the LogicalType up into discrete, simple streams.
+        for (path, simple_stream) in self.typ().split_streams().streams() {
             if let Some(typ) = simple_stream.fancy(cat!(tn.clone(), path)) {
                 result.push(Port::new(cat!(n.clone(), path), self.mode().into(), typ));
             }
