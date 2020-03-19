@@ -1,6 +1,7 @@
 use crate::traits::Identify;
 use crate::{Error, Result};
 use crate::{NonNegative, Positive};
+use colored::Colorize;
 use log::{Level, Metadata, Record};
 use std::collections::HashSet;
 use std::iter::FromIterator;
@@ -23,25 +24,33 @@ mod tests {
     }
 }
 
+/// A builder for lists of things requiring unique names.
+///
+/// When finish() is called, the names will be checked for uniqueness.
 #[derive(Debug)]
 pub struct UniquelyNamedBuilder<T: Identify> {
+    /// Item storage.
     items: Vec<T>,
 }
 
 impl<T: Identify> UniquelyNamedBuilder<T> {
+    /// Construct a new builder.
     pub fn new() -> Self {
         UniquelyNamedBuilder::default()
     }
 
+    /// Add an item to the builder.
     pub fn add_item(&mut self, item: T) {
         self.items.push(item);
     }
 
+    /// Return this builder with the item appended.
     pub fn with_item(mut self, item: T) -> Self {
         self.add_item(item);
         self
     }
 
+    /// Return this builder with the items appended.
     pub fn with_items(mut self, items: impl IntoIterator<Item = T>) -> Self {
         items.into_iter().for_each(|item| {
             self.add_item(item);
@@ -49,6 +58,8 @@ impl<T: Identify> UniquelyNamedBuilder<T> {
         self
     }
 
+    /// Finalize the builder, checking whether all names are unique.
+    /// Returns Ok() if names were unique and an Err() otherwise.
     pub fn finish(self) -> Result<Vec<T>> {
         let set: HashSet<&str> = self.items.iter().map(|item| item.identifier()).collect();
         if self.items.len() != set.len() {
@@ -73,6 +84,7 @@ impl<T: Identify> Default for UniquelyNamedBuilder<T> {
     }
 }
 
+/// Simple logger for Tydi.
 pub struct Logger;
 
 impl log::Log for Logger {
@@ -82,7 +94,21 @@ impl log::Log for Logger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            println!("{:5} - {}", record.level(), record.args());
+            println!(
+                "[{:5}]: {}",
+                {
+                    let lvl = format!("{}", record.level());
+                    let l = lvl.as_str();
+                    match record.level() {
+                        log::Level::Error => l.red(),
+                        log::Level::Warn => l.yellow(),
+                        log::Level::Info => l.white(),
+                        log::Level::Debug => l.green(),
+                        log::Level::Trace => l.bright_black(),
+                    }
+                },
+                record.args()
+            );
         }
     }
 
