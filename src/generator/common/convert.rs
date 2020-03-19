@@ -329,7 +329,7 @@ impl Componentify for Streamlet {
                     Port::new_documented("clk", Mode::In, Type::Bit, None),
                     Port::new_documented("rst", Mode::In, Type::Bit, None),
                 ];
-                self.interfaces().into_iter().for_each(|interface| {
+                self.interfaces().for_each(|interface| {
                     all_ports.extend(interface.canonical(interface.identifier()));
                 });
                 all_ports
@@ -349,7 +349,6 @@ impl Componentify for Streamlet {
                 ];
                 all_ports.extend(
                     self.interfaces()
-                        .into_iter()
                         .flat_map(|interface| {
                             interface.fancy(
                                 interface.identifier(),
@@ -399,18 +398,14 @@ impl Projectify for crate::design::Project {
     fn canonical(&self) -> Project {
         Project {
             identifier: self.identifier().to_string(),
-            libraries: self
-                .libraries()
-                .into_iter()
-                .map(|l| l.canonical())
-                .collect(),
+            libraries: self.libraries().map(|l| l.canonical()).collect(),
         }
     }
 
     fn fancy(&self) -> Project {
         Project {
             identifier: self.identifier().to_string(),
-            libraries: self.libraries().into_iter().map(|l| l.fancy()).collect(),
+            libraries: self.libraries().map(|l| l.fancy()).collect(),
         }
     }
 }

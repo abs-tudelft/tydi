@@ -1,6 +1,7 @@
 //! This module contains the Streamlet structure.
 //!
-//! A streamlet is a component where every [Interface] has a [LogicalStreamType].
+//! A streamlet can be seen as a component with zero or more [Interface]s, where each interface
+//! has a [Mode] and [LogicalStreamType].
 
 use crate::logical::LogicalStreamType;
 use crate::traits::Identify;
@@ -8,49 +9,6 @@ use crate::util::UniquelyNamedBuilder;
 use crate::{Document, Error, Name, Result};
 use std::convert::TryInto;
 use std::str::FromStr;
-
-/// Streamlet interface definition.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Streamlet {
-    name: Name,
-    interfaces: Vec<Interface>,
-    doc: Option<String>,
-}
-
-impl Streamlet {
-    pub fn interfaces(&self) -> Vec<Interface> {
-        self.interfaces.clone()
-    }
-
-    pub fn from_builder(
-        name: Name,
-        builder: UniquelyNamedBuilder<Interface>,
-        doc: Option<String>,
-    ) -> Result<Self> {
-        Ok(Streamlet {
-            name,
-            interfaces: builder.finish()?,
-            doc,
-        })
-    }
-
-    pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
-        self.doc = Some(doc.into());
-        self
-    }
-}
-
-impl Document for Streamlet {
-    fn doc(&self) -> Option<String> {
-        self.doc.clone()
-    }
-}
-
-impl Identify for Streamlet {
-    fn identifier(&self) -> &str {
-        self.name.as_ref()
-    }
-}
 
 /// Streamlet interface mode.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -81,34 +39,63 @@ impl FromStr for Mode {
 /// The names "clk" and "rst" are reserved.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Interface {
+    /// The name of the interface.
     name: Name,
+    /// The mode of the interface.
     mode: Mode,
+    /// The type of the interface.
     typ: LogicalStreamType,
+    /// The documentation string of the interface, if any.
     doc: Option<String>,
 }
 
 impl Interface {
+    /// Return the [Mode] of the interface.
     pub fn mode(&self) -> Mode {
         self.mode
     }
 
+    /// Return the [LogicalStreamType] of the interface.
     pub fn typ(&self) -> LogicalStreamType {
         self.typ.clone()
     }
 }
 
-impl crate::traits::Identify for Interface {
+impl Identify for Interface {
     fn identifier(&self) -> &str {
         self.name.as_ref()
     }
 }
 
 impl Interface {
+    /// Try to construct a new interface.
+    ///
+    /// # Example:
+    /// ```
+    /// use tydi::logical::LogicalStreamType;
+    /// use tydi::design::{Interface, Mode};
+    ///
+    /// // Define a type.
+    /// let a_type = LogicalStreamType::try_new_bits(3);
+    /// assert!(a_type.is_ok());
+    ///
+    /// // Attempt to construct an interface.
+    /// let dolphins = Interface::try_new("dolphins",
+    ///                                   Mode::In,
+    ///                                   a_type.unwrap(),
+    ///                                   Some("Look at them swim!"));
+    /// assert!(dolphins.is_ok());
+    ///
+    /// // The names "clk" and "rst" are reserved!
+    /// let clk_type = LogicalStreamType::try_new_bits(1);
+    /// assert!(clk_type.is_ok());
+    /// assert!(Interface::try_new("clk", Mode::In, clk_type.unwrap(), None).is_err());
+    /// ```
     pub fn try_new(
         name: impl TryInto<Name, Error = impl Into<Box<dyn std::error::Error>>>,
         mode: Mode,
         typ: impl TryInto<LogicalStreamType, Error = impl Into<Box<dyn std::error::Error>>>,
-        doc: Option<String>,
+        doc: Option<&str>,
     ) -> Result<Self> {
         let n: Name = name
             .try_into()
@@ -122,7 +109,11 @@ impl Interface {
                 name: n,
                 mode,
                 typ: t,
-                doc,
+                doc: if let Some(d) = doc {
+                    Some(d.to_string())
+                } else {
+                    None
+                },
             }),
         }
     }
@@ -136,6 +127,86 @@ impl Interface {
 impl Document for Interface {
     fn doc(&self) -> Option<String> {
         self.doc.clone()
+    }
+}
+
+/// Streamlet interface definition.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Streamlet {
+    /// The name of the streamlet.
+    name: Name,
+    /// The interfaces of the streamlet.
+    interfaces: Vec<Interface>,
+    /// An optional documentation string for the streamlet to be used by back-ends.
+    doc: Option<String>,
+    /// Placeholder for future implementation of the streamlet. If this is None, it is a primitive.
+    implementation: Option<()>,
+}
+
+impl Streamlet {
+    /// Return an iterator over the interfaces of this Streamlet.
+    pub fn interfaces(&self) -> impl Iterator<Item = &Interface> {
+        self.interfaces.iter()
+    }
+
+    /// Construct a new streamlet from an interface builder that makes sure all interface names
+    /// are unique.
+    ///
+    /// # Example
+    /// ```
+    /// use tydi::{Name, UniquelyNamedBuilder};
+    /// use tydi::logical::LogicalStreamType;
+    /// use tydi::design::{Mode, Interface, Streamlet};
+    ///
+    /// let dough_type = LogicalStreamType::try_new_bits(3);
+    /// assert!(dough_type.is_ok());
+    /// let dough = Interface::try_new("dough", Mode::In, dough_type.unwrap(), None);
+    /// assert!(dough.is_ok());
+    /// let cookies_type = LogicalStreamType::try_new_bits(1);
+    /// assert!(cookies_type.is_ok());
+    /// let cookies = Interface::try_new("cookies", Mode::In, cookies_type.unwrap(), None);
+    /// assert!(cookies.is_ok());
+    ///    
+    /// let my_streamlet = Streamlet::from_builder(
+    ///     Name::try_new("baker").unwrap(),
+    ///     UniquelyNamedBuilder::new().with_items(vec![dough.unwrap(), cookies.unwrap()]),
+    ///     Some("I bake cookies")
+    /// );
+    /// assert!(my_streamlet.is_ok());
+    /// ```
+    pub fn from_builder(
+        name: Name,
+        builder: UniquelyNamedBuilder<Interface>,
+        doc: Option<&str>,
+    ) -> Result<Self> {
+        Ok(Streamlet {
+            name,
+            interfaces: builder.finish()?,
+            doc: if let Some(d) = doc {
+                Some(d.to_string())
+            } else {
+                None
+            },
+            implementation: None,
+        })
+    }
+
+    /// Return this streamlet with documentation added.
+    pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
+        self.doc = Some(doc.into());
+        self
+    }
+}
+
+impl Document for Streamlet {
+    fn doc(&self) -> Option<String> {
+        self.doc.clone()
+    }
+}
+
+impl Identify for Streamlet {
+    fn identifier(&self) -> &str {
+        self.name.as_ref()
     }
 }
 
