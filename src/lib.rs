@@ -69,6 +69,9 @@
 //! [`parser`]: ./parser/index.html
 //! [`tydi` command-line-interface]: #tydi-command-line-interface
 
+#![doc(html_favicon_url = "https://abs-tudelft.github.io/tydi/tydi_logo.svg")]
+#![doc(html_logo_url = "https://abs-tudelft.github.io/tydi/tydi_logo.svg")]
+
 // Crate utils
 pub(crate) mod util;
 

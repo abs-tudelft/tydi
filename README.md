@@ -1,4 +1,4 @@
-![Tydi logo](https://raw.github.com/abs-tudelft/tydi/master/book/src/tydi_logo.svg?sanitize=true)
+![Tydi logo](https://abs-tudelft.github.io/tydi/tydi_logo.svg)
 
 # Tydi
 
