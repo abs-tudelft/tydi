@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Origin",""],["Width",""]],"struct":[["Complexity","Interface complexity level."],["Fields",""],["PhysicalStream","Physical stream."],["Signal",""],["SignalList","Signal list for the signals in a physical stream."]],"type":[["BitCount","Positive number of bits."]]});

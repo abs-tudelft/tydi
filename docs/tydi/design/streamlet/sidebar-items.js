@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Mode","Streamlet interface mode."]],"struct":[["Interface","A Streamlet interface."],["Streamlet","Streamlet interface definition."]]});

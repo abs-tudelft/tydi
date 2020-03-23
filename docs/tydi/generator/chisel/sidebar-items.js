@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["ChiselBackEnd","A configurable VHDL back-end entry point."],["ChiselConfig","Chisel back-end configuration parameters."]]});

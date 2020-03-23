@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["chisel","Chisel back-end."],["common","Common hardware representation."],["vhdl","VHDL back-end."]],"trait":[["GenerateProject","Trait to generate back-end specific source files from the common hardware representation of a project."]]});
