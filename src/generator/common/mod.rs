@@ -268,7 +268,7 @@ impl Port {
         }
     }
 
-    /// Create a new port.
+    /// Create a new port with documentation.
     pub fn new_documented(
         name: impl Into<String>,
         mode: Mode,
@@ -298,12 +298,13 @@ impl Port {
         self.typ.has_reversed()
     }
 
-    /// Set the documentation string of this port.
+    /// Return this port with documentation added.
     pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
         self.doc = Some(doc.into());
         self
     }
 
+    /// Set the documentation of this port.
     pub fn set_doc(&mut self, doc: impl Into<String>) {
         self.doc = Some(doc.into())
     }
@@ -372,27 +373,15 @@ impl Component {
         &self.parameters
     }
 
-    pub fn flatten_types(&mut self) {
-        let mut new_ports: Vec<Port> = Vec::new();
-        self.ports.iter().for_each(|port| {
-            let bundle = port
-                .typ
-                .flatten(vec![port.identifier.clone()], port.mode == Mode::Out);
-            for tup in bundle {
-                new_ports.push(Port::new_documented(
-                    tup.0.join("_"),
-                    if tup.2 { Mode::Out } else { Mode::In },
-                    tup.1,
-                    None,
-                ));
-            }
-        });
-        self.ports = new_ports;
-    }
-
+    /// Return this component with documentation added.
     pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
         self.doc = Some(doc.into());
         self
+    }
+
+    /// Set the documentation of this component.
+    pub fn set_doc(&mut self, doc: impl Into<String>) {
+        self.doc = Some(doc.into())
     }
 }
 

@@ -135,7 +135,7 @@ impl GenerateProject for VHDLBackEnd {
         dir.push(project.identifier());
         std::fs::create_dir_all(dir.as_path())?;
 
-        for lib in project.libraries().iter() {
+        for lib in project.libraries() {
             let mut pkg = dir.clone();
             pkg.push(format!("{}_pkg", lib.identifier()));
             pkg.set_extension(match self.config.suffix.clone() {

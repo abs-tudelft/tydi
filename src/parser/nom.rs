@@ -298,7 +298,7 @@ pub fn interface(input: &str) -> Result<&str, Interface> {
             logical_stream_type,
         )),
         |(d, n, _, m, _, t): (Option<String>, Name, _, Mode, _, LogicalStreamType)| {
-            Interface::try_new(n, m, t, d).map_err(|_| ())
+            Interface::try_new(n, m, t, d.as_deref()).map_err(|_| ())
         },
     )(input)
 }
@@ -314,7 +314,7 @@ pub fn streamlet(input: &str) -> Result<&str, Streamlet> {
             tag(")"),
         )),
         |(d, _, n, _, il, _): (Option<String>, _, Name, _, Vec<Interface>, _)| {
-            Streamlet::from_builder(n, il.into_iter().collect(), d)
+            Streamlet::from_builder(n, il.into_iter().collect(), d.as_deref())
         },
     )(input)
 }
@@ -467,7 +467,7 @@ mod tests {
                     "b",
                     Mode::Out,
                     LogicalStreamType::try_new_bits(1).unwrap(),
-                    Some(" This is a sweet interface".to_string())
+                    Some(" This is a sweet interface")
                 )
                 .unwrap()
             ))
@@ -569,18 +569,18 @@ mod tests {
                             "a",
                             Mode::In,
                             LogicalStreamType::Null,
-                            Some(" Such a weird interface".to_string())
+                            Some(" Such a weird interface")
                         )
                         .unwrap(),
                         Interface::try_new(
                             "b",
                             Mode::Out,
                             LogicalStreamType::Null,
-                            Some(" And another one".to_string())
+                            Some(" And another one")
                         )
                         .unwrap(),
                     ]),
-                    Some(" Test\n  unaligned doc string".to_string()),
+                    Some(" Test\n  unaligned doc string"),
                 )
                 .unwrap()
             ))

@@ -1,7 +1,7 @@
 use crate::design::Library;
 use crate::util::UniquelyNamedBuilder;
-use crate::Name;
 use crate::Result;
+use crate::{Identify, Name};
 
 /// A collection of Streamlets.
 #[derive(Clone, Debug, PartialEq)]
@@ -10,7 +10,7 @@ pub struct Project {
     libraries: Vec<Library>,
 }
 
-impl crate::traits::Identify for Project {
+impl Identify for Project {
     fn identifier(&self) -> &str {
         self.name.as_ref()
     }
@@ -25,9 +25,9 @@ impl Project {
         })
     }
 
-    // Return a reference to the libraries in this project.
-    pub fn libraries(&self) -> Vec<Library> {
-        self.libraries.clone()
+    // Return an iterator over the libraries in this project.
+    pub fn libraries(&self) -> impl Iterator<Item = &Library> {
+        self.libraries.iter()
     }
 }
 
