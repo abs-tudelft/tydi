@@ -75,6 +75,7 @@ pub(crate) mod util;
 // Core
 pub mod design;
 mod error;
+mod graph;
 pub mod logical;
 pub mod physical;
 mod traits;

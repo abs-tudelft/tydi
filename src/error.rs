@@ -10,6 +10,8 @@ pub type Result<T> = result::Result<T, Error>;
 /// Error variants used in this crate.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
+    /// Custom error.
+    CustomError(String),
     /// Unknown error.
     UnknownError,
     /// Generic CLI error.
@@ -43,6 +45,7 @@ impl fmt::Display for Error {
             Error::InvalidTarget(ref msg) => write!(f, "Invalid target: {}", msg),
             Error::BackEndError(ref msg) => write!(f, "Back-end error: {}", msg),
             Error::InterfaceError(ref msg) => write!(f, "Interface error: {}", msg),
+            Error::CustomError(ref msg) => write!(f, "{}", msg),
         }
     }
 }
@@ -56,6 +59,12 @@ impl From<Box<dyn error::Error>> for Error {
         } else {
             Error::UnknownError
         }
+    }
+}
+
+impl From<&str> for Error {
+    fn from(e: &str) -> Self {
+        Error::CustomError(e.to_string())
     }
 }
 
