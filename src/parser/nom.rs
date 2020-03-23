@@ -1,7 +1,7 @@
 //! Nom-based parsers for Streamlet Definition Files.
 
 use crate::design::{Interface, Mode, Streamlet};
-use crate::logical::{Direction, Group, LogicalStreamType, Stream, Synchronicity, Union};
+use crate::logical::{Direction, Group, LogicalType, Stream, Synchronicity, Union};
 use crate::physical::Complexity;
 use crate::{Name, PositiveReal};
 
@@ -125,43 +125,39 @@ pub fn bool(input: &str) -> Result<&str, bool> {
     })(input)
 }
 
-pub fn null(input: &str) -> Result<&str, LogicalStreamType> {
-    map(tag("Null"), |_| LogicalStreamType::Null)(input)
+pub fn null(input: &str) -> Result<&str, LogicalType> {
+    map(tag("Null"), |_| LogicalType::Null)(input)
 }
 
-pub fn bits(input: &str) -> Result<&str, LogicalStreamType> {
+pub fn bits(input: &str) -> Result<&str, LogicalType> {
     map_res(
         delimited(w(tag("Bits<")), w(digit1), tag(">")),
-        |x: &str| LogicalStreamType::try_new_bits(x.parse().unwrap()).map_err(|_| ()),
+        |x: &str| LogicalType::try_new_bits(x.parse().unwrap()).map_err(|_| ()),
     )(input)
 }
 
-pub fn logical_stream_type(input: &str) -> Result<&str, LogicalStreamType> {
+pub fn logical_stream_type(input: &str) -> Result<&str, LogicalType> {
     alt((null, bits, group, union, stream))(input)
 }
 
-fn fields(input: &str) -> Result<&str, Vec<(Name, LogicalStreamType)>> {
+fn fields(input: &str) -> Result<&str, Vec<(Name, LogicalType)>> {
     separated_list(
         w(tag(",")),
         separated_pair(w(name), w(tag(":")), w(logical_stream_type)),
     )(input)
 }
 
-pub fn group(input: &str) -> Result<&str, LogicalStreamType> {
+pub fn group(input: &str) -> Result<&str, LogicalType> {
     map_res(
         delimited(w(tag("Group<")), w(fields), tag(">")),
-        |fields: Vec<(Name, LogicalStreamType)>| {
-            Group::try_new(fields).map(Into::into).map_err(|_| ())
-        },
+        |fields: Vec<(Name, LogicalType)>| Group::try_new(fields).map(Into::into).map_err(|_| ()),
     )(input)
 }
 
-pub fn union(input: &str) -> Result<&str, LogicalStreamType> {
+pub fn union(input: &str) -> Result<&str, LogicalType> {
     map_res(
         delimited(w(tag("Union<")), w(fields), tag(">")),
-        |fields: Vec<(Name, LogicalStreamType)>| {
-            Union::try_new(fields).map(Into::into).map_err(|_| ())
-        },
+        |fields: Vec<(Name, LogicalType)>| Union::try_new(fields).map(Into::into).map_err(|_| ()),
     )(input)
 }
 
@@ -189,7 +185,7 @@ pub fn direction(input: &str) -> Result<&str, Direction> {
     })(input)
 }
 
-pub fn stream(input: &str) -> Result<&str, LogicalStreamType> {
+pub fn stream(input: &str) -> Result<&str, LogicalType> {
     map_res(
         tuple((
             w(tag("Stream<")),
@@ -218,7 +214,7 @@ pub fn stream(input: &str) -> Result<&str, LogicalStreamType> {
             )),
             tag(">"),
         )),
-        |(_, data, opt, _)| -> std::result::Result<LogicalStreamType, ()> {
+        |(_, data, opt, _)| -> std::result::Result<LogicalType, ()> {
             let throughput = PositiveReal::new(
                 opt.as_ref()
                     .and_then(|opts| opts.get(&'t').map(|x| x.parse().ok()))
@@ -297,7 +293,7 @@ pub fn interface(input: &str) -> Result<&str, Interface> {
             multispace1,
             logical_stream_type,
         )),
-        |(d, n, _, m, _, t): (Option<String>, Name, _, Mode, _, LogicalStreamType)| {
+        |(d, n, _, m, _, t): (Option<String>, Name, _, Mode, _, LogicalType)| {
             Interface::try_new(n, m, t, d.as_deref()).map_err(|_| ())
         },
     )(input)
@@ -372,7 +368,7 @@ mod tests {
 
     #[test]
     fn parse_null() {
-        assert_eq!(null("Null"), Ok(("", LogicalStreamType::Null)));
+        assert_eq!(null("Null"), Ok(("", LogicalType::Null)));
         assert!(null("null").is_err());
     }
 
@@ -380,7 +376,7 @@ mod tests {
     fn parse_bits() {
         assert_eq!(
             bits("Bits<3>"),
-            Ok(("", LogicalStreamType::try_new_bits(3).unwrap()))
+            Ok(("", LogicalType::try_new_bits(3).unwrap()))
         );
     }
 
@@ -391,8 +387,8 @@ mod tests {
             Ok((
                 "",
                 Group::try_new(vec![
-                    ("a", LogicalStreamType::Null),
-                    ("b", LogicalStreamType::try_new_bits(5).unwrap())
+                    ("a", LogicalType::Null),
+                    ("b", LogicalType::try_new_bits(5).unwrap())
                 ])
                 .unwrap()
                 .into()
@@ -407,8 +403,8 @@ mod tests {
             Ok((
                 "",
                 Union::try_new(vec![
-                    ("a", LogicalStreamType::Null),
-                    ("b", LogicalStreamType::try_new_bits(5).unwrap())
+                    ("a", LogicalType::Null),
+                    ("b", LogicalType::try_new_bits(5).unwrap())
                 ])
                 .unwrap()
                 .into()
@@ -453,7 +449,7 @@ mod tests {
             interface("a :  in Null"),
             Ok((
                 "",
-                Interface::try_new("a", Mode::In, LogicalStreamType::Null, None).unwrap()
+                Interface::try_new("a", Mode::In, LogicalType::Null, None).unwrap()
             ))
         );
         assert_eq!(
@@ -466,7 +462,7 @@ mod tests {
                 Interface::try_new(
                     "b",
                     Mode::Out,
-                    LogicalStreamType::try_new_bits(1).unwrap(),
+                    LogicalType::try_new_bits(1).unwrap(),
                     Some(" This is a sweet interface")
                 )
                 .unwrap()
@@ -481,26 +477,26 @@ mod tests {
             Ok((
                 "",
                 Stream::new(
-                    LogicalStreamType::try_new_union(vec![
-                        ("a", LogicalStreamType::Null),
-                        ("b", LogicalStreamType::try_new_bits(1).unwrap()),
+                    LogicalType::try_new_union(vec![
+                        ("a", LogicalType::Null),
+                        ("b", LogicalType::try_new_bits(1).unwrap()),
                         (
                             "c",
-                            LogicalStreamType::try_new_group(vec![
-                                ("d", LogicalStreamType::Null),
-                                ("e", LogicalStreamType::Null),
+                            LogicalType::try_new_group(vec![
+                                ("d", LogicalType::Null),
+                                ("e", LogicalType::Null),
                             ])
-                            .unwrap(),
+                                .unwrap(),
                         ),
                     ])
-                    .unwrap(),
+                        .unwrap(),
                     PositiveReal::new(0.01).unwrap(),
                     2,
                     Synchronicity::default(),
                     Complexity::new(vec![4, 2]).unwrap(),
                     Direction::Forward,
                     Some(
-                        LogicalStreamType::try_new_group(vec![("u0", 1), ("u1", 2)]).unwrap(),
+                        LogicalType::try_new_group(vec![("u0", 1), ("u1", 2)]).unwrap(),
                     ),
                     false,
                 ).into()
@@ -534,8 +530,7 @@ mod tests {
                             .unwrap()
                         )
                         .with_item(
-                            Interface::try_new("c", Mode::Out, LogicalStreamType::Null, None)
-                                .unwrap()
+                            Interface::try_new("c", Mode::Out, LogicalType::Null, None).unwrap()
                         ),
                     None
                 )
@@ -568,14 +563,14 @@ mod tests {
                         Interface::try_new(
                             "a",
                             Mode::In,
-                            LogicalStreamType::Null,
+                            LogicalType::Null,
                             Some(" Such a weird interface")
                         )
                         .unwrap(),
                         Interface::try_new(
                             "b",
                             Mode::Out,
-                            LogicalStreamType::Null,
+                            LogicalType::Null,
                             Some(" And another one")
                         )
                         .unwrap(),

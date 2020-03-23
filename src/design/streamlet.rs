@@ -1,9 +1,8 @@
 //! This module contains the Streamlet structure.
 //!
-//! A streamlet can be seen as a component with zero or more [Interface]s, where each interface
-//! has a [Mode] and [LogicalStreamType].
+//! A streamlet is a component where every [Interface] has a [LogicalType].
 
-use crate::logical::LogicalStreamType;
+use crate::logical::LogicalType;
 use crate::traits::Identify;
 use crate::util::UniquelyNamedBuilder;
 use crate::{Document, Error, Name, Result};
@@ -44,7 +43,7 @@ pub struct Interface {
     /// The mode of the interface.
     mode: Mode,
     /// The type of the interface.
-    typ: LogicalStreamType,
+    typ: LogicalType,
     /// The documentation string of the interface, if any.
     doc: Option<String>,
 }
@@ -56,7 +55,7 @@ impl Interface {
     }
 
     /// Return the [LogicalStreamType] of the interface.
-    pub fn typ(&self) -> LogicalStreamType {
+    pub fn typ(&self) -> LogicalType {
         self.typ.clone()
     }
 }
@@ -72,11 +71,11 @@ impl Interface {
     ///
     /// # Example:
     /// ```
-    /// use tydi::logical::LogicalStreamType;
+    /// use tydi::logical::LogicalType;
     /// use tydi::design::{Interface, Mode};
     ///
     /// // Define a type.
-    /// let a_type = LogicalStreamType::try_new_bits(3);
+    /// let a_type = LogicalType::try_new_bits(3);
     /// assert!(a_type.is_ok());
     ///
     /// // Attempt to construct an interface.
@@ -87,20 +86,20 @@ impl Interface {
     /// assert!(dolphins.is_ok());
     ///
     /// // The names "clk" and "rst" are reserved!
-    /// let clk_type = LogicalStreamType::try_new_bits(1);
+    /// let clk_type = LogicalType::try_new_bits(1);
     /// assert!(clk_type.is_ok());
     /// assert!(Interface::try_new("clk", Mode::In, clk_type.unwrap(), None).is_err());
     /// ```
     pub fn try_new(
         name: impl TryInto<Name, Error = impl Into<Box<dyn std::error::Error>>>,
         mode: Mode,
-        typ: impl TryInto<LogicalStreamType, Error = impl Into<Box<dyn std::error::Error>>>,
+        typ: impl TryInto<LogicalType, Error = impl Into<Box<dyn std::error::Error>>>,
         doc: Option<&str>,
     ) -> Result<Self> {
         let n: Name = name
             .try_into()
             .map_err(|e| Error::InterfaceError(e.into().to_string()))?;
-        let t: LogicalStreamType = typ
+        let t: LogicalType = typ
             .try_into()
             .map_err(|e| Error::InterfaceError(e.into().to_string()))?;
         match n.to_string().as_str() {
@@ -155,14 +154,14 @@ impl Streamlet {
     /// # Example
     /// ```
     /// use tydi::{Name, UniquelyNamedBuilder};
-    /// use tydi::logical::LogicalStreamType;
+    /// use tydi::logical::LogicalType;
     /// use tydi::design::{Mode, Interface, Streamlet};
     ///
-    /// let dough_type = LogicalStreamType::try_new_bits(3);
+    /// let dough_type = LogicalType::try_new_bits(3);
     /// assert!(dough_type.is_ok());
     /// let dough = Interface::try_new("dough", Mode::In, dough_type.unwrap(), None);
     /// assert!(dough.is_ok());
-    /// let cookies_type = LogicalStreamType::try_new_bits(1);
+    /// let cookies_type = LogicalType::try_new_bits(1);
     /// assert!(cookies_type.is_ok());
     /// let cookies = Interface::try_new("cookies", Mode::In, cookies_type.unwrap(), None);
     /// assert!(cookies.is_ok());
@@ -222,8 +221,8 @@ pub mod tests {
             Streamlet::from_builder(
                 Name::try_new(name).unwrap(),
                 UniquelyNamedBuilder::new().with_items(vec![
-                    Interface::try_new("a", Mode::In, LogicalStreamType::Null, None).unwrap(),
-                    Interface::try_new("b", Mode::Out, LogicalStreamType::Null, None).unwrap(),
+                    Interface::try_new("a", Mode::In, LogicalType::Null, None).unwrap(),
+                    Interface::try_new("b", Mode::Out, LogicalType::Null, None).unwrap(),
                 ]),
                 None,
             )
