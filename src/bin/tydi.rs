@@ -7,7 +7,7 @@ use std::convert::TryInto;
 use std::path::{Path, PathBuf};
 use tydi::generator::vhdl::{VHDLBackEnd, VHDLConfig};
 use tydi::generator::GenerateProject;
-use tydi::UniquelyNamedBuilder;
+use tydi::UniqueKeyBuilder;
 use tydi::{Logger, Result};
 
 use structopt::StructOpt;
@@ -89,7 +89,7 @@ fn generate(opts: GenerateOpts) -> Result<()> {
     debug!("Inputs: {}", input_file_names.join(", "));
 
     // Build up a set of uniquely named libraries.
-    let mut lib_builder = UniquelyNamedBuilder::new();
+    let mut lib_builder = UniqueKeyBuilder::new();
     for i in input_files {
         lib_builder.add_item(Library::from_file(i.as_path())?);
     }

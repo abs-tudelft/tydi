@@ -92,7 +92,7 @@ pub mod parser;
 // TODO(mb): discuss
 pub use error::{Error, Result};
 pub use traits::{Document, Identify, Reverse, Reversed};
-pub use util::{Logger, UniquelyNamedBuilder};
+pub use util::{Logger, UniqueKeyBuilder};
 
 // Types for positive and non-negative integers.
 

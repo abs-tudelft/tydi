@@ -2,17 +2,13 @@
 //!
 //! The generator module is enabled by the `generator` feature flag.
 
-use crate::design::{Interface, Streamlet};
+use crate::design::{Interface, Streamlet, TypeRef};
 use crate::generator::common::{Component, Mode, Package, Port, Project, Record, Type};
 use crate::logical::{Group, LogicalType, Stream, Union};
 use crate::physical::{Origin, Signal, Width};
 use crate::traits::Identify;
 use crate::{cat, Document};
 
-// Generator-global constants:
-
-// TODO(johanpel): agree on a suffix that immediately makes users understand
-//                 to preferably not touch the canonical component.
 /// Suffix provided to the canonical representation of streamlet components.
 pub const CANON_SUFFIX: Option<&str> = Some("com");
 
@@ -256,7 +252,10 @@ impl Portify for Interface {
         let n: String = prefix.into();
         let mut ports = Vec::new();
 
-        let synth = self.typ().synthesize();
+        let synth = match self.typ() {
+            TypeRef::Anon(anon_logical_type) => anon_logical_type.synthesize(),
+            TypeRef::Named(_) => todo!(),
+        };
 
         for (path, width) in synth.signals() {
             ports.push(Port::new(
@@ -289,17 +288,25 @@ impl Portify for Interface {
 
         let mut result = Vec::new();
 
-        let split = self.typ().split_streams();
+        let split = match self.typ() {
+            TypeRef::Anon(anon_logical_type) => anon_logical_type.split_streams(),
+            TypeRef::Named(_) => todo!(),
+        };
 
         if let Some(sig_type) = split.signal().fancy(tn.clone()) {
             result.push(Port::new(cat!(n.clone()), self.mode().into(), sig_type));
         }
 
-        // Split the LogicalType up into discrete, simple streams.
-        for (path, simple_stream) in self.typ().split_streams().streams() {
-            if let Some(typ) = simple_stream.fancy(cat!(tn.clone(), path)) {
-                result.push(Port::new(cat!(n.clone(), path), self.mode().into(), typ));
+        match self.typ() {
+            TypeRef::Anon(anon_type) => {
+                // Split the LogicalType up into discrete, simple streams.
+                for (path, simple_stream) in anon_type.split_streams().streams() {
+                    if let Some(typ) = simple_stream.fancy(cat!(tn.clone(), path)) {
+                        result.push(Port::new(cat!(n.clone(), path), self.mode().into(), typ));
+                    }
+                }
             }
+            _ => todo!(),
         }
 
         result
@@ -362,13 +369,12 @@ impl Componentify for Streamlet {
     }
 }
 
-impl Packify for crate::design::Library {
+impl<'a> Packify for crate::design::Library {
     fn canonical(&self) -> Package {
         Package {
             identifier: self.identifier().to_string(),
             components: self
                 .streamlets()
-                .into_iter()
                 .map(|s| s.canonical(CANON_SUFFIX))
                 .collect(),
         }
@@ -379,7 +385,6 @@ impl Packify for crate::design::Library {
             identifier: self.identifier().to_string(),
             components: self
                 .streamlets()
-                .into_iter()
                 .flat_map(|s| {
                     let mut result = vec![s.canonical(CANON_SUFFIX)];
                     if let Some(user) = s.fancy(None) {
@@ -392,7 +397,7 @@ impl Packify for crate::design::Library {
     }
 }
 
-impl Projectify for crate::design::Project {
+impl<'a> Projectify for crate::design::Project {
     fn canonical(&self) -> Project {
         Project {
             identifier: self.identifier().to_string(),
@@ -411,11 +416,11 @@ impl Projectify for crate::design::Project {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::design::{Interface, Streamlet};
+    use crate::design::{Interface, Streamlet, TypeRef};
     use crate::generator::common::test::records;
     use crate::generator::vhdl::Declare;
     use crate::logical::tests::{elements, streams};
-    use crate::{Name, Positive, Result, UniquelyNamedBuilder};
+    use crate::{Name, Positive, Result, UniqueKeyBuilder};
 
     #[test]
     fn test_cat() {
@@ -510,11 +515,21 @@ pub(crate) mod tests {
 
         #[test]
         fn interface_to_port() {
-            let if0 = Interface::try_new("test", crate::design::Mode::In, streams::prim(8), None)
-                .unwrap();
+            let if0 = Interface::try_new(
+                "test",
+                crate::design::Mode::In,
+                TypeRef::Anon(streams::prim(8)),
+                None,
+            )
+            .unwrap();
             dbg!(if0.canonical("test"));
-            let if1 = Interface::try_new("test", crate::design::Mode::Out, streams::group(), None)
-                .unwrap();
+            let if1 = Interface::try_new(
+                "test",
+                crate::design::Mode::Out,
+                TypeRef::Anon(streams::group()),
+                None,
+            )
+            .unwrap();
             dbg!(if1.canonical("test"));
             // TODO(johanpel): implement actual test
         }
@@ -522,6 +537,7 @@ pub(crate) mod tests {
 
     mod fancy {
         use super::*;
+        use crate::design::TypeRef;
         use crate::generator::common::Field;
 
         #[test]
@@ -594,11 +610,21 @@ pub(crate) mod tests {
 
         #[test]
         fn interface_to_port() {
-            let if0 = Interface::try_new("test", crate::design::Mode::In, streams::prim(8), None)
-                .unwrap();
+            let if0 = Interface::try_new(
+                "test",
+                crate::design::Mode::In,
+                TypeRef::Anon(streams::prim(8)),
+                None,
+            )
+            .unwrap();
             dbg!(if0.fancy("test", "test"));
-            let if1 = Interface::try_new("test", crate::design::Mode::Out, streams::group(), None)
-                .unwrap();
+            let if1 = Interface::try_new(
+                "test",
+                crate::design::Mode::Out,
+                TypeRef::Anon(streams::group()),
+                None,
+            )
+            .unwrap();
             dbg!(if1.fancy("test", "test"));
             // TODO(johanpel): write actual test
         }
@@ -608,9 +634,19 @@ pub(crate) mod tests {
     pub(crate) fn simple_streamlet() -> Result<()> {
         let streamlet = Streamlet::from_builder(
             Name::try_new("test")?,
-            UniquelyNamedBuilder::new().with_items(vec![
-                Interface::try_new("x", crate::design::Mode::In, streams::prim(8), None)?,
-                Interface::try_new("y", crate::design::Mode::Out, streams::group(), None)?,
+            UniqueKeyBuilder::new().with_items(vec![
+                Interface::try_new(
+                    "x",
+                    crate::design::Mode::In,
+                    TypeRef::Anon(streams::prim(8)),
+                    None,
+                )?,
+                Interface::try_new(
+                    "y",
+                    crate::design::Mode::Out,
+                    TypeRef::Anon(streams::group()),
+                    None,
+                )?,
             ]),
             None,
         )?;
@@ -628,9 +664,19 @@ pub(crate) mod tests {
     pub(crate) fn nested_streams_streamlet() -> Result<()> {
         let streamlet = Streamlet::from_builder(
             Name::try_new("test")?,
-            UniquelyNamedBuilder::new().with_items(vec![
-                Interface::try_new("x", crate::design::Mode::In, streams::prim(8), None)?,
-                Interface::try_new("y", crate::design::Mode::Out, streams::nested(), None)?,
+            UniqueKeyBuilder::new().with_items(vec![
+                Interface::try_new(
+                    "x",
+                    crate::design::Mode::In,
+                    TypeRef::Anon(streams::prim(8)),
+                    None,
+                )?,
+                Interface::try_new(
+                    "y",
+                    crate::design::Mode::Out,
+                    TypeRef::Anon(streams::nested()),
+                    None,
+                )?,
             ]),
             None,
         )?;

@@ -1,5 +1,6 @@
 //! Error variants.
 use log::SetLoggerError;
+use nom::lib::std::convert::Infallible;
 use std::{error, fmt, result};
 
 /// Result type with [`Error`] variants.
@@ -12,22 +13,24 @@ pub type Result<T> = result::Result<T, Error>;
 pub enum Error {
     /// Unknown error.
     UnknownError,
-    /// Generic CLI error.
+    /// Errors related to the command-line interface.
     CLIError(String),
     /// Indicates an invalid argument is provided.
     InvalidArgument(String),
     /// Indicates an unexpected duplicate is provided.
     UnexpectedDuplicate,
-    /// File I/O error.
+    /// Errors related to the file system.
     FileIOError(String),
-    /// Parsing error.
+    /// Errors related to the parser.
     ParsingError(String),
-    /// Invalid target.
-    InvalidTarget(String),
-    /// Back-end error.
+    /// Errors related to back-ends.
     BackEndError(String),
-    /// Forbidden interface name.
+    /// Errors related to interfaces.
     InterfaceError(String),
+    /// Errors related to libraries.
+    ProjectError(String),
+    /// Errors related to implementation.
+    ImplementationError(String),
 }
 
 impl fmt::Display for Error {
@@ -40,9 +43,10 @@ impl fmt::Display for Error {
             Error::UnknownError => write!(f, "Unknown error"),
             Error::FileIOError(ref msg) => write!(f, "File I/O error: {}", msg),
             Error::ParsingError(ref msg) => write!(f, "Parsing error: {}", msg),
-            Error::InvalidTarget(ref msg) => write!(f, "Invalid target: {}", msg),
             Error::BackEndError(ref msg) => write!(f, "Back-end error: {}", msg),
             Error::InterfaceError(ref msg) => write!(f, "Interface error: {}", msg),
+            Error::ProjectError(ref msg) => write!(f, "Composition error: {}", msg),
+            Error::ImplementationError(ref msg) => write!(f, "Composition error: {}", msg),
         }
     }
 }
@@ -68,6 +72,12 @@ impl From<std::io::Error> for Error {
 impl From<SetLoggerError> for Error {
     fn from(e: SetLoggerError) -> Self {
         Error::CLIError(e.to_string())
+    }
+}
+
+impl From<std::convert::Infallible> for Error {
+    fn from(_: Infallible) -> Self {
+        unreachable!()
     }
 }
 
