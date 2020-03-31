@@ -165,16 +165,63 @@ impl Identify for Library {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::logical::LogicalType;
+    use crate::Logger;
+    use log::LevelFilter;
+
+    /// Libraries that can be used for testing purposes throughout the crate.
+    pub(crate) mod libs {
+        use super::*;
+
+        pub(crate) fn empty_lib(name: &str) -> Library {
+            Library::new(LibraryKey::try_new(name).unwrap())
+        }
+    }
 
     #[test]
-    pub(crate) fn test_library() -> Result<()> {
+    fn from_file() -> Result<()> {
+        static LOGGER: Logger = Logger;
+        log::set_logger(&LOGGER)?;
+        log::set_max_level(LevelFilter::Debug);
+
         let tmpdir = tempfile::tempdir().map_err(|e| Error::FileIOError(e.to_string()))?;
         let path = tmpdir.path().join("test.sdf");
-        std::fs::write(path.as_path(), "").map_err(|e| Error::FileIOError(e.to_string()))?;
+        std::fs::write(path.as_path(), "Streamlet foo (a : In Null, b : Out Null)")
+            .map_err(|e| Error::FileIOError(e.to_string()))?;
         assert!(Library::from_file(path.as_path()).is_ok());
+
+        // Attempting to open a directory.
+        assert!(dbg!(Library::from_file(tmpdir.path())).is_err());
+        // Attempt to open a non-existent file.
+        assert!(dbg!(Library::from_file(tmpdir.path().join("asdf").as_path())).is_err());
+
         Ok(())
     }
 
-    /// Libraries that can be used for testing purposes throughout the crate.
-    pub(crate) mod libs {}
+    #[test]
+    fn library() {
+        let mut lib = libs::empty_lib("test");
+
+        lib.add_type(NamedType::try_new("A", LogicalType::Null).unwrap())
+            .unwrap();
+
+        lib.add_streamlet(crate::design::streamlet::tests::streamlets::simple("a"))
+            .unwrap();
+
+        // attempt to insert duplicate
+        assert!(lib
+            .add_streamlet(crate::design::streamlet::tests::streamlets::simple("a"))
+            .is_err());
+
+        // try some getters
+        assert!(lib
+            .get_streamlet(StreamletKey::try_new("b").unwrap())
+            .is_err());
+        assert!(lib.get_type(TypeKey::try_new("B").unwrap()).is_err());
+
+        assert!(lib
+            .get_streamlet(StreamletKey::try_new("a").unwrap())
+            .is_ok());
+        assert!(lib.get_type(TypeKey::try_new("A").unwrap()).is_ok());
+    }
 }

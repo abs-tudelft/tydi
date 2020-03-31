@@ -400,13 +400,16 @@ mod test {
         let path = tmpdir.path().join("__test");
 
         assert!(v
-            .generate(&crate::design::project::tests::proj::empty_proj(), &path)
+            .generate(
+                &crate::design::project::tests::proj::empty_lib_proj(),
+                &path
+            )
             .is_ok());
 
         // Check if files were correctly generated.
         assert!(fs::metadata(&path).is_ok());
-        assert!(fs::metadata(&path.join("proj")).is_ok());
-        assert!(fs::metadata(&path.join("proj/lib_pkg.gen.vhd")).is_ok());
+        assert!(fs::metadata(&path.join("test")).is_ok());
+        assert!(fs::metadata(&path.join("test/empty_pkg.gen.vhd")).is_ok());
 
         Ok(())
     }

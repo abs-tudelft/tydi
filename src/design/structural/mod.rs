@@ -1,18 +1,14 @@
 //! Structural implementations of streamlets.
 
 use crate::design::structural::streamlet_instance::StreamletInst;
-use crate::design::{InterfaceKey, StreamletRef};
-use crate::Name;
+use crate::design::{Interface, InterfaceKey, Project, StreamletRef};
 use crate::{Error, Result};
+use crate::{Name, Reversed};
 use indexmap::map::IndexMap;
 use std::fmt::Debug;
 
 pub mod builder;
 pub mod streamlet_instance;
-
-pub trait IORef {
-    fn io(&self, key: InterfaceKey) -> Result<NodeIORef>;
-}
 
 /// The key of an instance.
 pub type NodeKey = Name;
@@ -26,7 +22,9 @@ impl NodeKey {
     }
 }
 
-/// A reference to a structural node IO. Only valid within the context of an implementation.
+/// A reference to a structural node interface.
+///
+/// Only valid within the context of an implementation.
 #[derive(Clone, PartialEq)]
 pub struct NodeIORef {
     node: NodeKey,
@@ -34,16 +32,18 @@ pub struct NodeIORef {
 }
 
 impl NodeIORef {
+    /// Return the node key of this node interface reference.
     pub fn node(&self) -> NodeKey {
         self.node.clone()
     }
 
+    /// Return the interface key of this node interface reference.
     pub fn interface(&self) -> InterfaceKey {
         self.interface.clone()
     }
 }
 
-/// A connection between two streamlets.
+/// A directed edge between two node interfaces.
 #[derive(Clone, PartialEq)]
 pub struct Edge {
     /// A reference to the sourcing node interface.
@@ -53,10 +53,12 @@ pub struct Edge {
 }
 
 impl Edge {
+    /// Return the sourcing node interface of the edge.
     pub fn source(&self) -> NodeIORef {
         self.source.clone()
     }
 
+    /// Return the sinking node interface of the edge.
     pub fn sink(&self) -> NodeIORef {
         self.source.clone()
     }
@@ -84,6 +86,16 @@ impl Node {
             Node::Streamlet(s) => s.key(),
         }
     }
+
+    /// Return a clone of the interface with some key on this node, in the context of a project.
+    fn get_interface(&self, project: &Project, key: InterfaceKey) -> Result<Interface> {
+        match self {
+            // For the This node, we need to reverse the interface with respect to the streamlet
+            // definition, because we are looking at this interface from the other side.
+            Node::This(s) => s.get_interface(project, key).map(|i| i.reversed()),
+            Node::Streamlet(s) => s.get_interface(project, key),
+        }
+    }
 }
 
 /// A structural implementation of a streamlet.
@@ -105,18 +117,22 @@ pub struct StructuralImpl {
 }
 
 impl StructuralImpl {
+    /// Return a reference to the streamlet which is implemented by this implementation.
     pub fn streamlet(&self) -> StreamletRef {
         self.streamlet.clone()
     }
 
+    /// Return an iterator over all nodes in the structural graph.
     pub fn nodes(&self) -> impl Iterator<Item = &Node> {
         self.nodes.iter().map(|(_, v)| v)
     }
 
+    /// Return an iterator over all edges in the structural graph.
     pub fn edges(&self) -> impl Iterator<Item = &Edge> {
         self.edges.iter()
     }
 
+    /// Return a structural graph node by key.
     pub fn node(&self, key: NodeKey) -> Result<Node> {
         Ok(self
             .nodes
@@ -129,6 +145,11 @@ impl StructuralImpl {
                 ))
             })?
             .clone())
+    }
+
+    /// Returns the edge of an interface, if it is connected.
+    pub fn get_edge(&self, io: NodeIORef) -> Option<&Edge> {
+        self.edges.iter().find(|e| e.sink == io || e.source == io)
     }
 }
 
@@ -211,7 +232,11 @@ mod tests {
                     Implementation::None => println!("      No implementation."),
                     Implementation::Structural(structural) => {
                         println!("      Structural implementation:");
-                        println!("        Instances:");
+                        println!("        Nodes:");
+
+                        // Check for failure of non-existent node.
+                        assert!(structural.node(NodeKey::try_new("asdf").unwrap()).is_err());
+
                         for node in structural.nodes() {
                             match node {
                                 Node::This(_) => (),

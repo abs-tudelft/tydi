@@ -4,44 +4,30 @@
 
 use crate::design::structural::streamlet_instance::StreamletInst;
 use crate::design::structural::{Edge, Node, NodeIORef, NodeKey, StructuralImpl};
-use crate::design::{InterfaceKey, Project, StreamletRef};
+use crate::design::{Interface, InterfaceKey, Mode, Project, StreamletRef};
 use crate::{Error, Result};
 use indexmap::map::IndexMap;
 use std::convert::TryInto;
 
-/// A view of a node
-pub struct NodeView {
-    node: Node,
+/// Trait to construct node interface references from various node types.
+pub trait Interfaces {
+    fn io<K>(&self, key: K) -> Result<NodeIORef>
+    where
+        K: TryInto<InterfaceKey>,
+        <K as TryInto<InterfaceKey>>::Error: Into<Error>;
 }
 
-/// A view of a node's IO
-pub struct NodeIOView {
-    reference: NodeIORef,
-}
-
-impl NodeView {
-    pub fn io<K>(&self, key: K) -> Result<NodeIOView>
+impl Interfaces for Node {
+    fn io<K>(&self, key: K) -> Result<NodeIORef>
     where
         K: TryInto<InterfaceKey>,
         <K as TryInto<InterfaceKey>>::Error: Into<Error>,
     {
         let k = key.try_into().map_err(Into::into)?;
-        Ok(NodeIOView {
-            reference: NodeIORef {
-                node: self.node.key(),
-                interface: k,
-            },
+        Ok(NodeIORef {
+            node: self.key(),
+            interface: k,
         })
-    }
-}
-
-impl NodeIOView {
-    pub fn key(&self) -> String {
-        format!("{}.{}", self.reference.node, self.reference.interface)
-    }
-
-    pub fn to_ref(&self) -> NodeIORef {
-        self.reference.clone()
     }
 }
 
@@ -50,45 +36,46 @@ impl NodeIOView {
 #[derive(Clone, PartialEq)]
 pub struct StructuralImplBuilder<'prj> {
     project: &'prj Project,
-    streamlet: StreamletRef,
-    instances: IndexMap<NodeKey, Node>,
-    connections: Vec<Edge>,
+    imp: StructuralImpl,
 }
 
 impl<'prj> StructuralImplBuilder<'prj> {
+    /// Construct a new StructuralImplBuilder.
+    ///
+    /// This function returns an Error if the streamlet reference is invalid w.r.t. the project.
     pub fn try_new(project: &'prj Project, streamlet: StreamletRef) -> Result<Self> {
         // Check if the reference is OK.
         project.get_streamlet(streamlet.clone())?;
         // Return a new empty structural impl.
         Ok(StructuralImplBuilder {
             project,
-            streamlet: streamlet.clone(),
-            instances: vec![(
-                NodeKey::this(),
-                Node::This(StreamletInst::new(NodeKey::this(), streamlet)),
-            )]
-            .into_iter()
-            .collect::<IndexMap<NodeKey, Node>>(),
-            connections: Vec::new(),
+            imp: StructuralImpl {
+                streamlet: streamlet.clone(),
+                nodes: vec![(
+                    NodeKey::this(),
+                    Node::This(StreamletInst::new(NodeKey::this(), streamlet)),
+                )]
+                .into_iter()
+                .collect::<IndexMap<NodeKey, Node>>(),
+                edges: Vec::new(),
+            },
         })
     }
 
+    /// Finalize the builder, releasing the borrow to the project in which this implementation
+    /// must reside.
     pub fn finish(self) -> StructuralImpl {
-        StructuralImpl {
-            streamlet: self.streamlet,
-            nodes: self.instances,
-            edges: self.connections,
-        }
+        self.imp
     }
 
-    // HCL
-    pub fn instantiate<I>(&mut self, streamlet: StreamletRef, instance: I) -> Result<NodeView>
+    /// Instantiate a streamlet from a streamlet reference.
+    pub fn instantiate<I>(&mut self, streamlet: StreamletRef, instance: I) -> Result<Node>
     where
         I: TryInto<NodeKey>,
         <I as TryInto<NodeKey>>::Error: Into<Error>,
     {
         let key = instance.try_into().map_err(Into::into)?;
-        if self.instances.get(&key).is_some() {
+        if self.imp.nodes.get(&key).is_some() {
             Err(Error::ImplementationError(format!(
                 "Instance {} already exists in structural implementation of {:?}",
                 key, streamlet
@@ -97,33 +84,68 @@ impl<'prj> StructuralImplBuilder<'prj> {
             // Set up a node.
             let node = Node::Streamlet(StreamletInst::new(key.clone(), streamlet));
             // Copy and insert the node.
-            self.instances.insert(key, node.clone());
+            self.imp.nodes.insert(key, node.clone());
             // Return a structural node reference with a copy of the node.
-            Ok(NodeView {
-                //project: Clone::clone(&self.project),
-                node,
-            })
+            Ok(node)
         }
     }
 
-    // HCL
-    pub fn this(&self) -> NodeView {
-        NodeView {
-            //project: self.project,
-            // The this instance should always exist, so it is safe to unwrap here.
-            node: self.instances.get(&NodeKey::this()).unwrap().clone(),
-        }
+    /// Return the node representing the external interfaces of the streamlet itself.
+    pub fn this(&self) -> Node {
+        // We can unwrap safely here because the "this" node should always exist.
+        self.imp.nodes.get(&NodeKey::this()).unwrap().clone()
     }
 
-    // HCL
-    pub fn connect(&mut self, source: Result<NodeIOView>, sink: Result<NodeIOView>) -> Result<()> {
-        let source = source?;
+    fn get_interface(&self, io: NodeIORef) -> Result<Interface> {
+        self.imp
+            .node(io.node())?
+            .get_interface(self.project, io.interface())
+    }
+
+    // Connect two streamlet interfaces.
+    pub fn connect(&mut self, sink: Result<NodeIORef>, source: Result<NodeIORef>) -> Result<()> {
+        // Check if the io references have been properly constructed.
         let sink = sink?;
-        self.connections.push(Edge {
-            source: source.to_ref(),
-            sink: sink.to_ref(),
-        });
-        Ok(())
+        let source = source?;
+
+        // Check if the references are valid, e.g. if an actual streamlet with those interface keys
+        // exists in the project, and obtain references to the actual interfaces to check stuff.
+        let sink_if = self.get_interface(sink.clone())?;
+        let source_if = self.get_interface(source.clone())?;
+
+        // Check interface compatibility.
+        if source_if.mode() != Mode::Out {
+            Err(Error::ImplementationError(format!(
+                "Attempting to connect {:?} as source, but interface is not an output.",
+                source
+            )))
+        } else if sink_if.mode() != Mode::In {
+            Err(Error::ImplementationError(format!(
+                "Attempting to connect {:?} as sink, but interface is not an input.",
+                source
+            )))
+        } else if source_if.typ() != sink_if.typ() {
+            Err(Error::ImplementationError(format!(
+                "Types of sink {:?} : {}, and of source {:?} : {}, are incompatible.",
+                sink,
+                sink_if.typ(),
+                source,
+                source_if.typ()
+            )))
+        } else if self.imp.get_edge(source.clone()).is_some() {
+            Err(Error::ImplementationError(format!(
+                "Cannot connect sink {:?} to source {:?}, source is already connected.",
+                sink, source
+            )))
+        } else if self.imp.get_edge(sink.clone()).is_some() {
+            Err(Error::ImplementationError(format!(
+                "Cannot connect sink {:?} to source {:?}, sink is already connected.",
+                sink, source
+            )))
+        } else {
+            self.imp.edges.push(Edge { source, sink });
+            Ok(())
+        }
     }
 }
 
@@ -199,9 +221,20 @@ pub(crate) mod tests {
         let mill = imp.instantiate(windmill, "mill")?;
         let baker = imp.instantiate(bakery, "baker")?;
 
-        imp.connect(this.io("wheat"), mill.io("wheat"))?;
-        imp.connect(mill.io("flour"), baker.io("flour"))?;
-        imp.connect(baker.io("cookies"), this.io("cookies"))?;
+        // TODO: confirm the correct error is produced not using dbg.
+        // Attempting to sink an output.
+        assert!(dbg!(imp.connect(mill.io("flour"), mill.io("flour"))).is_err());
+        // Attempting to source an input.
+        assert!(dbg!(imp.connect(baker.io("flour"), baker.io("flour"))).is_err());
+        // Type conflict:
+        assert!(dbg!(imp.connect(mill.io("wheat"), baker.io("cookies"))).is_err());
+
+        imp.connect(mill.io("wheat"), this.io("wheat"))?;
+        imp.connect(baker.io("flour"), mill.io("flour"))?;
+        imp.connect(this.io("cookies"), baker.io("cookies"))?;
+
+        // Attempting to connect an io that is already connected:
+        assert!(dbg!(imp.connect(mill.io("wheat"), this.io("wheat"))).is_err());
 
         let imp = imp.finish();
 

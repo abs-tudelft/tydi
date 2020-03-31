@@ -2,7 +2,7 @@
 //! or other abstractions.
 
 use crate::design::{InterfaceKey, TypeRef};
-use crate::{Document, Error, Identify, Result};
+use crate::{Document, Error, Identify, Result, Reverse, Reversed};
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -14,6 +14,15 @@ pub enum Mode {
     Out,
     /// The interface is an input of the streamlet.
     In,
+}
+
+impl Reversed for Mode {
+    fn reversed(&self) -> Self {
+        match self {
+            Mode::Out => Mode::In,
+            Mode::In => Mode::Out,
+        }
+    }
 }
 
 impl Display for Mode {
@@ -108,13 +117,19 @@ impl Interface {
     }
 }
 
-impl<'stl> Identify for Interface {
+impl Reverse for Interface {
+    fn reverse(&mut self) {
+        self.mode = self.mode.reversed()
+    }
+}
+
+impl Identify for Interface {
     fn identifier(&self) -> &str {
         self.key.as_ref()
     }
 }
 
-impl<'stl> Document for Interface {
+impl Document for Interface {
     fn doc(&self) -> Option<String> {
         self.doc.clone()
     }

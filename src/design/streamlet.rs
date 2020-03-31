@@ -119,7 +119,33 @@ impl Identify for Streamlet {
 }
 
 #[cfg(test)]
-pub mod tests {
+pub(crate) mod tests {
+    use super::*;
+
     /// Streamlets that can be used throughout tests.
-    pub mod streamlets {}
+    pub(crate) mod streamlets {
+        use super::*;
+        use crate::design::{Mode, TypeRef};
+        use crate::logical::LogicalType;
+
+        pub(crate) fn simple(name: &str) -> Streamlet {
+            Streamlet::from_builder(
+                StreamletKey::try_new(name).unwrap(),
+                UniqueKeyBuilder::new().with_items(vec![
+                    Interface::try_new("a", Mode::In, TypeRef::anon(LogicalType::Null), None)
+                        .unwrap(),
+                    Interface::try_new("b", Mode::Out, TypeRef::anon(LogicalType::Null), None)
+                        .unwrap(),
+                ]),
+                None,
+            )
+            .unwrap()
+        }
+    }
+
+    #[test]
+    fn unintended_impl() {
+        let strl = streamlets::simple("test");
+        assert!(strl.set_implementation(Implementation::None).is_err());
+    }
 }

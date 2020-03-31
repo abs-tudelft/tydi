@@ -45,8 +45,8 @@ impl fmt::Display for Error {
             Error::ParsingError(ref msg) => write!(f, "Parsing error: {}", msg),
             Error::BackEndError(ref msg) => write!(f, "Back-end error: {}", msg),
             Error::InterfaceError(ref msg) => write!(f, "Interface error: {}", msg),
-            Error::ProjectError(ref msg) => write!(f, "Composition error: {}", msg),
-            Error::ImplementationError(ref msg) => write!(f, "Composition error: {}", msg),
+            Error::ProjectError(ref msg) => write!(f, "Project error: {}", msg),
+            Error::ImplementationError(ref msg) => write!(f, "Implementation error: {}", msg),
         }
     }
 }
@@ -87,9 +87,26 @@ mod tests {
 
     #[test]
     fn error() {
-        let a = Error::InvalidArgument("test".to_string());
-        let b = Error::UnexpectedDuplicate;
-        assert_eq!(a.to_string(), "Invalid argument: test");
-        assert_eq!(b.to_string(), "Unexpected duplicate");
+        let e0 = Error::CLIError("test".to_string());
+        let e1 = Error::InvalidArgument("test".to_string());
+        let e2 = Error::UnexpectedDuplicate;
+        let e3 = Error::UnknownError;
+        let e4 = Error::FileIOError("test".to_string());
+        let e5 = Error::ParsingError("test".to_string());
+        let e6 = Error::BackEndError("test".to_string());
+        let e7 = Error::InterfaceError("test".to_string());
+        let e8 = Error::ProjectError("test".to_string());
+        let e9 = Error::ImplementationError("test".to_string());
+
+        assert_eq!(e0.to_string(), "CLI Error: test");
+        assert_eq!(e1.to_string(), "Invalid argument: test");
+        assert_eq!(e2.to_string(), "Unexpected duplicate");
+        assert_eq!(e3.to_string(), "Unknown error");
+        assert_eq!(e4.to_string(), "File I/O error: test");
+        assert_eq!(e5.to_string(), "Parsing error: test");
+        assert_eq!(e6.to_string(), "Back-end error: test");
+        assert_eq!(e7.to_string(), "Interface error: test");
+        assert_eq!(e8.to_string(), "Project error: test");
+        assert_eq!(e9.to_string(), "Implementation error: test");
     }
 }

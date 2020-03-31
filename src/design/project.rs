@@ -1,13 +1,15 @@
+//! Top-level data structure for Tydi designs.
+
 use crate::design::implementation::Implementation;
-use crate::design::{
-    Interface, InterfaceRef, Library, LibraryKey, LibraryRef, Streamlet, StreamletRef,
-};
+use crate::design::{Library, LibraryKey, LibraryRef, Streamlet, StreamletRef};
 use crate::util::UniqueKeyBuilder;
 use crate::{Error, Result};
 use crate::{Identify, Name};
 use indexmap::map::IndexMap;
 
-/// A collection of Streamlets.
+/// A container holding multiple libraries that may have references to each other.
+///
+/// This is the top-level data structure for Tydi generators.
 #[derive(Debug, PartialEq)]
 pub struct Project {
     name: Name,
@@ -21,6 +23,7 @@ impl Identify for Project {
 }
 
 impl Project {
+    /// Construct a new, empty project.
     pub fn new(name: Name) -> Project {
         Project {
             name,
@@ -28,7 +31,7 @@ impl Project {
         }
     }
 
-    /// Construct a Project from a UniquelyNamedBuilder with Libraries.
+    /// Construct a project from a set of uniquely named libraries.
     pub fn from_builder(name: Name, builder: UniqueKeyBuilder<Library>) -> Result<Self> {
         Ok(Project {
             name,
@@ -40,11 +43,12 @@ impl Project {
         })
     }
 
-    // Return an iterator over the libraries in this project.
+    /// Return an iterator over the libraries in this project.
     pub fn libraries(&self) -> impl Iterator<Item = &Library> {
         self.libraries.iter().map(|(_, l)| l)
     }
 
+    /// Add a library to the project.
     pub fn add_library(&mut self, library: Library) -> Result<LibraryRef> {
         // Remember the library key.
         let lib_key = library.key();
@@ -61,6 +65,7 @@ impl Project {
         }
     }
 
+    /// Get a library from the project, if it exists. Returns an error otherwise.
     pub fn get_library(&self, library: LibraryRef) -> Result<&Library> {
         self.libraries.get(&library.library).ok_or_else(|| {
             Error::ProjectError(format!(
@@ -70,16 +75,13 @@ impl Project {
         })
     }
 
+    /// Get a streamlet from the project, if it exists. Returns an error otherwise.
     pub fn get_streamlet(&self, streamlet: StreamletRef) -> Result<&Streamlet> {
         self.get_library(streamlet.library)?
             .get_streamlet(streamlet.streamlet)
     }
 
-    pub fn get_interface(&self, interface: InterfaceRef) -> Result<&Interface> {
-        self.get_streamlet(interface.streamlet)?
-            .get_interface(interface.interface)
-    }
-
+    /// Add the implementation of a streamlet to the project.
     pub fn add_streamlet_impl(
         &self,
         streamlet: StreamletRef,
@@ -98,14 +100,40 @@ pub mod tests {
     pub mod proj {
         use super::*;
 
-        pub(crate) fn empty_proj() -> Project {
-            let k = LibraryKey::try_new("lib").unwrap();
-            Project {
-                name: Name::try_new("proj").unwrap(),
-                libraries: vec![(k.clone(), Library::new(k))]
-                    .into_iter()
-                    .collect::<IndexMap<LibraryKey, Library>>(),
-            }
+        /// Return a project with an empty library.
+        pub(crate) fn empty_lib_proj() -> Project {
+            Project::from_builder(
+                Name::try_new("test").unwrap(),
+                UniqueKeyBuilder::new().with_items(vec![
+                    crate::design::library::tests::libs::empty_lib("empty"),
+                ]),
+            )
+            .unwrap()
         }
+    }
+
+    #[test]
+    fn project_from_builder() {
+        assert!(Project::from_builder(
+            Name::try_new("test").unwrap(),
+            UniqueKeyBuilder::new().with_items(vec![
+                crate::design::library::tests::libs::empty_lib("lib"),
+                crate::design::library::tests::libs::empty_lib("another"),
+            ]),
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn project_errors() {
+        let mut prj = proj::empty_lib_proj();
+        assert!(prj
+            .add_library(crate::design::library::tests::libs::empty_lib("empty"))
+            .is_err());
+        assert!(prj
+            .get_library(LibraryRef {
+                library: Name::try_new("undefined").unwrap()
+            })
+            .is_err());
     }
 }

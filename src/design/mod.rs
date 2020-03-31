@@ -1,5 +1,6 @@
 //! Constructs that are used to generate hardware designs, that are not
 //! part of the specification (yet).
+
 use crate::Name;
 use crate::{Error, Result};
 

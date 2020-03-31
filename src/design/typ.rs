@@ -88,3 +88,30 @@ impl NamedTypeStore {
         self.types.iter().map(|(_, t)| t)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn type_store() {
+        let mut ts = NamedTypeStore::default();
+        ts.insert(NamedType::try_new("A", LogicalType::Null).unwrap())
+            .unwrap();
+        ts.insert(NamedType::try_new("B", LogicalType::Null).unwrap())
+            .unwrap();
+
+        // Attempt to insert duplicate:
+        assert!(ts
+            .insert(NamedType::try_new("A", LogicalType::Null).unwrap())
+            .is_err());
+
+        assert!(ts.get(TypeKey::try_new("b").unwrap()).is_err());
+
+        // Get a type out of the store:
+        assert_eq!(
+            ts.get(TypeKey::try_new("B").unwrap()).unwrap(),
+            &NamedType::try_new("B", LogicalType::Null).unwrap()
+        );
+    }
+}
