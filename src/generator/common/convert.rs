@@ -339,7 +339,7 @@ impl Componentify for Streamlet {
                 });
                 all_ports
             },
-            self.doc(),
+            self.doc().clone(),
         )
     }
 
@@ -364,7 +364,7 @@ impl Componentify for Streamlet {
                 );
                 all_ports
             },
-            self.doc(),
+            self.doc().clone(),
         ))
     }
 }

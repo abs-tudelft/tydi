@@ -41,7 +41,7 @@ impl Streamlet {
             interfaces: builder
                 .finish()?
                 .into_iter()
-                .map(|i| (i.key(), i))
+                .map(|i| (i.key().clone(), i))
                 .collect::<IndexMap<InterfaceKey, Interface>>(),
             implementation: RefCell::new(Implementation::None),
             doc: if let Some(d) = doc {
@@ -124,8 +124,8 @@ impl Streamlet {
 }
 
 impl Document for Streamlet {
-    fn doc(&self) -> Option<String> {
-        self.doc.clone()
+    fn doc(&self) -> &Option<String> {
+        &self.doc
     }
 }
 

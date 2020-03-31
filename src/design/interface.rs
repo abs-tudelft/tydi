@@ -16,11 +16,11 @@ pub enum Mode {
     In,
 }
 
-impl Reversed for Mode {
-    fn reversed(&self) -> Self {
+impl Reverse for Mode {
+    fn reverse(&mut self) {
         match self {
-            Mode::Out => Mode::In,
-            Mode::In => Mode::Out,
+            Mode::Out => *self = Mode::In,
+            Mode::In => *self = Mode::Out,
         }
     }
 }
@@ -31,8 +31,8 @@ impl Display for Mode {
             f,
             "{}",
             match self {
-                Mode::Out => "Out",
-                Mode::In => "In",
+                Mode::Out => "out",
+                Mode::In => "in",
             }
         )
     }
@@ -102,8 +102,8 @@ impl Interface {
     }
 
     /// Return the key of this interface
-    pub fn key(&self) -> InterfaceKey {
-        self.key.clone()
+    pub fn key(&self) -> &InterfaceKey {
+        &self.key
     }
 
     /// Return the mode of the interface, i.e. whether it's an input or output.
@@ -112,8 +112,8 @@ impl Interface {
     }
 
     /// Return the reference to the type in the project.
-    pub fn typ(&self) -> TypeRef {
-        self.typ.clone()
+    pub fn typ(&self) -> &TypeRef {
+        &self.typ
     }
 }
 
@@ -130,7 +130,7 @@ impl Identify for Interface {
 }
 
 impl Document for Interface {
-    fn doc(&self) -> Option<String> {
-        self.doc.clone()
+    fn doc(&self) -> &Option<String> {
+        &self.doc
     }
 }
