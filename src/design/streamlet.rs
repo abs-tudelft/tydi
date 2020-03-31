@@ -29,9 +29,8 @@ impl Streamlet {
     /// Construct a new streamlet from an interface builder that makes sure all interface names
     /// are unique.
     ///
-    /// # Example
-    /// ```
-    /// ```
+    /// This function can fail if the key is invalid or if the builder contains some interfaces
+    /// with the same name.
     pub fn from_builder(
         key: impl TryInto<StreamletKey, Error = impl Into<Box<dyn std::error::Error>>>,
         builder: UniqueKeyBuilder<Interface>,
@@ -51,6 +50,22 @@ impl Streamlet {
                 None
             },
         })
+    }
+
+    /// Construct a new streamlet.
+    ///
+    /// This function can fail if the key is invalid or if the interfaces supplied do not have
+    /// unique names.
+    pub fn try_new(
+        key: impl TryInto<StreamletKey, Error = impl Into<Box<dyn std::error::Error>>>,
+        interfaces: Vec<Interface>,
+        doc: Option<&str>,
+    ) -> Result<Self> {
+        Self::from_builder(
+            key.try_into().map_err(Into::into)?,
+            UniqueKeyBuilder::new().with_items(interfaces),
+            doc,
+        )
     }
 
     /// Returns the key of this streamlet.
@@ -81,10 +96,12 @@ impl Streamlet {
         }
     }
 
+    /// Return a reference to the implementation of this streamlet.
     pub fn implementation(&self) -> Ref<Implementation> {
         self.implementation.borrow()
     }
 
+    /// Set the implementation of this streamlet.
     pub fn set_implementation(&self, implementation: Implementation) -> Result<()> {
         if let Some(r) = implementation.streamlet() {
             if r.streamlet == self.key {

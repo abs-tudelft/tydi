@@ -1,6 +1,6 @@
 //! Streamlet instances for structural implementation.
 
-use crate::design::structural::NodeKey;
+use crate::design::implementation::structural::NodeKey;
 use crate::design::{Interface, InterfaceKey, Project, StreamletRef};
 use crate::Result;
 use std::fmt::Debug;

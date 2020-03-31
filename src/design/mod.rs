@@ -18,7 +18,6 @@ pub mod interface;
 pub mod library;
 pub mod project;
 pub mod streamlet;
-pub mod structural;
 pub mod typ;
 
 // Structure keys:

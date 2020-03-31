@@ -1,6 +1,9 @@
 //! Structures to support the implementation of streamlets.
 
-use crate::design::structural::StructuralImpl;
+pub mod prelude;
+pub mod structural;
+
+use crate::design::implementation::structural::StructuralImpl;
 use crate::design::StreamletRef;
 
 /// An implementation variant.

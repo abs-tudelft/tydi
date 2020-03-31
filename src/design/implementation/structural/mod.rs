@@ -1,6 +1,5 @@
 //! Structural implementations of streamlets.
 
-use crate::design::structural::streamlet_instance::StreamletInst;
 use crate::design::{Interface, InterfaceKey, Project, StreamletRef};
 use crate::{Error, Result};
 use crate::{Name, Reversed};
@@ -8,7 +7,10 @@ use indexmap::map::IndexMap;
 use std::fmt::Debug;
 
 pub mod builder;
-pub mod streamlet_instance;
+pub mod instance;
+pub use builder::Interfaces;
+pub use builder::StructuralImplBuilder;
+pub use instance::StreamletInst;
 
 /// The key of an instance.
 pub type NodeKey = Name;

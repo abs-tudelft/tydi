@@ -2,8 +2,9 @@
 //!
 //! This is useful until there is a front-end language for structural implementation.
 
-use crate::design::structural::streamlet_instance::StreamletInst;
-use crate::design::structural::{Edge, Node, NodeIORef, NodeKey, StructuralImpl};
+use crate::design::implementation::structural::{
+    Edge, Node, NodeIORef, NodeKey, StreamletInst, StructuralImpl,
+};
 use crate::design::{Interface, InterfaceKey, Mode, Project, StreamletRef};
 use crate::{Error, Result};
 use indexmap::map::IndexMap;
@@ -18,6 +19,48 @@ pub trait Interfaces {
 }
 
 impl Interfaces for Node {
+    /// Obtain a reference to a node interface.
+    ///
+    /// # Example:
+    ///
+    /// ```rust
+    /// use tydi::design::implementation::prelude::*;
+    /// use tydi::Result;
+    /// # fn example() -> Result<()> {
+    ///
+    /// let mut prj = Project::new(Name::try_new("example")?);
+    /// let mut lib = Library::new(Name::try_new("lib")?);
+    /// let foo = lib.add_streamlet(Streamlet::try_new(
+    ///     "roast",
+    ///     vec![
+    ///         Interface::try_new("beans", Mode::In, TypeRef::anon(LogicalType::Null), None)?,
+    ///         Interface::try_new("coffee", Mode::Out, TypeRef::anon(LogicalType::Null), None)?,
+    ///     ],
+    ///     None,
+    /// )?)?;
+    ///
+    /// let mut builder = StructuralImplBuilder::try_new(&prj, foo)?;
+    ///
+    /// let beans = builder.this().io("beans"); // Obtain a (valid) reference to the beans interface.
+    /// let coffee = builder.this().io("covfefe"); // Oops, made a typo! The reference is invalid.
+    /// assert!(builder.connect(coffee, beans).is_err()); // Usage results in an error.
+    ///
+    /// // Fix our mistake:
+    /// let beans = builder.this().io("beans");
+    /// let coffee = builder.this().io("coffee");
+    /// assert!(builder.connect(coffee, beans).is_ok());
+    ///
+    /// #   Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Considerations:
+    ///
+    /// The reference may be invalid, in the sense that it might not be checked whether
+    /// the interface key is valid for that node, only if it's a valid InterfaceKey.
+    ///
+    /// Functions that take a NodeIORef as a parameter, will check for correctness of the
+    /// reference, e.g. the connect() function of a StructuralImplBuilder.
     fn io<K>(&self, key: K) -> Result<NodeIORef>
     where
         K: TryInto<InterfaceKey>,
@@ -152,13 +195,8 @@ impl<'prj> StructuralImplBuilder<'prj> {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::design::implementation::Implementation;
-    use crate::design::structural::builder::StructuralImplBuilder;
-    use crate::design::{
-        Interface, Library, LibraryKey, Mode, NamedType, Project, Streamlet, TypeRef,
-    };
-    use crate::logical::LogicalType;
-    use crate::{Name, UniqueKeyBuilder};
+
+    use crate::design::implementation::prelude::*;
 
     pub(in crate::design) fn builder_example() -> Result<Project> {
         ////////////////////////////////////////////////////////////////////////////////////////////
