@@ -1,26 +1,36 @@
+//! Support for named types.
+
 use crate::design::TypeKey;
 use crate::logical::LogicalType;
-use crate::{Error, Identify, Result, UniqueKeyBuilder};
+use crate::{Document, Error, Identify, Result, UniqueKeyBuilder};
 use indexmap::map::IndexMap;
 use std::convert::TryInto;
 
+/// A named Tydi type that has name in a library, usable for type re-use and equality checking.
 // TODO: placeholder for actual type implementation.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NamedType {
     key: TypeKey,
     inner: LogicalType, // placeholder for the actual stuff that needs to be in here.
+    doc: Option<String>,
 }
 
 impl NamedType {
     pub fn try_new(
         key: impl TryInto<TypeKey, Error = impl Into<Box<dyn std::error::Error>>>,
         typ: LogicalType,
+        doc: Option<&str>,
     ) -> Result<Self> {
         let k = key.try_into().map_err(Into::into)?;
-        Ok(NamedType { key: k, inner: typ })
+        Ok(NamedType {
+            key: k,
+            inner: typ,
+            doc: doc.map(|s| s.to_string()),
+        })
     }
-    pub fn key(&self) -> TypeKey {
-        self.key.clone()
+
+    pub fn key(&self) -> &TypeKey {
+        &self.key
     }
 
     pub fn logical(&self) -> &LogicalType {
@@ -31,6 +41,12 @@ impl NamedType {
 impl Identify for NamedType {
     fn identifier(&self) -> &str {
         self.key.as_ref()
+    }
+}
+
+impl Document for NamedType {
+    fn doc(&self) -> &Option<String> {
+        &self.doc
     }
 }
 
@@ -65,21 +81,21 @@ impl NamedTypeStore {
             types: builder
                 .finish()?
                 .into_iter()
-                .map(|t| (t.key(), t))
+                .map(|t| (t.key().clone(), t))
                 .collect::<IndexMap<TypeKey, NamedType>>(),
         })
     }
 
     /// Add a type to the TypeStore.
     pub fn insert(&mut self, typ: NamedType) -> Result<TypeKey> {
-        let key = typ.key();
-        if self.types.get(&typ.key()).is_some() {
+        let key = typ.key().clone();
+        if self.types.get(typ.key()).is_some() {
             Err(Error::ProjectError(format!(
                 "Type {} already in library.",
                 typ.key(),
             )))
         } else {
-            self.types.insert(typ.key(), typ);
+            self.types.insert(typ.key().clone(), typ);
             Ok(key)
         }
     }
@@ -96,14 +112,14 @@ mod tests {
     #[test]
     fn type_store() {
         let mut ts = NamedTypeStore::default();
-        ts.insert(NamedType::try_new("A", LogicalType::Null).unwrap())
+        ts.insert(NamedType::try_new("A", LogicalType::Null, None).unwrap())
             .unwrap();
-        ts.insert(NamedType::try_new("B", LogicalType::Null).unwrap())
+        ts.insert(NamedType::try_new("B", LogicalType::Null, None).unwrap())
             .unwrap();
 
         // Attempt to insert duplicate:
         assert!(ts
-            .insert(NamedType::try_new("A", LogicalType::Null).unwrap())
+            .insert(NamedType::try_new("A", LogicalType::Null, None).unwrap())
             .is_err());
 
         assert!(ts.get(TypeKey::try_new("b").unwrap()).is_err());
@@ -111,7 +127,7 @@ mod tests {
         // Get a type out of the store:
         assert_eq!(
             ts.get(TypeKey::try_new("B").unwrap()).unwrap(),
-            &NamedType::try_new("B", LogicalType::Null).unwrap()
+            &NamedType::try_new("B", LogicalType::Null, None).unwrap()
         );
     }
 }

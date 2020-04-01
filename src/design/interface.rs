@@ -1,5 +1,4 @@
-//! This module contains structures that represent Tydi interfaces on Streamlets,
-//! or other abstractions.
+//! Structures that represent Tydi interfaces on streamlets.
 
 use crate::design::{InterfaceKey, TypeRef};
 use crate::{Document, Error, Identify, Result, Reverse, Reversed};
@@ -69,11 +68,9 @@ pub struct Interface {
 }
 
 impl Interface {
-    /// Try to construct a new interface.
+    /// Attempt to construct a new interface.
     ///
-    /// # Example:
-    /// ```
-    /// ```
+    /// This function can fail if the key is invalid.
     pub fn try_new(
         key: impl TryInto<InterfaceKey, Error = impl Into<Box<dyn std::error::Error>>>,
         mode: Mode,
@@ -87,15 +84,12 @@ impl Interface {
                 key: n,
                 mode,
                 typ,
-                doc: if let Some(d) = doc {
-                    Some(d.to_string())
-                } else {
-                    None
-                },
+                doc: doc.map(|s| s.to_string()),
             }),
         }
     }
 
+    /// Consume the interface, returning it with documentation added.
     pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
         self.doc = Some(doc.into());
         self

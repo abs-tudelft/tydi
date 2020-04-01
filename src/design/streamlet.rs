@@ -1,4 +1,4 @@
-//! This module contains the Streamlet structure.
+//! Support for streamlets; components that have interfaces of Tydi types.
 
 use crate::design::implementation::Implementation;
 use crate::design::{Interface, InterfaceKey};

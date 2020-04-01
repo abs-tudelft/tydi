@@ -1,3 +1,5 @@
+//! Various back-ends for Tydi designs.
+
 use crate::design::Project;
 use crate::Result;
 use std::path::Path;

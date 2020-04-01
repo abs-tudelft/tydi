@@ -1,20 +1,20 @@
-//! This module contains the [Library] structure, used to group multiple [Streamlet]s together.
+//! Support for libraries; collections of named types and streamlet definitions.
 //!
-//! This allows users to build up libraries of streamlets and helps to generate language-specific
-//! output (e.g. a package in VHDL).
+//! This allows users to build up libraries of Tydi types and streamlets.
 
 use crate::design::typ::NamedTypeStore;
 use crate::design::{
     LibraryKey, LibraryRef, NamedType, NamedTypeRef, StreamletRef, TypeKey, TypeRef,
 };
+use crate::parser::nom::library;
 use crate::{
     design::{Streamlet, StreamletKey},
-    parser::nom::list_of_streamlets,
     traits::Identify,
     Error, Name, Result, UniqueKeyBuilder,
 };
 use indexmap::map::IndexMap;
 use log::debug;
+use std::ops::Deref;
 use std::path::Path;
 
 /// A library forms a collection of streamlets.
@@ -35,7 +35,25 @@ impl Library {
         }
     }
 
+    /// Construct a Library.
+    ///
+    /// This function can fail if the vectors contain types or streamlets with duplicate keys.
+    pub fn try_new(
+        key: LibraryKey,
+        types: Vec<NamedType>,
+        streamlets: Vec<Streamlet>,
+    ) -> Result<Self> {
+        Self::from_builder(
+            key,
+            UniqueKeyBuilder::new().with_items(types),
+            UniqueKeyBuilder::new().with_items(streamlets),
+        )
+    }
+
     /// Construct a Library from a UniquelyNamedBuilder with Streamlets.
+    ///
+    /// This function can fail if the UniqueKeyBuilders contain types or streamlets with duplicate
+    /// keys.
     pub fn from_builder(
         key: LibraryKey,
         types: UniqueKeyBuilder<NamedType>,
@@ -61,50 +79,53 @@ impl Library {
                     .ok_or_else(|| Error::FileIOError("Invalid path.".to_string()))?
             )))
         } else {
-            debug!(
-                "Parsing: {}",
-                path.to_str()
-                    .ok_or_else(|| Error::FileIOError("Invalid path.".to_string()))?
-            );
-
-            let streamlets: Vec<Streamlet> = list_of_streamlets(
-                std::fs::read_to_string(&path)
-                    .map_err(|e| Error::FileIOError(e.to_string()))?
-                    .as_str(),
-            )
-            .map_err(|e| Error::ParsingError(e.to_string()))?
-            .1;
-            debug!("Parsed streamlets: {}", {
-                let sln: Vec<&str> = streamlets.iter().map(|s| s.identifier()).collect();
-                sln.join(", ")
-            });
             let name = Name::try_new(
                 path.file_stem()
                     .ok_or_else(|| Error::FileIOError("Invalid file name.".to_string()))?
                     .to_str()
                     .unwrap(),
             )?;
-            let streamlets = UniqueKeyBuilder::new().with_items(streamlets);
-            // TODO: parse types
-            let types = UniqueKeyBuilder::new();
+            debug!(
+                "Parsing: {}",
+                path.to_str()
+                    .ok_or_else(|| Error::FileIOError("Invalid path.".to_string()))?
+            );
 
-            Library::from_builder(name, types, streamlets)
+            let result = library(
+                name,
+                std::fs::read_to_string(&path)
+                    .map_err(|e| Error::FileIOError(e.to_string()))?
+                    .as_str(),
+            )
+            .map_err(|e| Error::ParsingError(e.to_string()))?
+            .1;
+
+            debug!("Types: {}", {
+                let typ_list: Vec<&str> = result.named_types().map(|t| t.key().deref()).collect();
+                typ_list.join(", ")
+            });
+            debug!("Streamlets: {}", {
+                let stl_list: Vec<&str> = result.streamlets().map(|s| s.identifier()).collect();
+                stl_list.join(", ")
+            });
+
+            Ok(result)
         }
     }
 
-    pub fn key(&self) -> LibraryKey {
-        self.key.clone()
+    pub fn key(&self) -> &LibraryKey {
+        &self.key
     }
 
     pub fn this(&self) -> LibraryRef {
         LibraryRef {
-            library: self.key(),
+            library: self.key().clone(),
         }
     }
 
     pub fn add_type(&mut self, typ: NamedType) -> Result<TypeRef> {
         // Remember the type key.
-        let typ_key = typ.key();
+        let typ_key = typ.key().clone();
         // Attempt to insert the type.
         self.types.insert(typ)?;
         // Return a TypeRef to the type.
@@ -202,7 +223,7 @@ pub mod tests {
     fn library() {
         let mut lib = libs::empty_lib("test");
 
-        lib.add_type(NamedType::try_new("A", LogicalType::Null).unwrap())
+        lib.add_type(NamedType::try_new("A", LogicalType::Null, None).unwrap())
             .unwrap();
 
         lib.add_streamlet(crate::design::streamlet::tests::streamlets::simple("a"))

@@ -38,7 +38,7 @@ impl Project {
             libraries: builder
                 .finish()?
                 .into_iter()
-                .map(|l| (l.key(), l))
+                .map(|l| (l.key().clone(), l))
                 .collect::<IndexMap<LibraryKey, Library>>(),
         })
     }
@@ -51,16 +51,16 @@ impl Project {
     /// Add a library to the project.
     pub fn add_library(&mut self, library: Library) -> Result<LibraryRef> {
         // Remember the library key.
-        let lib_key = library.key();
+        let lib_key = library.key().clone();
         // Check if the streamlet already exists.
-        if self.libraries.get(&library.key()).is_some() {
+        if self.libraries.get(library.key()).is_some() {
             Err(Error::ProjectError(format!(
                 "Library {} already in project.",
                 library.key(),
             )))
         } else {
             // Insert the streamlet and return a reference.
-            self.libraries.insert(library.key(), library);
+            self.libraries.insert(library.key().clone(), library);
             Ok(LibraryRef { library: lib_key })
         }
     }

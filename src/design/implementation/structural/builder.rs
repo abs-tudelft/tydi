@@ -205,8 +205,8 @@ pub(crate) mod tests {
         let mut prim = Library::new(LibraryKey::try_new("primitives")?);
 
         // Add the types to the library:
-        let wheat = prim.add_type(NamedType::try_new("Wheat", LogicalType::Null)?)?;
-        let flour = prim.add_type(NamedType::try_new("Flour", LogicalType::Null)?)?;
+        let wheat = prim.add_type(NamedType::try_new("Wheat", LogicalType::Null, None)?)?;
+        let flour = prim.add_type(NamedType::try_new("Flour", LogicalType::Null, None)?)?;
         // add_type returns a custom type reference that can only be de-referenced through a
         //  project but can be used in things that reference this type.
         // For users, there should be no other way of obtaining this custom reference.
@@ -222,7 +222,7 @@ pub(crate) mod tests {
         )?)?;
 
         // Add another type and streamlet.
-        let cookie = prim.add_type(NamedType::try_new("Cookie", LogicalType::Null)?)?;
+        let cookie = prim.add_type(NamedType::try_new("Cookie", LogicalType::Null, None)?)?;
         let bakery = prim.add_streamlet(Streamlet::from_builder(
             "Bakery",
             UniqueKeyBuilder::new().with_items(vec![

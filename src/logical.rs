@@ -1,4 +1,4 @@
-//! Logical streams.
+//! Logical type support.
 //!
 //! [Reference]
 //!
@@ -421,11 +421,6 @@ impl From<Union> for LogicalType {
 /// The logical stream type is defined recursively by means of a number of
 /// stream types. Two classes of stream types are defined: stream-manipulating
 /// types, and element-manipulating types.
-///
-/// # Examples
-///
-/// ```rust
-/// ```
 ///
 /// [Reference](https://abs-tudelft.github.io/tydi/specification/logical.html#logical-stream-type)
 #[derive(Debug, Clone, PartialEq)]

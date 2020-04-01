@@ -1,18 +1,12 @@
-//! Constructs that are used to generate hardware designs, that are not
-//! part of the specification (yet).
-
-use crate::Name;
-use crate::{Error, Result};
+//! Support for designs that use the Tydi type system.
 
 use crate::logical::LogicalType;
-pub use interface::{Interface, Mode};
-pub use library::Library;
-pub use project::Project;
+use crate::Name;
+use crate::{Error, Result};
 use std::convert::TryInto;
 use std::fmt::Display;
-pub use streamlet::Streamlet;
-pub use typ::NamedType;
 
+// Submodules:
 pub mod implementation;
 pub mod interface;
 pub mod library;
@@ -20,11 +14,25 @@ pub mod project;
 pub mod streamlet;
 pub mod typ;
 
+// Re-exports:
+pub use interface::{Interface, Mode};
+pub use library::Library;
+pub use project::Project;
+pub use streamlet::Streamlet;
+pub use typ::NamedType;
+
 // Structure keys:
 
+/// The key of a type in a library.
 pub type TypeKey = Name;
+
+/// The key of an interface on a streamlet.
 pub type InterfaceKey = Name;
+
+/// The key of a streamlet in a library.
 pub type StreamletKey = Name;
+
+/// The key of a library in a project.
 pub type LibraryKey = Name;
 
 // Custom reference types:
@@ -36,8 +44,7 @@ pub struct LibraryRef {
     library: LibraryKey,
 }
 
-/// A reference to a type.
-/// A Rust reference can be obtained from a Project if the type is not anonymous.
+/// A reference to a named type in some project library.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NamedTypeRef {
     library: LibraryRef,
@@ -45,7 +52,9 @@ pub struct NamedTypeRef {
 }
 
 /// A reference to a type.
-/// A Rust reference can be obtained from a Project if the type is not anonymous.
+///
+/// If the type is not anonymous, it can be used to look up the corresponding NamedType in a
+/// project.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeRef {
     /// An anonymous type.
@@ -62,7 +71,8 @@ impl TypeRef {
 }
 
 /// A reference to a streamlet.
-/// A Rust reference can be obtained from a Project.
+///
+/// An actual Streamlet reference can be obtained from a project.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StreamletRef {
     library: LibraryRef,
@@ -70,7 +80,8 @@ pub struct StreamletRef {
 }
 
 /// A reference to an interface.
-/// A Rust reference can be obtained from a Project.
+///
+/// An actual Interface reference can be obtained from a project.
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceRef {
     streamlet: StreamletRef,
