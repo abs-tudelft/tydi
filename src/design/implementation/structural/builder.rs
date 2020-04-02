@@ -198,7 +198,7 @@ pub(crate) mod tests {
 
     use crate::design::implementation::prelude::*;
 
-    pub(in crate::design) fn builder_example() -> Result<Project> {
+    pub(crate) fn builder_example() -> Result<Project> {
         ////////////////////////////////////////////////////////////////////////////////////////////
 
         // Declare a lib for primitive streamlets.
@@ -228,6 +228,8 @@ pub(crate) mod tests {
             UniqueKeyBuilder::new().with_items(vec![
                 // Using the Flour type from another library.
                 Interface::try_new("flour", Mode::In, flour, None)?,
+                // Some unnamed secret ingredient to make the cookies taste good.
+                Interface::try_new("secret", Mode::In, TypeRef::anon(LogicalType::Null), None)?,
                 Interface::try_new("cookies", Mode::Out, cookie.clone(), None)?,
             ]),
             None,
@@ -238,7 +240,6 @@ pub(crate) mod tests {
             "Factory",
             UniqueKeyBuilder::new().with_items(vec![
                 Interface::try_new("wheat", Mode::In, wheat, None)?,
-                // Some unnamed secret ingredient to make the cookies taste good.
                 Interface::try_new("secret", Mode::In, TypeRef::anon(LogicalType::Null), None)?,
                 Interface::try_new("cookies", Mode::Out, cookie, None)?,
             ]),
@@ -268,6 +269,7 @@ pub(crate) mod tests {
         assert!(dbg!(imp.connect(mill.io("wheat"), baker.io("cookies"))).is_err());
 
         imp.connect(mill.io("wheat"), this.io("wheat"))?;
+        imp.connect(baker.io("secret"), this.io("secret"))?;
         imp.connect(baker.io("flour"), mill.io("flour"))?;
         imp.connect(this.io("cookies"), baker.io("cookies"))?;
 
