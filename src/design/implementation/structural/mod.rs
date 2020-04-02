@@ -15,12 +15,14 @@ pub use instance::StreamletInst;
 /// The key of an instance.
 pub type NodeKey = Name;
 
+pub const THIS_KEY: &str = "this";
+
 impl NodeKey {
     /// Returns the key that signifies the streamlet that is being implemented itself.
     /// This is a reserved key that users should not be able to use as instance name.
     /// Could be seen as the Rust keyword "self".
     pub fn this() -> NodeKey {
-        Name::try_new("this").unwrap()
+        Name::try_new(THIS_KEY).unwrap()
     }
 }
 
