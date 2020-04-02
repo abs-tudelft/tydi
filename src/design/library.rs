@@ -94,7 +94,13 @@ impl Library {
             let result = library(
                 name,
                 std::fs::read_to_string(&path)
-                    .map_err(|e| Error::FileIOError(e.to_string()))?
+                    .map_err(|e| {
+                        Error::FileIOError(format!(
+                            "{} - {}",
+                            path.to_str().unwrap(), // this was checked by previous path.to_str()
+                            e.to_string()
+                        ))
+                    })?
                     .as_str(),
             )
             .map_err(|e| Error::ParsingError(e.to_string()))?
@@ -196,6 +202,26 @@ pub mod tests {
 
         pub(crate) fn empty_lib(name: &str) -> Library {
             Library::new(LibraryKey::try_new(name).unwrap())
+        }
+
+        pub(crate) fn simple_lib(name: &str) -> Library {
+            let mut lib = Library::new(LibraryKey::try_new(name).unwrap());
+            assert!(lib
+                .add_type(NamedType::try_new("Hello", LogicalType::Null, None).unwrap())
+                .is_ok());
+            assert!(lib
+                .add_type(
+                    NamedType::try_new("Tydi", LogicalType::try_new_bits(8).unwrap(), None)
+                        .unwrap(),
+                )
+                .is_ok());
+            assert!(lib
+                .add_streamlet(crate::design::streamlet::tests::streamlets::simple("foo"))
+                .is_ok());
+            assert!(lib
+                .add_streamlet(crate::design::streamlet::tests::streamlets::simple("bar"))
+                .is_ok());
+            lib
         }
     }
 

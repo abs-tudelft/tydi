@@ -110,6 +110,16 @@ pub mod tests {
             )
             .unwrap()
         }
+
+        pub(crate) fn single_lib_proj(name: &str) -> Project {
+            Project::from_builder(
+                Name::try_new(name).unwrap(),
+                UniqueKeyBuilder::new().with_items(vec![
+                    crate::design::library::tests::libs::simple_lib("my_lib"),
+                ]),
+            )
+            .unwrap()
+        }
     }
 
     #[test]

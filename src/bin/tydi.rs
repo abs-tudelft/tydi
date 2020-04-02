@@ -12,6 +12,7 @@ use tydi::{Logger, Result};
 
 use structopt::StructOpt;
 use tydi::design::{Library, Project};
+use tydi::generator::dot::DotBackend;
 
 static LOGGER: Logger = Logger;
 
@@ -22,6 +23,8 @@ enum TargetOpt {
     VHDL(VHDLConfig),
     /// Generate Chisel sources.
     Chisel,
+    /// Gerate DOT graphs.
+    Dot,
 }
 
 #[derive(Debug, StructOpt)]
@@ -106,7 +109,14 @@ fn generate(opts: GenerateOpts) -> Result<()> {
                 opts.output.unwrap_or(std::env::current_dir()?).as_path(),
             )?;
         }
-        TargetOpt::Chisel => {}
+        TargetOpt::Chisel => unimplemented!(),
+        TargetOpt::Dot => {
+            let dot = DotBackend::default();
+            dot.generate(
+                &project,
+                opts.output.unwrap_or(std::env::current_dir()?).as_path(),
+            )?;
+        }
     }
     info!("Done.");
     Ok(())
@@ -115,8 +125,6 @@ fn generate(opts: GenerateOpts) -> Result<()> {
 /// Internal main function wrapped with CLI main function.
 /// Useful for tests.
 pub fn internal_main(options: Opt) -> Result<()> {
-    // Set up logger.
-    log::set_logger(&LOGGER)?;
     if options.verbose {
         log::set_max_level(LevelFilter::Info);
     }
@@ -130,34 +138,76 @@ pub fn internal_main(options: Opt) -> Result<()> {
     }
 }
 
+/// CLI main function.
+fn main() -> Result<()> {
+    // Set up logger.
+    log::set_logger(&LOGGER)?;
+    // Run Tydi
+    internal_main(Opt::from_args())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn cli() -> Result<()> {
-        let tmpdir = tempfile::tempdir()?;
-        std::env::set_current_dir(tmpdir.path())?;
-        let sdf_file = tmpdir.path().join("test.sdf");
+    fn cli_vhdl() -> Result<()> {
+        log::set_logger(&LOGGER)?;
+        let tmpdir = tempfile::TempDir::new()?;
+        let sdf_file = tmpdir.path().join("lib.sdf");
         std::fs::write(
             sdf_file.as_path(),
             "Streamlet x ( a : in Stream<Bits<1>, d=1>, b : out Stream<Bits<32>> )",
         )?;
         internal_main(
             Opt::from_iter_safe(vec![
-                "tydi", "--debug", "generate", "test", "vhdl", "-a=fancy", "-s=gen",
+                "tydi",
+                "--debug",
+                "generate",
+                format!("-i{}", sdf_file.to_str().unwrap()).as_str(),
+                format!("-o{}", tmpdir.path().to_str().unwrap()).as_str(),
+                "test",
+                "vhdl",
+                "-a=fancy",
+                "-s=gen",
             ])
             .map_err(|e| panic!(format!("{}", e)))
             .unwrap(),
         )?;
-        let expected_vhdl = tmpdir.path().join("test/test_pkg.gen.vhd");
+        let expected_vhdl = tmpdir.path().join("test/lib_pkg.gen.vhd");
         std::fs::metadata(expected_vhdl)?;
         std::fs::remove_dir_all(tmpdir.path())?;
+
+        // TODO: for some reason these two functions cannot be tested seperately in cargo
+
+        //     Ok(())
+        // }
+        //
+        // #[test]
+        // fn cli_dot() -> Result<()> {
+        //     log::set_logger(&LOGGER)?;
+        let tmpdir = tempfile::TempDir::new()?;
+        let sdf_file = tmpdir.path().join("lib.sdf");
+        std::fs::write(
+            sdf_file.as_path(),
+            "Streamlet x ( a : in Stream<Bits<1>, d=1>, b : out Stream<Bits<32>> )",
+        )?;
+        internal_main(
+            Opt::from_iter_safe(vec![
+                "tydi",
+                "--debug",
+                "generate",
+                format!("-i{}", sdf_file.to_str().unwrap()).as_str(),
+                format!("-o{}", tmpdir.path().to_str().unwrap()).as_str(),
+                "test",
+                "dot",
+            ])
+            .map_err(|e| panic!(format!("{}", e)))
+            .unwrap(),
+        )?;
+        let expected_dot = tmpdir.path().join("test/lib.dot");
+        std::fs::metadata(expected_dot)?;
+        //std::fs::remove_dir_all(tmpdir.path())?;
         Ok(())
     }
-}
-
-/// CLI main function.
-fn main() -> Result<()> {
-    internal_main(Opt::from_args())
 }
