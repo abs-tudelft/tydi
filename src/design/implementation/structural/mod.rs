@@ -62,7 +62,7 @@ impl Edge {
 
     /// Return the sinking node interface of the edge.
     pub fn sink(&self) -> NodeIORef {
-        self.source.clone()
+        self.sink.clone()
     }
 }
 
