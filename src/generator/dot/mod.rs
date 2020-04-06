@@ -56,10 +56,16 @@ impl DotConfig {
     }
 
     pub fn interface(&self, mode: Mode) -> String {
-        match mode {
-            Mode::In => format!("style=\"filled\", {}", self.node_color(5)),
-            Mode::Out => format!("style=\"filled\", {}", self.node_color(6)),
-        }
+        format!(
+            "{}, {}, {}, {}",
+            "style=\"filled\"",
+            "shape=ellipse",
+            "penwidth=1",
+            match mode {
+                Mode::In => self.node_color(5),
+                Mode::Out => self.node_color(6),
+            },
+        )
     }
 }
 
@@ -86,7 +92,7 @@ impl Dotify for Interface {
             t(i),
             vec![prefix, self.identifier()].join("_").as_str(),
             self.identifier(),
-            config.interface(self.mode())
+            config.interface(self.mode()),
         )
     }
 }
@@ -118,12 +124,13 @@ fn io_subgraph<'a>(
     )
 }
 
-fn cluster_style(config: &DotConfig, color: usize, i: usize) -> String {
+fn cluster_style(config: &DotConfig, fill: usize, border: usize, i: usize) -> String {
     format!(
-        "{}{}{}",
+        "{}{}{}{}",
         format!("{}style=\"rounded\";\n", t(i + 1)),
-        format!("{}{}\n", t(i + 1), config.cluster_bgcolor(color)),
-        format!("{}{}\n", t(i + 1), config.cluster_border(color)),
+        format!("{}{}\n", t(i + 1), config.cluster_bgcolor(fill)),
+        format!("{}{}\n", t(i + 1), config.cluster_border(border)),
+        format!("{}{}\n", t(i + 1), "penwidth=3;")
     )
 }
 
@@ -139,7 +146,7 @@ impl Dotify for Streamlet {
                 // label
                 format!("{}label=\"{}\";\n", t(i + 1), self.key()),
                 // style
-                cluster_style(config, 1, i + 1),
+                cluster_style(config, 1, 1, i + 1),
                 // inputs
                 io_subgraph(config, project, i, p.as_str(), self.interfaces(), Mode::In),
                 // outputs
@@ -181,7 +188,7 @@ impl Dotify for StreamletInst {
                 "{}{}{}{}",
                 format!("{}label=\"{}\";\n", t(i + 1), self.key()),
                 // style
-                cluster_style(config, 4, i + 1),
+                cluster_style(config, 4, 4, i + 1),
                 // inputs
                 io_subgraph(config, project, i, p.as_str(), ins, Mode::In),
                 // outputs
@@ -231,7 +238,7 @@ impl Dotify for StructuralImpl {
                 "{}{}{}\n{}",
                 format!("{}label=\"Implementation\";\n", t(i + 1)),
                 // style
-                cluster_style(config, 0, i + 1),
+                cluster_style(config, 0, 1, i + 1),
                 // nodes
                 self.nodes()
                     .filter(|n| n.key().deref() != THIS_KEY)
