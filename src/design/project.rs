@@ -11,20 +11,20 @@ use indexmap::map::IndexMap;
 ///
 /// This is the top-level data structure for Tydi generators.
 #[derive(Debug, PartialEq)]
-pub struct Project {
+pub struct Project<'p> {
     name: Name,
-    libraries: IndexMap<LibraryKey, Library>,
+    libraries: IndexMap<LibraryKey, Library<'p>>,
 }
 
-impl Identify for Project {
+impl<'p> Identify for Project<'p> {
     fn identifier(&self) -> &str {
         self.name.as_ref()
     }
 }
 
-impl Project {
+impl<'p> Project<'p> {
     /// Construct a new, empty project.
-    pub fn new(name: Name) -> Project {
+    pub fn new(name: Name) -> Project<'p> {
         Project {
             name,
             libraries: IndexMap::new(),
@@ -32,7 +32,7 @@ impl Project {
     }
 
     /// Construct a project from a set of uniquely named libraries.
-    pub fn from_builder(name: Name, builder: UniqueKeyBuilder<Library>) -> Result<Self> {
+    pub fn from_builder(name: Name, builder: UniqueKeyBuilder<Library<'p>>) -> Result<Self> {
         Ok(Project {
             name,
             libraries: builder
@@ -44,12 +44,12 @@ impl Project {
     }
 
     /// Return an iterator over the libraries in this project.
-    pub fn libraries(&self) -> impl Iterator<Item = &Library> {
+    pub fn libraries(&self) -> impl Iterator<Item = &Library<'p>> {
         self.libraries.iter().map(|(_, l)| l)
     }
 
     /// Add a library to the project.
-    pub fn add_library(&mut self, library: Library) -> Result<LibraryRef> {
+    pub fn add_library(&mut self, library: Library<'p>) -> Result<LibraryRef> {
         // Remember the library key.
         let lib_key = library.key().clone();
         // Check if the streamlet already exists.
@@ -66,7 +66,7 @@ impl Project {
     }
 
     /// Get a library from the project, if it exists. Returns an error otherwise.
-    pub fn get_library(&self, library: LibraryRef) -> Result<&Library> {
+    pub fn get_library(&self, library: &LibraryRef) -> Result<&Library<'p>> {
         self.libraries.get(&library.library).ok_or_else(|| {
             Error::ProjectError(format!(
                 "Library {:?} does not exist in project {}.",
@@ -76,15 +76,15 @@ impl Project {
     }
 
     /// Get a streamlet from the project, if it exists. Returns an error otherwise.
-    pub fn get_streamlet(&self, streamlet: StreamletRef) -> Result<&Streamlet> {
-        self.get_library(streamlet.library)?
-            .get_streamlet(streamlet.streamlet)
+    pub fn get_streamlet(&self, streamlet: &StreamletRef) -> Result<&Streamlet<'p>> {
+        self.get_library(streamlet.library())?
+            .get_streamlet(streamlet.key())
     }
 
     /// Add the implementation of a streamlet to the project.
     pub fn add_streamlet_impl(
         &self,
-        streamlet: StreamletRef,
+        streamlet: &StreamletRef,
         implementation: Implementation,
     ) -> Result<()> {
         self.get_streamlet(streamlet)?
@@ -101,7 +101,7 @@ pub mod tests {
         use super::*;
 
         /// Return a project with an empty library.
-        pub(crate) fn empty_lib_proj() -> Project {
+        pub(crate) fn empty_lib_proj<'p>() -> Project<'p> {
             Project::from_builder(
                 Name::try_new("test").unwrap(),
                 UniqueKeyBuilder::new().with_items(vec![
@@ -111,7 +111,7 @@ pub mod tests {
             .unwrap()
         }
 
-        pub(crate) fn single_lib_proj(name: &str) -> Project {
+        pub(crate) fn single_lib_proj<'p>(name: &str) -> Project<'p> {
             Project::from_builder(
                 Name::try_new(name).unwrap(),
                 UniqueKeyBuilder::new().with_items(vec![
@@ -141,7 +141,7 @@ pub mod tests {
             .add_library(crate::design::library::tests::libs::empty_lib("empty"))
             .is_err());
         assert!(prj
-            .get_library(LibraryRef {
+            .get_library(&LibraryRef {
                 library: Name::try_new("undefined").unwrap()
             })
             .is_err());

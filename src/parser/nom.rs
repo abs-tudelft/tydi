@@ -1,6 +1,6 @@
 //! Nom-based parsers for Streamlet Definition Files.
 
-use crate::design::{Interface, Library, LibraryKey, Mode, NamedType, Streamlet, TypeRef};
+use crate::design::{Interface, Library, LibraryKey, Mode, NamedType, Streamlet, TypeKey};
 use crate::logical::{Direction, Group, LogicalType, Stream, Synchronicity, Union};
 use crate::physical::Complexity;
 use crate::{Name, PositiveReal};
@@ -291,7 +291,7 @@ pub fn interface(input: &str) -> Result<&str, Interface> {
             logical_type,
         )),
         |(d, n, _, m, _, t): (Option<String>, Name, _, Mode, _, LogicalType)| {
-            Interface::try_new(n, m, TypeRef::Anon(t), d.as_deref()).map_err(|_| ())
+            Interface::try_new(n, m, t, d.as_deref()).map_err(|_| ())
         },
     )(input)
 }
@@ -313,16 +313,32 @@ pub fn streamlet(input: &str) -> Result<&str, Declaration> {
     )(input)
 }
 
+/// A type reference that might have to be resolved to include the library key, if the type is
+/// referenced without a library path.
 #[derive(Clone, Debug, PartialEq)]
-pub enum Declaration {
-    TypeDef(NamedType),
-    Streamlet(Streamlet),
+pub struct OptionalLibTypeRef {
+    lib: Option<LibraryKey>,
+    typ: TypeKey,
+}
+
+impl OptionalLibTypeRef {
+    fn resolve<'p>(self, lib: LibraryKey) -> LogicalType<'p> {
+        // This will always succeed, otherwise the parser would have failed when
+        // creating the OptionalLibTypeRef, so we should be able to unwrap safely.
+        LogicalType::try_new_ref(self.lib.unwrap_or(lib), self.typ).unwrap()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Declaration<'l> {
+    TypeDef(NamedType<'l>),
+    Streamlet(Streamlet<'l>),
 }
 
 // Functions meant for testing purposes only.
-impl Declaration {
+impl<'l> Declaration<'l> {
     /// Unwrap for optional typedef contained in declaration. May panic.
-    pub fn typedef(self) -> NamedType {
+    pub fn typedef(self) -> NamedType<'l> {
         match self {
             Declaration::TypeDef(t) => t,
             _ => panic!(),
@@ -330,7 +346,7 @@ impl Declaration {
     }
 
     /// Unwrap for optional streamlet contained in declaration. May panic.
-    pub fn streamlet(self) -> Streamlet {
+    pub fn streamlet(self) -> Streamlet<'l> {
         match self {
             Declaration::Streamlet(s) => s,
             _ => panic!(),
@@ -372,6 +388,21 @@ pub fn typedef(input: &str) -> Result<&str, Declaration> {
             NamedType::try_new(n, t, d.as_deref()).map(Declaration::TypeDef)
         },
     )(input)
+}
+
+/// A project-wide type reference.
+pub fn global_typeref(input: &str) -> Result<&str, OptionalLibTypeRef> {
+    map(tuple((name, tag("::"), name)), |(lib, _, typ)| {
+        OptionalLibTypeRef {
+            lib: Some(lib),
+            typ,
+        }
+    })(input)
+}
+
+/// A library-local type reference, to be resolved in the library parser.
+pub fn local_typeref(input: &str) -> Result<&str, OptionalLibTypeRef> {
+    map(name, |typ| OptionalLibTypeRef { lib: None, typ })(input)
 }
 
 #[cfg(test)]
@@ -501,7 +532,7 @@ mod tests {
             interface("a :  in Null"),
             Ok((
                 "",
-                Interface::try_new("a", Mode::In, TypeRef::anon(LogicalType::Null), None).unwrap()
+                Interface::try_new("a", Mode::In, LogicalType::Null, None).unwrap()
             ))
         );
         assert_eq!(
@@ -514,7 +545,7 @@ mod tests {
                 Interface::try_new(
                     "b",
                     Mode::Out,
-                    TypeRef::anon(LogicalType::try_new_bits(1).unwrap()),
+                    LogicalType::try_new_bits(1).unwrap(),
                     Some(" This is a sweet interface")
                 )
                 .unwrap()
@@ -577,22 +608,14 @@ mod tests {
                                 Interface::try_new(
                                     "a",
                                     Mode::In,
-                                    TypeRef::anon(
-                                        LogicalType::try_new_group(vec![("a", 1), ("b", 2)])
-                                            .unwrap()
-                                    ),
+                                    LogicalType::try_new_group(vec![("a", 1), ("b", 2)]).unwrap(),
                                     None
                                 )
                                 .unwrap()
                             )
                             .with_item(
-                                Interface::try_new(
-                                    "c",
-                                    Mode::Out,
-                                    TypeRef::anon(LogicalType::Null),
-                                    None
-                                )
-                                .unwrap()
+                                Interface::try_new("c", Mode::Out, LogicalType::Null, None)
+                                    .unwrap()
                             ),
                         None
                     )
@@ -627,14 +650,14 @@ mod tests {
                             Interface::try_new(
                                 "a",
                                 Mode::In,
-                                TypeRef::anon(LogicalType::Null),
+                                LogicalType::Null,
                                 Some(" Such a weird interface")
                             )
                             .unwrap(),
                             Interface::try_new(
                                 "b",
                                 Mode::Out,
-                                TypeRef::anon(LogicalType::Null),
+                                LogicalType::Null,
                                 Some(" And another one")
                             )
                             .unwrap(),

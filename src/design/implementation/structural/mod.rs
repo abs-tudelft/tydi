@@ -84,15 +84,19 @@ pub enum Node {
 
 impl Node {
     /// Return the key of this node.
-    pub fn key(&self) -> NodeKey {
+    pub fn key(&self) -> &NodeKey {
         match self {
-            Node::This(_) => NodeKey::this(),
+            Node::This(t) => t.key(),
             Node::Streamlet(s) => s.key(),
         }
     }
 
     /// Return a clone of the interface with some key on this node, in the context of a project.
-    fn get_interface(&self, project: &Project, key: InterfaceKey) -> Result<Interface> {
+    fn get_interface<'p>(
+        &self,
+        project: &'p Project<'p>,
+        key: InterfaceKey,
+    ) -> Result<Interface<'p>> {
         match self {
             // For the This node, we need to reverse the interface with respect to the streamlet
             // definition, because we are looking at this interface from the other side.
@@ -229,7 +233,7 @@ mod tests {
             for stl in lib.streamlets() {
                 println!("      {}", stl.identifier());
                 for io in stl.interfaces() {
-                    println!("        {} : {} {}", io.key(), io.mode(), io.typ())
+                    println!("        {} : {} {:?}", io.key(), io.mode(), io.typ())
                 }
 
                 match stl.implementation().deref() {

@@ -4,12 +4,14 @@
 //!
 //! [Reference]: https://abs-tudelft.github.io/tydi/specification/logical.html
 
+use crate::design::{LibraryKey, TypeKey};
 use crate::{
     physical::{BitCount, Complexity, Fields, PhysicalStream},
     util::log2_ceil,
     Error, Name, NonNegative, PathName, Positive, PositiveReal, Result, Reverse,
 };
 use indexmap::IndexMap;
+use std::cell::RefCell;
 use std::str::FromStr;
 use std::{
     convert::{TryFrom, TryInto},
@@ -133,12 +135,12 @@ impl FromStr for Synchronicity {
 ///
 /// [Reference](https://abs-tudelft.github.io/tydi/specification/logical.html#stream)
 #[derive(Debug, Clone, PartialEq)]
-pub struct Stream {
+pub struct Stream<'t> {
     /// Logical stream type of data elements carried by this stream.
     ///
     /// Any logical stream type representing the data type carried by the
     /// logical stream.
-    data: Box<LogicalType>,
+    data: Box<LogicalType<'t>>,
     /// Throughput ratio of the stream.
     ///
     /// Positive real number, representing the minimum number of elements that
@@ -173,7 +175,7 @@ pub struct Stream {
     /// An optional logical stream type consisting of only
     /// element-manipulating nodes, representing the user data carried by
     /// this logical stream.
-    user: Option<Box<LogicalType>>,
+    user: Option<Box<LogicalType<'t>>>,
     /// Stream carries extra information.
     ///
     /// Keep specifies whether the stream carries "extra" information
@@ -185,7 +187,7 @@ pub struct Stream {
     keep: bool,
 }
 
-impl Reverse for Stream {
+impl<'t> Reverse for Stream<'t> {
     /// Reverse the direction of this stream.
     ///
     /// This flips the [`Direction`] of the stream.
@@ -196,16 +198,16 @@ impl Reverse for Stream {
     }
 }
 
-impl Stream {
+impl<'t> Stream<'t> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        data: LogicalType,
+        data: LogicalType<'t>,
         throughput: PositiveReal,
         dimensionality: NonNegative,
         synchronicity: Synchronicity,
         complexity: impl Into<Complexity>,
         direction: Direction,
-        user: Option<LogicalType>,
+        user: Option<LogicalType<'t>>,
         keep: bool,
     ) -> Self {
         Stream {
@@ -220,7 +222,7 @@ impl Stream {
         }
     }
 
-    pub fn new_basic(data: LogicalType) -> Self {
+    pub fn new_basic(data: LogicalType<'t>) -> Self {
         Stream {
             data: Box::new(data),
             throughput: PositiveReal::new(1.).unwrap(),
@@ -233,7 +235,7 @@ impl Stream {
         }
     }
 
-    pub fn data(&self) -> &LogicalType {
+    pub fn data(&self) -> &LogicalType<'t> {
         &self.data
     }
 
@@ -282,11 +284,11 @@ impl Stream {
     }
 }
 
-impl From<Stream> for LogicalType {
+impl<'t> From<Stream<'t>> for LogicalType<'t> {
     /// Wraps this stream in a [`LogicalType`].
     ///
     /// [`LogicalType`]: ./enum.LogicalType.html
-    fn from(stream: Stream) -> Self {
+    fn from(stream: Stream<'t>) -> Self {
         LogicalType::Stream(stream)
     }
 }
@@ -295,9 +297,9 @@ impl From<Stream> for LogicalType {
 ///
 /// [Reference](https://abs-tudelft.github.io/tydi/specification/logical.html#group)
 #[derive(Debug, Clone, PartialEq)]
-pub struct Group(IndexMap<Name, LogicalType>);
+pub struct Group<'t>(IndexMap<Name, LogicalType<'t>>);
 
-impl Group {
+impl<'t> Group<'t> {
     /// Returns a new Group logical stream type. Returns an error when either
     /// the name or logical stream type conversion fails, or when there are
     /// duplicate names.
@@ -305,7 +307,7 @@ impl Group {
         group: impl IntoIterator<
             Item = (
                 impl TryInto<Name, Error = impl Into<Box<dyn error::Error>>>,
-                impl TryInto<LogicalType, Error = impl Into<Box<dyn error::Error>>>,
+                impl TryInto<LogicalType<'t>, Error = impl Into<Box<dyn error::Error>>>,
             ),
         >,
     ) -> Result<Self> {
@@ -329,16 +331,16 @@ impl Group {
     }
 
     /// Returns an iterator over the fields of the Group.
-    pub fn iter(&self) -> impl Iterator<Item = (&Name, &LogicalType)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&Name, &LogicalType<'t>)> {
         self.0.iter()
     }
 }
 
-impl From<Group> for LogicalType {
+impl<'t> From<Group<'t>> for LogicalType<'t> {
     /// Wraps this group in a [`LogicalType`].
     ///
     /// [`LogicalType`]: ./enum.LogicalType.html
-    fn from(group: Group) -> Self {
+    fn from(group: Group<'t>) -> Self {
         LogicalType::Group(group)
     }
 }
@@ -347,9 +349,9 @@ impl From<Group> for LogicalType {
 ///
 /// [Reference](https://abs-tudelft.github.io/tydi/specification/logical.html#union)
 #[derive(Debug, Clone, PartialEq)]
-pub struct Union(IndexMap<Name, LogicalType>);
+pub struct Union<'t>(IndexMap<Name, LogicalType<'t>>);
 
-impl Union {
+impl<'t> Union<'t> {
     /// Returns a new Union logical stream type. Returns an error when either
     /// the name or logical stream type conversion fails, or when there are
     /// duplicate names.
@@ -357,7 +359,7 @@ impl Union {
         union: impl IntoIterator<
             Item = (
                 impl TryInto<Name, Error = impl Into<Box<dyn error::Error>>>,
-                impl TryInto<LogicalType, Error = impl Into<Box<dyn error::Error>>>,
+                impl TryInto<LogicalType<'t>, Error = impl Into<Box<dyn error::Error>>>,
             ),
         >,
     ) -> Result<Self> {
@@ -397,16 +399,16 @@ impl Union {
     }
 
     /// Returns an iterator over the fields of the Union.
-    pub fn iter(&self) -> impl Iterator<Item = (&Name, &LogicalType)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&Name, &LogicalType<'t>)> {
         self.0.iter()
     }
 }
 
-impl From<Union> for LogicalType {
+impl<'t> From<Union<'t>> for LogicalType<'t> {
     /// Wraps this union in a [`LogicalType`].
     ///
     /// [`LogicalType`]: ./enum.LogicalType.html
-    fn from(union: Union) -> Self {
+    fn from(union: Union<'t>) -> Self {
         LogicalType::Union(union)
     }
 }
@@ -424,7 +426,7 @@ impl From<Union> for LogicalType {
 ///
 /// [Reference](https://abs-tudelft.github.io/tydi/specification/logical.html#logical-stream-type)
 #[derive(Debug, Clone, PartialEq)]
-pub enum LogicalType {
+pub enum LogicalType<'t> {
     /// The Null stream type indicates the transferrence of one-valued data: it
     /// is only valid value is ∅ (null).
     ///
@@ -439,18 +441,22 @@ pub enum LogicalType {
     /// The Group stream type acts as a product type (composition).
     ///
     /// [Reference](https://abs-tudelft.github.io/tydi/specification/logical.html#group)
-    Group(Group),
+    Group(Group<'t>),
     /// The Union stream type acts as a sum type (exclusive disjunction).
     ///
     /// [Reference](https://abs-tudelft.github.io/tydi/specification/logical.html#union)
-    Union(Union),
+    Union(Union<'t>),
     /// The Stream type is used to define a new physical stream.
     ///
     /// [Reference](https://abs-tudelft.github.io/tydi/specification/logical.html#stream)
-    Stream(Stream),
+    Stream(Stream<'t>),
+    /// A reference to another type, that may be unresolved.
+    ///
+    ///
+    Ref(LibraryKey, TypeKey, RefCell<Option<&'t LogicalType<'t>>>),
 }
 
-impl TryFrom<NonNegative> for LogicalType {
+impl<'t> TryFrom<NonNegative> for LogicalType<'t> {
     type Error = Error;
 
     /// Returns a new Bits stream type with the provided bit count as number of
@@ -460,13 +466,25 @@ impl TryFrom<NonNegative> for LogicalType {
     }
 }
 
-impl From<Positive> for LogicalType {
+impl<'t> From<Positive> for LogicalType<'t> {
     fn from(bit_count: Positive) -> Self {
         LogicalType::Bits(bit_count)
     }
 }
 
-impl LogicalType {
+impl<'t> LogicalType<'t> {
+    /// Return a new reference to a type with respect to a project.
+    /// Type must be resolved for any of the other functions of this LogicalType to function
+    /// properly.
+    pub(crate) fn try_new_ref(
+        lib: impl TryInto<LibraryKey, Error = impl Into<Box<dyn std::error::Error>>>,
+        typ: impl TryInto<TypeKey, Error = impl Into<Box<dyn std::error::Error>>>,
+    ) -> Result<LogicalType<'t>> {
+        let l: LibraryKey = lib.try_into().map_err(Into::into)?;
+        let t: TypeKey = typ.try_into().map_err(Into::into)?;
+        Ok(LogicalType::Ref(l, t, RefCell::new(None)))
+    }
+
     /// Returns a new Bits stream type with the provided bit count as number of
     /// bits. Returns an error when the bit count is zero.
     ///
@@ -526,7 +544,7 @@ impl LogicalType {
         group: impl IntoIterator<
             Item = (
                 impl TryInto<Name, Error = impl Into<Box<dyn error::Error>>>,
-                impl TryInto<LogicalType, Error = impl Into<Box<dyn error::Error>>>,
+                impl TryInto<LogicalType<'t>, Error = impl Into<Box<dyn error::Error>>>,
             ),
         >,
     ) -> Result<Self> {
@@ -537,7 +555,7 @@ impl LogicalType {
         union: impl IntoIterator<
             Item = (
                 impl TryInto<Name, Error = impl Into<Box<dyn error::Error>>>,
-                impl TryInto<LogicalType, Error = impl Into<Box<dyn error::Error>>>,
+                impl TryInto<LogicalType<'t>, Error = impl Into<Box<dyn error::Error>>>,
             ),
         >,
     ) -> Result<Self> {
@@ -565,6 +583,7 @@ impl LogicalType {
                 fields.values().all(|stream| stream.is_element_only())
             }
             LogicalType::Stream(stream) => stream.data.is_element_only(),
+            LogicalType::Ref(_, _, _) => todo!(),
         }
     }
 
@@ -581,13 +600,14 @@ impl LogicalType {
             }
             LogicalType::Stream(stream) => stream.is_null(),
             LogicalType::Bits(_) => false,
+            LogicalType::Ref(_, _, _) => todo!(),
         }
     }
 
     /// Splits a logical stream type into simplified stream types.
     ///
     /// [Reference](https://abs-tudelft.github.io/tydi/specification/logical.html#split-function)
-    pub(crate) fn split_streams(&self) -> SplitStreams {
+    pub(crate) fn split_streams(&self) -> SplitStreams<'t> {
         match self {
             LogicalType::Stream(stream_in) => {
                 let mut streams = IndexMap::new();
@@ -673,6 +693,7 @@ impl LogicalType {
                         .collect(),
                 }
             }
+            LogicalType::Ref(_, _, _) => todo!(),
         }
     }
 
@@ -730,6 +751,7 @@ impl LogicalType {
                 }
                 fields
             }
+            LogicalType::Ref(_, _, _) => todo!(),
         }
     }
 
@@ -760,7 +782,7 @@ impl LogicalType {
         }
     }
 
-    pub fn compatible(&self, other: &LogicalType) -> bool {
+    pub fn compatible(&self, other: &LogicalType<'t>) -> bool {
         self == other
             || match other {
                 LogicalType::Stream(other) => match self {
@@ -789,7 +811,7 @@ impl LogicalType {
             }
     }
 
-    pub fn split(&self) -> std::vec::IntoIter<LogicalSplitItem> {
+    pub fn split(&self) -> std::vec::IntoIter<LogicalSplitItem<'t>> {
         let split_streams = self.split_streams();
         let (signals, streams) = (split_streams.signals, split_streams.streams);
         let mut map = Vec::with_capacity(streams.len() + 1);
@@ -807,7 +829,7 @@ impl LogicalType {
         map.into_iter()
     }
 
-    pub fn physical(&self) -> std::vec::IntoIter<PhysicalSplitItem> {
+    pub fn physical(&self) -> std::vec::IntoIter<PhysicalSplitItem<'t>> {
         self.split()
             .map(|item| match item {
                 LogicalSplitItem::Signals(signals) => PhysicalSplitItem::Signals(signals),
@@ -821,17 +843,17 @@ impl LogicalType {
 /// An element stream with a path name and LogicalType. Contains no nested
 /// streams.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ElementStream {
+pub struct ElementStream<'t> {
     path_name: PathName,
-    logical_type: LogicalType,
+    logical_type: LogicalType<'t>,
 }
 
-impl ElementStream {
+impl<'t> ElementStream<'t> {
     pub fn path_name(&self) -> &[Name] {
         self.path_name.as_ref()
     }
     /// Returns the LogicalType of this element. Contains no nested streams.
-    pub fn logical_type(&self) -> &LogicalType {
+    pub fn logical_type(&self) -> &LogicalType<'t> {
         &self.logical_type
     }
     /// Return all fields in this element stream
@@ -894,13 +916,14 @@ impl ElementStream {
                     fields
                 }
                 LogicalType::Stream(_) => unreachable!(),
+                LogicalType::Ref(_, _, _) => todo!(),
             },
             _ => unreachable!(),
         }
     }
 }
 
-impl From<ElementStream> for PhysicalStream {
+impl<'t> From<ElementStream<'t>> for PhysicalStream {
     fn from(element_stream: ElementStream) -> PhysicalStream {
         match element_stream.logical_type {
             LogicalType::Stream(stream) => PhysicalStream::new(
@@ -919,10 +942,10 @@ impl From<ElementStream> for PhysicalStream {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Signals(LogicalType);
-impl Signals {
+pub struct Signals<'t>(LogicalType<'t>);
+impl<'t> Signals<'t> {
     /// Returns the LogicalType of this element.
-    pub fn logical_type(&self) -> &LogicalType {
+    pub fn logical_type(&self) -> &LogicalType<'t> {
         &self.0
     }
     /// Returns all fields in these async signals.
@@ -934,12 +957,12 @@ impl Signals {
 /// A split item is either an async signal (outside streamspace) or an element
 /// stream (no nested streams).
 #[derive(Debug, Clone, PartialEq)]
-pub enum LogicalSplitItem {
-    Signals(Signals),
-    Stream(ElementStream),
+pub enum LogicalSplitItem<'t> {
+    Signals(Signals<'t>),
+    Stream(ElementStream<'t>),
 }
 
-impl LogicalSplitItem {
+impl<'t> LogicalSplitItem<'t> {
     pub fn is_stream(&self) -> bool {
         match self {
             LogicalSplitItem::Signals(_) => false,
@@ -952,7 +975,7 @@ impl LogicalSplitItem {
             LogicalSplitItem::Stream(_) => false,
         }
     }
-    pub fn logical_type(&self) -> &LogicalType {
+    pub fn logical_type(&self) -> &LogicalType<'t> {
         match self {
             LogicalSplitItem::Signals(signals) => signals.logical_type(),
             LogicalSplitItem::Stream(stream) => stream.logical_type(),
@@ -969,22 +992,22 @@ impl LogicalSplitItem {
 /// A split item is either an async signal (outside streamspace) or a physical
 /// stream.
 #[derive(Debug, Clone, PartialEq)]
-pub enum PhysicalSplitItem {
-    Signals(Signals),
+pub enum PhysicalSplitItem<'t> {
+    Signals(Signals<'t>),
     Stream(PhysicalStream),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct SplitStreams {
-    signals: LogicalType,
-    streams: IndexMap<PathName, LogicalType>,
+pub(crate) struct SplitStreams<'t> {
+    signals: LogicalType<'t>,
+    streams: IndexMap<PathName, LogicalType<'t>>,
 }
 
-impl SplitStreams {
-    pub fn streams(&self) -> impl Iterator<Item = (&PathName, &LogicalType)> {
+impl<'t> SplitStreams<'t> {
+    pub fn streams(&self) -> impl Iterator<Item = (&PathName, &LogicalType<'t>)> {
         self.streams.iter()
     }
-    pub fn signal(&self) -> &LogicalType {
+    pub fn signal(&self) -> &LogicalType<'t> {
         &self.signals
     }
 }
@@ -1015,19 +1038,19 @@ pub(crate) mod tests {
     pub(crate) mod elements {
         use super::*;
 
-        pub(crate) fn prim(bits: u32) -> LogicalType {
+        pub(crate) fn prim<'t>(bits: u32) -> LogicalType<'t> {
             LogicalType::try_new_bits(bits).unwrap()
         }
 
-        pub(crate) fn group() -> LogicalType {
+        pub(crate) fn group<'t>() -> LogicalType<'t> {
             LogicalType::try_new_group(vec![("c", prim(42)), ("d", prim(1337))]).unwrap()
         }
 
-        pub(crate) fn group_of_single() -> LogicalType {
+        pub(crate) fn group_of_single<'t>() -> LogicalType<'t> {
             LogicalType::try_new_group(vec![("a", prim(42))]).unwrap()
         }
 
-        pub(crate) fn group_nested() -> LogicalType {
+        pub(crate) fn group_nested<'t>() -> LogicalType<'t> {
             LogicalType::try_new_group(vec![("a", group()), ("b", group())]).unwrap()
         }
     }
@@ -1037,15 +1060,15 @@ pub(crate) mod tests {
     pub(crate) mod streams {
         use super::*;
 
-        pub(crate) fn prim(bits: u32) -> LogicalType {
+        pub(crate) fn prim<'t>(bits: u32) -> LogicalType<'t> {
             LogicalType::from(Stream::new_basic(elements::prim(bits)))
         }
 
-        pub(crate) fn group() -> LogicalType {
+        pub(crate) fn group<'t>() -> LogicalType<'t> {
             LogicalType::try_new_group(vec![("a", prim(42)), ("b", prim(1337))]).unwrap()
         }
 
-        pub(crate) fn nested() -> LogicalType {
+        pub(crate) fn nested<'t>() -> LogicalType<'t> {
             LogicalType::from(Stream::new_basic(LogicalType::from(Stream {
                 data: Box::new(elements::prim(8)),
                 throughput: PositiveReal::new(1.).unwrap(),

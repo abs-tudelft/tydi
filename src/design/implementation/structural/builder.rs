@@ -39,7 +39,7 @@ impl Interfaces for Node {
     ///     None,
     /// )?)?;
     ///
-    /// let mut builder = StructuralImplBuilder::try_new(&prj, foo)?;
+    /// let mut builder = StructuralImplBuilder::try_new(&prj, &foo)?;
     ///
     /// let beans = builder.this().io("beans"); // Obtain a (valid) reference to the beans interface.
     /// let coffee = builder.this().io("covfefe"); // Oops, made a typo! The reference is invalid.
@@ -68,7 +68,7 @@ impl Interfaces for Node {
     {
         let k = key.try_into().map_err(Into::into)?;
         Ok(NodeIORef {
-            node: self.key(),
+            node: self.key().clone(),
             interface: k,
         })
     }
@@ -77,26 +77,26 @@ impl Interfaces for Node {
 /// The StructuralImplBuilder struct allows users to implement streamlets by structurally
 /// combining streamlets into larger designs.
 #[derive(Clone, PartialEq)]
-pub struct StructuralImplBuilder<'prj> {
-    project: &'prj Project,
+pub struct StructuralImplBuilder<'p> {
+    project: &'p Project<'p>,
     imp: StructuralImpl,
 }
 
-impl<'prj> StructuralImplBuilder<'prj> {
+impl<'p> StructuralImplBuilder<'p> {
     /// Construct a new StructuralImplBuilder.
     ///
     /// This function returns an Error if the streamlet reference is invalid w.r.t. the project.
-    pub fn try_new(project: &'prj Project, streamlet: StreamletRef) -> Result<Self> {
+    pub fn try_new(project: &'p Project<'p>, streamlet: &StreamletRef) -> Result<Self> {
         // Check if the reference is OK.
-        project.get_streamlet(streamlet.clone())?;
+        project.get_streamlet(streamlet)?;
         // Return a new empty structural impl.
         Ok(StructuralImplBuilder {
             project,
             imp: StructuralImpl {
                 streamlet: streamlet.clone(),
                 nodes: vec![(
-                    NodeKey::this(),
-                    Node::This(StreamletInst::new(NodeKey::this(), streamlet)),
+                    NodeKey::this().clone(),
+                    Node::This(StreamletInst::new(&NodeKey::this(), streamlet)),
                 )]
                 .into_iter()
                 .collect::<IndexMap<NodeKey, Node>>(),
@@ -125,7 +125,7 @@ impl<'prj> StructuralImplBuilder<'prj> {
             )))
         } else {
             // Set up a node.
-            let node = Node::Streamlet(StreamletInst::new(key.clone(), streamlet));
+            let node = Node::Streamlet(StreamletInst::new(&key, &streamlet));
             // Copy and insert the node.
             self.imp.nodes.insert(key, node.clone());
             // Return a structural node reference with a copy of the node.
@@ -139,7 +139,7 @@ impl<'prj> StructuralImplBuilder<'prj> {
         self.imp.nodes.get(&NodeKey::this()).unwrap().clone()
     }
 
-    fn get_interface(&self, io: NodeIORef) -> Result<Interface> {
+    fn get_interface(&self, io: NodeIORef) -> Result<Interface<'p>> {
         self.imp
             .node(io.node())?
             .get_interface(self.project, io.interface())
@@ -169,7 +169,7 @@ impl<'prj> StructuralImplBuilder<'prj> {
             )))
         } else if source_if.typ() != sink_if.typ() {
             Err(Error::ImplementationError(format!(
-                "Types of sink {:?} : {}, and of source {:?} : {}, are incompatible.",
+                "Types of sink {:?} : {:?}, and of source {:?} : {:?}, are incompatible.",
                 sink,
                 sink_if.typ(),
                 source,
@@ -198,7 +198,7 @@ pub(crate) mod tests {
 
     use crate::design::implementation::prelude::*;
 
-    pub(crate) fn builder_example() -> Result<Project> {
+    pub(crate) fn builder_example<'p>() -> Result<Project<'p>> {
         ////////////////////////////////////////////////////////////////////////////////////////////
 
         // Declare a lib for primitive streamlets.
@@ -229,7 +229,7 @@ pub(crate) mod tests {
                 // Using the Flour type from another library.
                 Interface::try_new("flour", Mode::In, flour, None)?,
                 // Some unnamed secret ingredient to make the cookies taste good.
-                Interface::try_new("secret", Mode::In, TypeRef::anon(LogicalType::Null), None)?,
+                Interface::try_new("secret", Mode::In, LogicalType::Null, None)?,
                 Interface::try_new("cookies", Mode::Out, cookie.clone(), None)?,
             ]),
             None,
@@ -240,7 +240,7 @@ pub(crate) mod tests {
             "Factory",
             UniqueKeyBuilder::new().with_items(vec![
                 Interface::try_new("wheat", Mode::In, wheat, None)?,
-                Interface::try_new("secret", Mode::In, TypeRef::anon(LogicalType::Null), None)?,
+                Interface::try_new("secret", Mode::In, LogicalType::Null, None)?,
                 Interface::try_new("cookies", Mode::Out, cookie, None)?,
             ]),
             None,
@@ -254,7 +254,7 @@ pub(crate) mod tests {
         ////////////////////////////////////////////////////////////////////////////////////////////
 
         // Set up an implementation for the cookie factory.
-        let mut imp = StructuralImplBuilder::try_new(&prj, cookie_factory.clone())?;
+        let mut imp = StructuralImplBuilder::try_new(&prj, &cookie_factory)?;
 
         let this = imp.this();
         let mill = imp.instantiate(windmill, "mill")?;
@@ -276,10 +276,10 @@ pub(crate) mod tests {
         // Attempting to connect an io that is already connected:
         assert!(dbg!(imp.connect(mill.io("wheat"), this.io("wheat"))).is_err());
 
-        let imp = imp.finish();
+        let struct_imp = imp.finish();
 
         // dbg!(&imp);
-        prj.add_streamlet_impl(cookie_factory, Implementation::Structural(imp))?;
+        prj.add_streamlet_impl(&cookie_factory, Implementation::Structural(struct_imp))?;
 
         Ok(prj)
     }

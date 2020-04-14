@@ -81,28 +81,26 @@ fn t(i: usize) -> String {
     " ".repeat(2 * i)
 }
 
-pub trait Dotify {
-    fn dotify(&self, config: &DotConfig, project: &Project, indent: usize, prefix: &str) -> String;
+pub trait Dot {
+    fn to_dot(&self, config: &DotConfig, indent: usize, prefix: &str) -> String;
 }
-
-impl Dotify for Interface {
-    fn dotify(&self, config: &DotConfig, _: &Project, i: usize, prefix: &str) -> String {
+impl<'p> Dot for Interface<'p> {
+    fn to_dot(&self, config: &DotConfig, i: usize, prefix: &str) -> String {
         format!(
             "{}{} [label=\"{}\", {}];",
             t(i),
-            vec![prefix, self.identifier()].join("_").as_str(),
-            self.identifier(),
+            vec![prefix, self.identifier().clone()].join("_").as_str(),
+            self.identifier().clone(),
             config.interface(self.mode()),
         )
     }
 }
 
-fn io_subgraph<'a>(
+fn io_subgraph<'p>(
     config: &DotConfig,
-    project: &Project,
     i: usize,
     prefix: &str,
-    interfaces: impl Iterator<Item = &'a Interface>,
+    interfaces: impl Iterator<Item = &'p Interface<'p>>,
     mode: Mode,
 ) -> String {
     format!(
@@ -116,7 +114,7 @@ fn io_subgraph<'a>(
             format!("{}style=invis;\n", t(i + 2)),
             interfaces
                 .filter(|io| io.mode() == mode)
-                .map(|io| io.dotify(config, project, i + 2, prefix))
+                .map(|io| io.to_dot(config, i + 2, prefix))
                 .collect::<Vec<String>>()
                 .join("\n")
         ),
@@ -134,82 +132,85 @@ fn cluster_style(config: &DotConfig, fill: usize, border: usize, i: usize) -> St
     )
 }
 
-impl Dotify for Streamlet {
-    fn dotify(&self, config: &DotConfig, project: &Project, i: usize, prefix: &str) -> String {
-        let p = cat!(prefix, self.key());
-        format!(
-            "{}subgraph cluster_{} {{\n{}\n{}}}",
-            t(i),
-            p,
-            format!(
-                "{}{}{}{}{}",
-                // label
-                format!("{}label=\"{}\";\n", t(i + 1), self.key()),
-                // style
-                cluster_style(config, 1, 1, i + 1),
-                // inputs
-                io_subgraph(config, project, i, p.as_str(), self.interfaces(), Mode::In),
-                // outputs
-                io_subgraph(config, project, i, p.as_str(), self.interfaces(), Mode::Out),
-                // implementation
-                self.implementation()
-                    .dotify(config, project, i + 1, p.as_str())
-            ),
-            t(i)
-        )
+impl<'p> Dot for Streamlet<'p> {
+    fn to_dot(&self, config: &DotConfig, i: usize, prefix: &str) -> String {
+        todo!()
+        // let p = cat!(prefix, self.key());
+        // let in_graph = io_subgraph(config, i, p.as_str(), self.interfaces(), Mode::In);
+        // let out_graph = io_subgraph(config, i, p.as_str(), self.interfaces(), Mode::Out);
+        // format!(
+        //     "{}subgraph cluster_{} {{\n{}\n{}}}",
+        //     t(i),
+        //     p,
+        //     format!(
+        //         "{}{}{}{}{}",
+        //         // label
+        //         format!("{}label=\"{}\";\n", t(i + 1), self.key()),
+        //         // style
+        //         cluster_style(config, 1, 1, i + 1),
+        //         // inputs
+        //         in_graph,
+        //         // outputs
+        //         out_graph,
+        //         // implementation
+        //         self.implementation().to_dot(config, i + 1, p.as_str())
+        //     ),
+        //     t(i)
+        // )
     }
 }
 
-impl Dotify for Implementation {
-    fn dotify(&self, config: &DotConfig, project: &Project, i: usize, prefix: &str) -> String {
+impl<'p> Dot for Implementation {
+    fn to_dot(&self, config: &DotConfig, i: usize, prefix: &str) -> String {
         match self {
-            Implementation::Structural(s) => s.dotify(config, project, i, prefix),
+            Implementation::Structural(s) => s.to_dot(config, i, prefix),
             _ => String::new(),
         }
     }
 }
 
-impl Dotify for StreamletInst {
-    fn dotify(&self, config: &DotConfig, project: &Project, i: usize, prefix: &str) -> String {
+impl<'p> Dot for StreamletInst {
+    fn to_dot(&self, config: &DotConfig, i: usize, prefix: &str) -> String {
         let p = cat!(prefix, self.key());
-        let ins = project
-            .get_streamlet(self.streamlet())
-            .unwrap()
-            .interfaces();
-        let outs = project
-            .get_streamlet(self.streamlet())
-            .unwrap()
-            .interfaces();
-        format!(
-            "{}subgraph cluster_{} {{\n{}{}}}",
-            t(i),
-            p,
-            format!(
-                "{}{}{}{}",
-                format!("{}label=\"{}\";\n", t(i + 1), self.key()),
-                // style
-                cluster_style(config, 4, 4, i + 1),
-                // inputs
-                io_subgraph(config, project, i, p.as_str(), ins, Mode::In),
-                // outputs
-                io_subgraph(config, project, i, p.as_str(), outs, Mode::Out),
-            ),
-            t(i)
-        )
+        todo!()
+        // let ins = project
+        //     .get_streamlet(self.streamlet())
+        //     .unwrap()
+        //     .interfaces();
+        // let outs = project
+        //     .get_streamlet(self.streamlet())
+        //     .unwrap()
+        //     .interfaces();
+        // format!(
+        //     "{}subgraph cluster_{} {{\n{}{}}}",
+        //     t(i),
+        //     p,
+        //     format!(
+        //         "{}{}{}{}",
+        //         format!("{}label=\"{}\";\n", t(i + 1), self.key()),
+        //         // style
+        //         cluster_style(config, 4, 4, i + 1),
+        //         // inputs
+        //         io_subgraph(config, i, p.as_str(), ins, Mode::In),
+        //         // outputs
+        //         io_subgraph(config, i, p.as_str(), outs, Mode::Out),
+        //     ),
+        //     t(i)
+        // )
     }
 }
 
-impl Dotify for Node {
-    fn dotify(&self, config: &DotConfig, project: &Project, i: usize, prefix: &str) -> String {
+impl<'p> Dot for Node {
+    fn to_dot(&self, config: &DotConfig, i: usize, prefix: &str) -> String {
         match self {
-            Node::This(s) => s.dotify(config, project, i, prefix),
-            Node::Streamlet(s) => s.dotify(config, project, i, prefix),
+            Node::This(s) => s.to_dot(config, i, prefix),
+            Node::Streamlet(s) => s.to_dot(config, i, prefix),
         }
     }
 }
 
-impl Dotify for Edge {
-    fn dotify(&self, _: &DotConfig, _: &Project, i: usize, prefix: &str) -> String {
+impl<'p> Dot for Edge {
+    fn to_dot(&self, _: &DotConfig, i: usize, prefix: &str) -> String {
         let src = match self.source().node().deref() {
             THIS_KEY => cat!(prefix, self.source().interface()),
             _ => cat!(
@@ -227,8 +228,8 @@ impl Dotify for Edge {
     }
 }
 
-impl Dotify for StructuralImpl {
-    fn dotify(&self, config: &DotConfig, project: &Project, i: usize, prefix: &str) -> String {
+impl<'p> Dot for StructuralImpl {
+    fn to_dot(&self, config: &DotConfig, i: usize, prefix: &str) -> String {
         let p = vec![prefix, "impl"].join("_");
         format!(
             "{}subgraph cluster_{} {{\n{}\n{}}}",
@@ -242,12 +243,12 @@ impl Dotify for StructuralImpl {
                 // nodes
                 self.nodes()
                     .filter(|n| n.key().deref() != THIS_KEY)
-                    .map(|n| n.dotify(config, project, i + 1, p.as_str()))
+                    .map(|n| n.to_dot(config, i + 1, p.as_str()))
                     .collect::<Vec<String>>()
                     .join("\n"),
                 // edges
                 self.edges()
-                    .map(|e| e.dotify(config, project, i + 1, prefix))
+                    .map(|e| e.to_dot(config, i + 1, prefix))
                     .collect::<Vec<String>>()
                     .join("\n"),
             ),
@@ -256,8 +257,8 @@ impl Dotify for StructuralImpl {
     }
 }
 
-impl Dotify for Library {
-    fn dotify(&self, config: &DotConfig, project: &Project, i: usize, prefix: &str) -> String {
+impl<'p> Dot for Library<'p> {
+    fn to_dot(&self, config: &DotConfig, i: usize, prefix: &str) -> String {
         format!(
             "digraph {{\n{}\n{}}}",
             format!(
@@ -265,9 +266,8 @@ impl Dotify for Library {
                 format!("{}rankdir=LR;\n", t(i + 1)),
                 format!("{}splines=compound;\n", t(i + 1)),
                 self.streamlets()
-                    .map(|s| s.dotify(
+                    .map(|s| s.to_dot(
                         config,
-                        project,
                         i + 1,
                         vec![prefix, self.identifier()].join("_").as_str()
                     ))
@@ -299,7 +299,7 @@ impl GenerateProject for DotBackend {
             lib_path.push(lib.identifier());
             lib_path.set_extension("dot");
 
-            let dot = lib.dotify(&DotConfig::default(), project, 0, "");
+            let dot = lib.to_dot(&DotConfig::default(), 0, "");
 
             // TODO: remove this
             println!("{}", dot);

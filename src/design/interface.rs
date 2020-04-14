@@ -1,6 +1,7 @@
 //! Structures that represent Tydi interfaces on streamlets.
 
-use crate::design::{InterfaceKey, TypeRef};
+use crate::design::InterfaceKey;
+use crate::logical::LogicalType;
 use crate::{Document, Error, Identify, Result, Reverse, Reversed};
 use std::convert::TryInto;
 use std::fmt::{Display, Formatter};
@@ -56,25 +57,25 @@ impl FromStr for Mode {
 ///
 /// The names "clk" and "rst" are reserved.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Interface {
+pub struct Interface<'s> {
     /// The key of this interface.
     key: InterfaceKey,
     /// The mode of the interface.
     mode: Mode,
     /// The type of the interface.
-    typ: TypeRef,
+    typ: LogicalType<'s>,
     /// The documentation string of the interface, if any.
     doc: Option<String>,
 }
 
-impl Interface {
+impl<'s> Interface<'s> {
     /// Attempt to construct a new interface.
     ///
     /// This function can fail if the key is invalid.
     pub fn try_new(
         key: impl TryInto<InterfaceKey, Error = impl Into<Box<dyn std::error::Error>>>,
         mode: Mode,
-        typ: TypeRef,
+        typ: LogicalType<'s>,
         doc: Option<&str>,
     ) -> Result<Self> {
         let n: InterfaceKey = key.try_into().map_err(Into::into)?;
@@ -106,24 +107,24 @@ impl Interface {
     }
 
     /// Return the reference to the type in the project.
-    pub fn typ(&self) -> &TypeRef {
+    pub fn typ(&self) -> &LogicalType<'s> {
         &self.typ
     }
 }
 
-impl Reverse for Interface {
+impl<'p> Reverse for Interface<'p> {
     fn reverse(&mut self) {
         self.mode = self.mode.reversed()
     }
 }
 
-impl Identify for Interface {
+impl<'p> Identify for Interface<'p> {
     fn identifier(&self) -> &str {
         self.key.as_ref()
     }
 }
 
-impl Document for Interface {
+impl<'p> Document for Interface<'p> {
     fn doc(&self) -> &Option<String> {
         &self.doc
     }

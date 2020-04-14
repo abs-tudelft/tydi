@@ -8,6 +8,7 @@
 //!
 //! [`nom`]: https://crates.io/crates/nom
 
+pub mod ast;
 pub mod nom;
 
 #[cfg(test)]

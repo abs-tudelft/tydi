@@ -1,6 +1,5 @@
 //! Support for designs that use the Tydi type system.
 
-use crate::logical::LogicalType;
 use crate::Name;
 use crate::{Error, Result};
 use std::convert::TryInto;
@@ -51,22 +50,12 @@ pub struct NamedTypeRef {
     typ: TypeKey,
 }
 
-/// A reference to a type.
-///
-/// If the type is not anonymous, it can be used to look up the corresponding NamedType in a
-/// project.
-#[derive(Debug, Clone, PartialEq)]
-pub enum TypeRef {
-    /// An anonymous type.
-    Anon(LogicalType),
-    /// A named type.
-    Named(NamedTypeRef),
-}
-
-impl TypeRef {
-    /// Construct a new anonymous type reference.
-    pub fn anon(logical_type: LogicalType) -> Self {
-        TypeRef::Anon(logical_type)
+impl NamedTypeRef {
+    fn new(lib: LibraryKey, typ: TypeKey) -> Self {
+        Self {
+            library: LibraryRef { library: lib },
+            typ,
+        }
     }
 }
 
@@ -76,7 +65,17 @@ impl TypeRef {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StreamletRef {
     library: LibraryRef,
-    streamlet: StreamletKey,
+    key: StreamletKey,
+}
+
+impl StreamletRef {
+    pub fn library(&self) -> &LibraryRef {
+        &self.library
+    }
+
+    pub fn key(&self) -> &StreamletKey {
+        &self.key
+    }
 }
 
 /// A reference to an interface.
@@ -106,15 +105,6 @@ impl NamedTypeRef {
     }
 }
 
-impl Display for TypeRef {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TypeRef::Anon(l) => write!(f, "\"{:?}\"", l),
-            TypeRef::Named(n) => write!(f, "{}", n),
-        }
-    }
-}
-
 impl Display for NamedTypeRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}::{}", self.library.library, self.typ)
@@ -123,6 +113,6 @@ impl Display for NamedTypeRef {
 
 impl Display for StreamletRef {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}::{}", self.library.library, self.streamlet)
+        write!(f, "{}::{}", self.library.library, self.key)
     }
 }

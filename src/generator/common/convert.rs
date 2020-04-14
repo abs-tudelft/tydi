@@ -2,7 +2,7 @@
 //!
 //! The generator module is enabled by the `generator` feature flag.
 
-use crate::design::{Interface, Streamlet, TypeRef};
+use crate::design::{Interface, Streamlet};
 use crate::generator::common::{Component, Mode, Package, Port, Project, Record, Type};
 use crate::logical::{Group, LogicalType, Stream, Union};
 use crate::physical::{Origin, Signal, Width};
@@ -55,7 +55,7 @@ pub trait Projectify {
     fn fancy(&self) -> Project;
 }
 
-impl Typify for LogicalType {
+impl<'t> Typify for LogicalType<'t> {
     fn canonical(&self, prefix: impl Into<String>) -> Vec<Signal> {
         // This implementation for LogicalType assumes the LogicalType has already been
         // flattened through synthesize.
@@ -65,6 +65,7 @@ impl Typify for LogicalType {
             LogicalType::Group(group) => group.canonical(prefix),
             LogicalType::Stream(stream) => stream.canonical(prefix),
             LogicalType::Union(union) => union.canonical(prefix),
+            LogicalType::Ref(_, _, _) => todo!(),
         }
     }
 
@@ -77,11 +78,12 @@ impl Typify for LogicalType {
             LogicalType::Group(group) => group.fancy(prefix),
             LogicalType::Stream(stream) => stream.fancy(prefix),
             LogicalType::Union(union) => union.fancy(prefix),
+            LogicalType::Ref(_, _, _) => todo!(),
         }
     }
 }
 
-impl Typify for Group {
+impl<'t> Typify for Group<'t> {
     fn canonical(&self, prefix: impl Into<String>) -> Vec<Signal> {
         let n: String = prefix.into();
         let mut result = Vec::new();
@@ -104,7 +106,7 @@ impl Typify for Group {
     }
 }
 
-impl Typify for Union {
+impl<'t> Typify for Union<'t> {
     fn canonical(&self, prefix: impl Into<String>) -> Vec<Signal> {
         let n: String = prefix.into();
         let mut result = Vec::new();
@@ -137,7 +139,7 @@ impl Typify for Union {
     }
 }
 
-impl Typify for Stream {
+impl<'t> Typify for Stream<'t> {
     fn canonical(&self, prefix: impl Into<String>) -> Vec<Signal> {
         // This implementation for Stream assumes the parent LogicalType has already been
         // flattened through synthesize.
@@ -247,15 +249,12 @@ impl ModeFor for Origin {
     }
 }
 
-impl Portify for Interface {
+impl<'p> Portify for Interface<'p> {
     fn canonical(&self, prefix: impl Into<String>) -> Vec<Port> {
         let n: String = prefix.into();
         let mut ports = Vec::new();
 
-        let synth = match self.typ() {
-            TypeRef::Anon(anon_logical_type) => anon_logical_type.synthesize(),
-            TypeRef::Named(_) => todo!(),
-        };
+        let synth = self.typ().synthesize();
 
         for (path, width) in synth.signals() {
             ports.push(Port::new(
@@ -288,27 +287,17 @@ impl Portify for Interface {
 
         let mut result = Vec::new();
 
-        let split = match self.typ() {
-            TypeRef::Anon(anon_logical_type) => anon_logical_type.split_streams(),
-            TypeRef::Named(_) => todo!(),
-        };
+        let split = self.typ().split_streams();
 
         if let Some(sig_type) = split.signal().fancy(tn.clone()) {
             result.push(Port::new(cat!(n.clone()), self.mode().into(), sig_type));
         }
 
-        match self.typ() {
-            TypeRef::Anon(anon_type) => {
-                // Split the LogicalType up into discrete, simple streams.
-                for (path, simple_stream) in anon_type.split_streams().streams() {
-                    if let Some(typ) = simple_stream.fancy(cat!(tn.clone(), path)) {
-                        result.push(Port::new(cat!(n.clone(), path), self.mode().into(), typ));
-                    }
-                }
+        for (path, simple_stream) in self.typ().split_streams().streams() {
+            if let Some(typ) = simple_stream.fancy(cat!(tn.clone(), path)) {
+                result.push(Port::new(cat!(n.clone(), path), self.mode().into(), typ));
             }
-            _ => todo!(),
         }
-
         result
     }
 }
@@ -322,7 +311,7 @@ impl From<crate::design::Mode> for Mode {
     }
 }
 
-impl Componentify for Streamlet {
+impl<'l> Componentify for Streamlet<'l> {
     fn canonical(&self, suffix: Option<&str>) -> Component {
         Component::new(
             cat!(self.identifier().to_string(), suffix.unwrap_or("")),
@@ -369,7 +358,7 @@ impl Componentify for Streamlet {
     }
 }
 
-impl<'a> Packify for crate::design::Library {
+impl<'p> Packify for crate::design::Library<'p> {
     fn canonical(&self) -> Package {
         Package {
             identifier: self.identifier().to_string(),
@@ -397,7 +386,7 @@ impl<'a> Packify for crate::design::Library {
     }
 }
 
-impl<'a> Projectify for crate::design::Project {
+impl<'p> Projectify for crate::design::Project<'p> {
     fn canonical(&self) -> Project {
         Project {
             identifier: self.identifier().to_string(),
@@ -416,7 +405,7 @@ impl<'a> Projectify for crate::design::Project {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::design::{Interface, Streamlet, TypeRef};
+    use crate::design::{Interface, Streamlet};
     use crate::generator::common::test::records;
     use crate::generator::vhdl::Declare;
     use crate::logical::tests::{elements, streams};
@@ -515,21 +504,11 @@ pub(crate) mod tests {
 
         #[test]
         fn interface_to_port() {
-            let if0 = Interface::try_new(
-                "test",
-                crate::design::Mode::In,
-                TypeRef::Anon(streams::prim(8)),
-                None,
-            )
-            .unwrap();
+            let if0 = Interface::try_new("test", crate::design::Mode::In, streams::prim(8), None)
+                .unwrap();
             dbg!(if0.canonical("test"));
-            let if1 = Interface::try_new(
-                "test",
-                crate::design::Mode::Out,
-                TypeRef::Anon(streams::group()),
-                None,
-            )
-            .unwrap();
+            let if1 = Interface::try_new("test", crate::design::Mode::Out, streams::group(), None)
+                .unwrap();
             dbg!(if1.canonical("test"));
             // TODO(johanpel): implement actual test
         }
@@ -537,7 +516,6 @@ pub(crate) mod tests {
 
     mod fancy {
         use super::*;
-        use crate::design::TypeRef;
         use crate::generator::common::Field;
 
         #[test]
@@ -610,21 +588,11 @@ pub(crate) mod tests {
 
         #[test]
         fn interface_to_port() {
-            let if0 = Interface::try_new(
-                "test",
-                crate::design::Mode::In,
-                TypeRef::Anon(streams::prim(8)),
-                None,
-            )
-            .unwrap();
+            let if0 = Interface::try_new("test", crate::design::Mode::In, streams::prim(8), None)
+                .unwrap();
             dbg!(if0.fancy("test", "test"));
-            let if1 = Interface::try_new(
-                "test",
-                crate::design::Mode::Out,
-                TypeRef::Anon(streams::group()),
-                None,
-            )
-            .unwrap();
+            let if1 = Interface::try_new("test", crate::design::Mode::Out, streams::group(), None)
+                .unwrap();
             dbg!(if1.fancy("test", "test"));
             // TODO(johanpel): write actual test
         }
@@ -635,18 +603,8 @@ pub(crate) mod tests {
         let streamlet = Streamlet::from_builder(
             Name::try_new("test")?,
             UniqueKeyBuilder::new().with_items(vec![
-                Interface::try_new(
-                    "x",
-                    crate::design::Mode::In,
-                    TypeRef::Anon(streams::prim(8)),
-                    None,
-                )?,
-                Interface::try_new(
-                    "y",
-                    crate::design::Mode::Out,
-                    TypeRef::Anon(streams::group()),
-                    None,
-                )?,
+                Interface::try_new("x", crate::design::Mode::In, streams::prim(8), None)?,
+                Interface::try_new("y", crate::design::Mode::Out, streams::group(), None)?,
             ]),
             None,
         )?;
@@ -665,18 +623,8 @@ pub(crate) mod tests {
         let streamlet = Streamlet::from_builder(
             Name::try_new("test")?,
             UniqueKeyBuilder::new().with_items(vec![
-                Interface::try_new(
-                    "x",
-                    crate::design::Mode::In,
-                    TypeRef::Anon(streams::prim(8)),
-                    None,
-                )?,
-                Interface::try_new(
-                    "y",
-                    crate::design::Mode::Out,
-                    TypeRef::Anon(streams::nested()),
-                    None,
-                )?,
+                Interface::try_new("x", crate::design::Mode::In, streams::prim(8), None)?,
+                Interface::try_new("y", crate::design::Mode::Out, streams::nested(), None)?,
             ]),
             None,
         )?;

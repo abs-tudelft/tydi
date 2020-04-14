@@ -16,21 +16,28 @@ pub struct StreamletInst {
 
 impl StreamletInst {
     /// Construct a new instance.
-    pub fn new(key: NodeKey, streamlet: StreamletRef) -> Self {
-        StreamletInst { key, streamlet }
+    pub fn new(key: &NodeKey, streamlet: &StreamletRef) -> Self {
+        StreamletInst {
+            key: key.clone(),
+            streamlet: streamlet.clone(),
+        }
     }
 
     /// Return the key of this instance.
-    pub fn key(&self) -> NodeKey {
-        self.key.clone()
+    pub fn key(&self) -> &NodeKey {
+        &self.key
     }
 
     /// Return a reference to the streamlet this instance instantiates.
-    pub fn streamlet(&self) -> StreamletRef {
-        self.streamlet.clone()
+    pub fn streamlet(&self) -> &StreamletRef {
+        &self.streamlet
     }
 
-    pub fn get_interface(&self, project: &Project, key: InterfaceKey) -> Result<Interface> {
+    pub fn get_interface<'p>(
+        &self,
+        project: &'p Project<'p>,
+        key: InterfaceKey,
+    ) -> Result<Interface<'p>> {
         Ok(project
             .get_streamlet(self.streamlet())?
             .get_interface(key)?

@@ -3,9 +3,8 @@
 //! This allows users to build up libraries of Tydi types and streamlets.
 
 use crate::design::typ::NamedTypeStore;
-use crate::design::{
-    LibraryKey, LibraryRef, NamedType, NamedTypeRef, StreamletRef, TypeKey, TypeRef,
-};
+use crate::design::{LibraryKey, LibraryRef, NamedType, StreamletRef, TypeKey};
+use crate::logical::LogicalType;
 use crate::parser::nom::library;
 use crate::{
     design::{Streamlet, StreamletKey},
@@ -19,15 +18,15 @@ use std::path::Path;
 
 /// A library forms a collection of streamlets.
 #[derive(Debug, PartialEq)]
-pub struct Library {
+pub struct Library<'p> {
     key: LibraryKey,
-    types: NamedTypeStore,
-    streamlets: IndexMap<StreamletKey, Streamlet>,
+    types: NamedTypeStore<'p>,
+    streamlets: IndexMap<StreamletKey, Streamlet<'p>>,
 }
 
-impl Library {
+impl<'p> Library<'p> {
     /// Construct an empty library.
-    pub fn new(key: impl Into<LibraryKey>) -> Library {
+    pub fn new(key: impl Into<LibraryKey>) -> Library<'p> {
         Library {
             key: key.into(),
             types: NamedTypeStore::default(),
@@ -40,8 +39,8 @@ impl Library {
     /// This function can fail if the vectors contain types or streamlets with duplicate keys.
     pub fn try_new(
         key: LibraryKey,
-        types: Vec<NamedType>,
-        streamlets: Vec<Streamlet>,
+        types: Vec<NamedType<'p>>,
+        streamlets: Vec<Streamlet<'p>>,
     ) -> Result<Self> {
         Self::from_builder(
             key,
@@ -56,8 +55,8 @@ impl Library {
     /// keys.
     pub fn from_builder(
         key: LibraryKey,
-        types: UniqueKeyBuilder<NamedType>,
-        streamlets: UniqueKeyBuilder<Streamlet>,
+        types: UniqueKeyBuilder<NamedType<'p>>,
+        streamlets: UniqueKeyBuilder<Streamlet<'p>>,
     ) -> Result<Self> {
         Ok(Library {
             key,
@@ -71,7 +70,7 @@ impl Library {
     }
 
     /// Construct a Library from a Streamlet Definition File (SDF).
-    pub fn from_file(path: &Path) -> Result<Self> {
+    pub fn from_file(path: &Path) -> Result<Library> {
         if path.is_dir() {
             Err(Error::FileIOError(format!(
                 "Expected Streamlet Definition File, got directory: \"{}\"",
@@ -85,34 +84,38 @@ impl Library {
                     .to_str()
                     .unwrap(),
             )?;
+
             debug!(
                 "Parsing: {}",
                 path.to_str()
                     .ok_or_else(|| Error::FileIOError("Invalid path.".to_string()))?
             );
 
-            let result = library(
-                name,
-                std::fs::read_to_string(&path)
-                    .map_err(|e| {
-                        Error::FileIOError(format!(
-                            "{} - {}",
-                            path.to_str().unwrap(), // this was checked by previous path.to_str()
-                            e.to_string()
-                        ))
-                    })?
-                    .as_str(),
-            )
-            .map_err(|e| Error::ParsingError(e.to_string()))?
-            .1;
+            let code = std::fs::read_to_string(&path).map_err(|e| {
+                Error::FileIOError(format!(
+                    "{} - {}",
+                    path.to_str().unwrap(), // this was checked by previous path.to_str()
+                    e.to_string()
+                ))
+            })?;
+
+            let result = library(name, code.as_str())
+                .map_err(|e| Error::ParsingError(e.to_string()))?
+                .1;
 
             debug!("Types: {}", {
-                let typ_list: Vec<&str> = result.named_types().map(|t| t.key().deref()).collect();
-                typ_list.join(", ")
+                result
+                    .named_types()
+                    .map(|t| t.key().deref())
+                    .collect::<Vec<&str>>()
+                    .join(", ")
             });
             debug!("Streamlets: {}", {
-                let stl_list: Vec<&str> = result.streamlets().map(|s| s.identifier()).collect();
-                stl_list.join(", ")
+                result
+                    .streamlets()
+                    .map(|s| s.identifier())
+                    .collect::<Vec<&str>>()
+                    .join(", ")
             });
 
             Ok(result)
@@ -129,23 +132,20 @@ impl Library {
         }
     }
 
-    pub fn add_type(&mut self, typ: NamedType) -> Result<TypeRef> {
+    pub fn add_type(&mut self, typ: NamedType<'p>) -> Result<LogicalType<'p>> {
         // Remember the type key.
         let typ_key = typ.key().clone();
         // Attempt to insert the type.
         self.types.insert(typ)?;
-        // Return a TypeRef to the type.
-        Ok(TypeRef::Named(NamedTypeRef {
-            library: self.this(),
-            typ: typ_key,
-        }))
+        // Return a reference to new type
+        LogicalType::try_new_ref(self.this().library, typ_key)
     }
 
-    pub fn get_type(&self, key: TypeKey) -> Result<&NamedType> {
+    pub fn get_type(&self, key: TypeKey) -> Result<&NamedType<'p>> {
         self.types.get(key)
     }
 
-    pub fn add_streamlet(&mut self, streamlet: Streamlet) -> Result<StreamletRef> {
+    pub fn add_streamlet(&mut self, streamlet: Streamlet<'p>) -> Result<StreamletRef> {
         // Remember the streamlet key.
         let strl_key = streamlet.key();
         // Check if the streamlet already exists.
@@ -159,13 +159,13 @@ impl Library {
             self.streamlets.insert(streamlet.key(), streamlet);
             Ok(StreamletRef {
                 library: self.this(),
-                streamlet: strl_key,
+                key: strl_key,
             })
         }
     }
 
-    pub fn get_streamlet(&self, streamlet: StreamletKey) -> Result<&Streamlet> {
-        self.streamlets.get(&streamlet).ok_or_else(|| {
+    pub fn get_streamlet(&self, streamlet: &StreamletKey) -> Result<&Streamlet<'p>> {
+        self.streamlets.get(streamlet).ok_or_else(|| {
             Error::ProjectError(format!(
                 "Streamlet {} not found in library {}",
                 streamlet,
@@ -174,16 +174,16 @@ impl Library {
         })
     }
 
-    pub fn streamlets(&self) -> impl Iterator<Item = &Streamlet> {
+    pub fn streamlets(&self) -> impl Iterator<Item = &Streamlet<'p>> {
         self.streamlets.iter().map(|(_, s)| s)
     }
 
-    pub fn named_types(&self) -> impl Iterator<Item = &NamedType> {
+    pub fn named_types(&self) -> impl Iterator<Item = &NamedType<'p>> {
         self.types.types()
     }
 }
 
-impl Identify for Library {
+impl<'p> Identify for Library<'p> {
     fn identifier(&self) -> &str {
         self.key.as_ref()
     }
@@ -262,12 +262,12 @@ pub mod tests {
 
         // try some getters
         assert!(lib
-            .get_streamlet(StreamletKey::try_new("b").unwrap())
+            .get_streamlet(&StreamletKey::try_new("b").unwrap())
             .is_err());
         assert!(lib.get_type(TypeKey::try_new("B").unwrap()).is_err());
 
         assert!(lib
-            .get_streamlet(StreamletKey::try_new("a").unwrap())
+            .get_streamlet(&StreamletKey::try_new("a").unwrap())
             .is_ok());
         assert!(lib.get_type(TypeKey::try_new("A").unwrap()).is_ok());
     }

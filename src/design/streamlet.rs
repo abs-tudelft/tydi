@@ -14,18 +14,18 @@ pub type StreamletKey = Name;
 
 /// Streamlet interface definition.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Streamlet {
+pub struct Streamlet<'p> {
     /// The name of the streamlet.
     key: StreamletKey,
     /// The interfaces of the streamlet.
-    interfaces: IndexMap<InterfaceKey, Interface>,
+    interfaces: IndexMap<InterfaceKey, Interface<'p>>,
     /// The implementation of the streamlet.
     implementation: RefCell<Implementation>,
     /// An optional documentation string for the streamlet to be used by back-ends.
     doc: Option<String>,
 }
 
-impl Streamlet {
+impl<'p> Streamlet<'p> {
     /// Construct a new streamlet from an interface builder that makes sure all interface names
     /// are unique.
     ///
@@ -33,7 +33,7 @@ impl Streamlet {
     /// with the same name.
     pub fn from_builder(
         key: impl TryInto<StreamletKey, Error = impl Into<Box<dyn std::error::Error>>>,
-        builder: UniqueKeyBuilder<Interface>,
+        builder: UniqueKeyBuilder<Interface<'p>>,
         doc: Option<&str>,
     ) -> Result<Self> {
         Ok(Streamlet {
@@ -58,7 +58,7 @@ impl Streamlet {
     /// unique names.
     pub fn try_new(
         key: impl TryInto<StreamletKey, Error = impl Into<Box<dyn std::error::Error>>>,
-        interfaces: Vec<Interface>,
+        interfaces: Vec<Interface<'p>>,
         doc: Option<&str>,
     ) -> Result<Self> {
         Self::from_builder(
@@ -80,12 +80,12 @@ impl Streamlet {
     }
 
     /// Return an iterator over the interfaces of this Streamlet.
-    pub fn interfaces(&self) -> impl Iterator<Item = &Interface> {
+    pub fn interfaces(&self) -> impl Iterator<Item = &Interface<'p>> {
         self.interfaces.iter().map(|(_, i)| i)
     }
 
     /// Look up an interface by key, and return it if it exists.
-    pub fn get_interface(&self, key: InterfaceKey) -> Result<&Interface> {
+    pub fn get_interface(&self, key: InterfaceKey) -> Result<&Interface<'p>> {
         match self.interfaces.get(&key) {
             None => Err(Error::InvalidArgument(format!(
                 "Streamlet {} does not have interface {}.",
@@ -104,14 +104,14 @@ impl Streamlet {
     /// Set the implementation of this streamlet.
     pub fn set_implementation(&self, implementation: Implementation) -> Result<()> {
         if let Some(r) = implementation.streamlet() {
-            if r.streamlet == self.key {
+            if r.key == self.key {
                 *self.implementation.borrow_mut().deref_mut() = implementation;
                 Ok(())
             } else {
                 Err(Error::ProjectError(format!(
                     "Streamlet key {} does not match with provided implementation {}",
                     self.key(),
-                    r.streamlet
+                    r.key
                 )))
             }
         } else {
@@ -123,13 +123,13 @@ impl Streamlet {
     }
 }
 
-impl Document for Streamlet {
+impl<'p> Document for Streamlet<'p> {
     fn doc(&self) -> &Option<String> {
         &self.doc
     }
 }
 
-impl Identify for Streamlet {
+impl<'p> Identify for Streamlet<'p> {
     fn identifier(&self) -> &str {
         self.key.as_ref()
     }
@@ -142,17 +142,15 @@ pub(crate) mod tests {
     /// Streamlets that can be used throughout tests.
     pub(crate) mod streamlets {
         use super::*;
-        use crate::design::{Mode, TypeRef};
+        use crate::design::Mode;
         use crate::logical::LogicalType;
 
         pub(crate) fn simple(name: &str) -> Streamlet {
             Streamlet::from_builder(
                 StreamletKey::try_new(name).unwrap(),
                 UniqueKeyBuilder::new().with_items(vec![
-                    Interface::try_new("a", Mode::In, TypeRef::anon(LogicalType::Null), None)
-                        .unwrap(),
-                    Interface::try_new("b", Mode::Out, TypeRef::anon(LogicalType::Null), None)
-                        .unwrap(),
+                    Interface::try_new("a", Mode::In, LogicalType::Null, None).unwrap(),
+                    Interface::try_new("b", Mode::Out, LogicalType::Null, None).unwrap(),
                 ]),
                 None,
             )

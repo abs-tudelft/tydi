@@ -9,16 +9,16 @@ use std::convert::TryInto;
 /// A named Tydi type that has name in a library, usable for type re-use and equality checking.
 // TODO: placeholder for actual type implementation.
 #[derive(Clone, Debug, PartialEq)]
-pub struct NamedType {
+pub struct NamedType<'t> {
     key: TypeKey,
-    inner: LogicalType, // placeholder for the actual stuff that needs to be in here.
+    inner: LogicalType<'t>, // placeholder for the actual stuff that needs to be in here.
     doc: Option<String>,
 }
 
-impl NamedType {
+impl<'t> NamedType<'t> {
     pub fn try_new(
         key: impl TryInto<TypeKey, Error = impl Into<Box<dyn std::error::Error>>>,
-        typ: LogicalType,
+        typ: LogicalType<'t>,
         doc: Option<&str>,
     ) -> Result<Self> {
         let k = key.try_into().map_err(Into::into)?;
@@ -33,32 +33,31 @@ impl NamedType {
         &self.key
     }
 
-    pub fn logical(&self) -> &LogicalType {
+    pub fn logical(&self) -> &LogicalType<'t> {
         &self.inner
     }
 }
 
-impl Identify for NamedType {
+impl<'t> Identify for NamedType<'t> {
     fn identifier(&self) -> &str {
         self.key.as_ref()
     }
 }
 
-impl Document for NamedType {
+impl<'t> Document for NamedType<'t> {
     fn doc(&self) -> &Option<String> {
         &self.doc
     }
 }
 
 /// Structure to store named types.
-// TODO: could be deleted, but I expect we want to manage this separately from the library later on
 #[derive(Debug, PartialEq)]
-pub struct NamedTypeStore {
+pub struct NamedTypeStore<'l> {
     /// A map in which the type can be looked up.
-    types: IndexMap<TypeKey, NamedType>,
+    types: IndexMap<TypeKey, NamedType<'l>>,
 }
 
-impl Default for NamedTypeStore {
+impl<'l> Default for NamedTypeStore<'l> {
     fn default() -> Self {
         NamedTypeStore {
             types: IndexMap::new(),
@@ -66,8 +65,8 @@ impl Default for NamedTypeStore {
     }
 }
 
-impl NamedTypeStore {
-    pub fn get(&self, key: TypeKey) -> Result<&NamedType> {
+impl<'l> NamedTypeStore<'l> {
+    pub fn get(&self, key: TypeKey) -> Result<&NamedType<'l>> {
         self.types
             .get(&key)
             .ok_or_else(|| Error::ProjectError(format!("Type with key {} does not exist.", key)))
@@ -76,7 +75,7 @@ impl NamedTypeStore {
     /// Construct a TypeStore from a UniquelyNamedBuilder.
     ///
     /// The UniquelyNamedBuilder will check whether all Type keys are unique.
-    pub fn from_builder(builder: UniqueKeyBuilder<NamedType>) -> Result<Self> {
+    pub fn from_builder(builder: UniqueKeyBuilder<NamedType<'l>>) -> Result<Self> {
         Ok(NamedTypeStore {
             types: builder
                 .finish()?
@@ -87,7 +86,7 @@ impl NamedTypeStore {
     }
 
     /// Add a type to the TypeStore.
-    pub fn insert(&mut self, typ: NamedType) -> Result<TypeKey> {
+    pub fn insert(&mut self, typ: NamedType<'l>) -> Result<TypeKey> {
         let key = typ.key().clone();
         if self.types.get(typ.key()).is_some() {
             Err(Error::ProjectError(format!(
@@ -100,7 +99,7 @@ impl NamedTypeStore {
         }
     }
 
-    pub fn types(&self) -> impl Iterator<Item = &NamedType> {
+    pub fn types(&self) -> impl Iterator<Item = &NamedType<'l>> {
         self.types.iter().map(|(_, t)| t)
     }
 }
