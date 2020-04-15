@@ -6,7 +6,6 @@ mod tests {
     use tydi::generator::common::convert::{Componentify, Packify};
     use tydi::generator::vhdl::Declare;
     use tydi::Name;
-    use tydi::UniquelyNamedBuilder;
 
     #[test]
     fn streamlet_async() {
@@ -43,9 +42,10 @@ end component;"
             "Streamlet test (a : in Group<b: Bits<1>, c: Bits<2>>, d : out Bits<1>)",
         )
         .unwrap();
-        let lib = tydi::design::library::Library::from_builder(
+        let lib = tydi::design::library::Library::try_new(
             Name::try_new("test").unwrap(),
-            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+            vec![],
+            vec![streamlet],
         );
 
         let lib: tydi::generator::common::Package = lib.unwrap().fancy();
@@ -87,9 +87,10 @@ end test;"
             "Streamlet test (a : in Stream<Bits<1>>, b : out Stream<Bits<2>, d=2>)",
         )
         .unwrap();
-        let lib = tydi::design::library::Library::from_builder(
+        let lib = tydi::design::library::Library::try_new(
             Name::try_new("test").unwrap(),
-            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+            vec![],
+            vec![streamlet],
         );
 
         let lib: tydi::generator::common::Package = lib.unwrap().fancy();
@@ -153,9 +154,10 @@ end test;"
             "Streamlet test (a : in Stream<Group<b:Bits<1>, c:Bits<2>>>)",
         )
         .unwrap();
-        let lib = tydi::design::library::Library::from_builder(
+        let lib = tydi::design::library::Library::try_new(
             Name::try_new("test").unwrap(),
-            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+            vec![],
+            vec![streamlet],
         );
 
         let lib: tydi::generator::common::Package = lib.unwrap().fancy();
@@ -206,9 +208,10 @@ end test;"
             "Streamlet test (a : in Group<b:Bits<2>, c:Stream<Bits<1>>>, d : out Stream<Bits<1>>)",
         )
         .unwrap();
-        let lib = tydi::design::library::Library::from_builder(
+        let lib = tydi::design::library::Library::try_new(
             Name::try_new("test").unwrap(),
-            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+            vec![],
+            vec![streamlet],
         );
 
         let pkg: tydi::generator::common::Package = lib.unwrap().fancy();
@@ -280,9 +283,10 @@ end test;"
         )",
         )
             .unwrap();
-        let lib = tydi::design::library::Library::from_builder(
+        let lib = tydi::design::library::Library::try_new(
             Name::try_new("test").unwrap(),
-            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+            vec![],
+            vec![streamlet],
         );
 
         let pkg: tydi::generator::common::Package = lib.unwrap().fancy();

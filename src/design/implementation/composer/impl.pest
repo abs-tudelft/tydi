@@ -1,0 +1,81 @@
+// Whitespace and comments.
+WHITESPACE 	            = _{ (" " | "\n") }
+COMMENT                 = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+
+// Identifiers
+ident                   = @{(ASCII_ALPHANUMERIC | "_")+}
+
+// Literals
+number                  = @{ "-"? ~ int ~ ("." ~ ASCII_DIGIT+ ~ exp? | exp)? }
+int                     = @{ "0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
+exp                     = @{ ("E" | "e") ~ ("+" | "-")? ~ ASCII_DIGIT+ }
+
+bool                    = {"true" | "false" }
+
+char                    = {
+                        !("\"" | "\\") ~ ANY
+                        | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
+                        | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+                        }
+
+
+inner                   = @{ char* }
+string                  = ${ "\"" ~ inner ~ "\"" }
+
+node_if_handle          = { (ident ~ "." ~ ident) }
+streamlet_handle        = { (ident ~ "." ~ ident) }
+
+//Assign parameter
+parameter_assign        = { ident ~ ":=" ~ (ident | string | number)}
+
+//Parallel patterns
+map_stream              = { "MapStream" ~ "(" ~ node ~ ")" }
+filter_stream           = { "FilterStream" ~ "(" ~ node_if_handle ~ ")" }
+reduce_stream           = { "ReduceStream" ~ "(" ~ node ~ ")" }
+map_vector              = { "MapVector" ~ "(" ~ node ~ ")" }
+reduce_vector           = { "ReduceVector" ~ "(" ~ node ~ ")" }
+vector_to_seq           = { "VectorToSeq" ~ "(" ~ node_if_handle ~ ")" }
+pattern                 = { map_stream | filter_stream | reduce_stream
+                            | map_vector | reduce_vector | vector_to_seq}
+
+
+concat_struct_builder   = { "ConcatStructBuilder(" ~ connection_in_place + ~ ")" }
+desync_struct_builder   = { "DesyncStructBuilder(" ~ connection_in_place + ~ ")" }
+
+concat_variant_builder  = { "PackedVariantBuilder(" ~ connection_in_place + ~ ")" }
+packed_variant_builder  = { "PackedVariantBuilder(" ~ connection_in_place + ~ ")" }
+
+builder                 = { concat_struct_builder | desync_struct_builder
+                            | concat_variant_builder | packed_variant_builder}
+
+
+split_concat_struct     = { "SplitConcatStruct" ~ "(" ~ node_if_handle ~ ")" }
+split_desync_struct     = { "SplitDesyncStruct" ~ "(" ~ node_if_handle ~ ")" }
+demux_packed_variant    = { "DemuxPackedVariant" ~ "(" ~ node_if_handle ~ ")" }
+demux_concat_variant    = { "DemuxConcatVariant" ~ "(" ~ node_if_handle ~ ")" }
+
+unwrap                  = { split_concat_struct |  split_desync_struct
+                            | demux_packed_variant | demux_concat_variant}
+
+
+clone_stream            = { "CloneStream" ~ "(" ~ ident+ ~ ")" }
+
+//Single point-to-point connection
+connection              = { node_if_handle ~ "<=" ~  node_if_handle }
+connection_in_place     = { ident ~ "<=" ~  node_if_handle }
+
+//Chain connection
+chain_connection        = { (ident) ~ ("<=>" ~ (ident))+ }
+
+//Streamlet instantiation
+streamlet_inst          = { streamlet_handle ~ ("[" ~ (parameter_assign)+ ~ "]")? }
+
+//A node in the implementation graph
+node                    = { ident ~ ":" ~  (pattern | builder | unwrap | streamlet_inst) }
+
+//Implementation of a streamlet
+structural_body         = { (( connection | chain_connection | node) ~ ";")* }
+structural              = { "structural" ~ "{" ~ structural_body ~ "}"}
+hdl                     = { "VHDL" | "Chisel" }
+external                = { "external" ~ string}
+implementation          = { "impl" ~ streamlet_handle ~ (structural | hdl |external) }

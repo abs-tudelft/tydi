@@ -3,37 +3,76 @@
 //! This allows users to build up libraries of streamlets and helps to generate language-specific
 //! output (e.g. a package in VHDL).
 
-use crate::design::Streamlet;
+use std::collections::HashMap;
+use std::path::Path;
+
+use log::debug;
+
+use crate::design::implementation::composer::GenericComponent;
+use crate::design::param::ParameterStore;
+use crate::design::{LibKey, ParamStoreKey, Streamlet, StreamletHandle, StreamletKey};
 use crate::error::Error::{FileIOError, ParsingError};
 use crate::parser::nom::list_of_streamlets;
 use crate::traits::Identify;
-use crate::{Name, Result, UniquelyNamedBuilder};
-use log::debug;
-use std::path::Path;
+use crate::{Error, Name, Result, UniqueKeyBuilder};
 
 /// A collection of Streamlets.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct Library {
-    name: Name,
-    streamlets: Vec<Streamlet>,
+    key: Name,
+    parameter_stores: HashMap<ParamStoreKey, ParameterStore>,
+    streamlets: HashMap<StreamletKey, Streamlet>,
 }
 
 impl crate::traits::Identify for Library {
     fn identifier(&self) -> &str {
-        self.name.as_ref()
+        self.key.as_ref()
     }
 }
 
 impl Library {
-    pub fn streamlets(&self) -> Vec<Streamlet> {
-        self.streamlets.clone()
+    pub fn streamlets(&self) -> impl Iterator<Item = &Streamlet> {
+        self.streamlets.iter().map(|(_, streamlet)| streamlet)
+    }
+
+    pub fn new(key: impl Into<LibKey>) -> Library {
+        Library {
+            key: key.into(),
+            parameter_stores: HashMap::new(),
+            streamlets: HashMap::new(),
+        }
+    }
+
+    pub fn try_new(
+        key: LibKey,
+        parameter_stores: Vec<ParameterStore>,
+        streamlets: Vec<Streamlet>,
+    ) -> Result<Self> {
+        Self::from_builder(
+            key,
+            UniqueKeyBuilder::new().with_items(parameter_stores),
+            UniqueKeyBuilder::new().with_items(streamlets),
+        )
     }
 
     /// Construct a Library from a UniquelyNamedBuilder with Streamlets.
-    pub fn from_builder(name: Name, builder: UniquelyNamedBuilder<Streamlet>) -> Result<Self> {
+    pub fn from_builder(
+        name: LibKey,
+        parameter_stores: UniqueKeyBuilder<ParameterStore>,
+        streamlets: UniqueKeyBuilder<Streamlet>,
+    ) -> Result<Self> {
         Ok(Library {
-            name,
-            streamlets: builder.finish()?,
+            key: name,
+            parameter_stores: parameter_stores
+                .finish()?
+                .into_iter()
+                .map(|s| (s.key().clone(), s))
+                .collect::<HashMap<ParamStoreKey, ParameterStore>>(),
+            streamlets: streamlets
+                .finish()?
+                .into_iter()
+                .map(|s| (s.key().clone(), s))
+                .collect::<HashMap<StreamletKey, Streamlet>>(),
         })
     }
 
@@ -69,8 +108,47 @@ impl Library {
                         .to_str()
                         .unwrap(),
                 )?,
-                UniquelyNamedBuilder::new().with_items(streamlets),
+                // TODO: No support for parameter groups yet
+                UniqueKeyBuilder::new().with_items(vec![]),
+                UniqueKeyBuilder::new().with_items(streamlets),
             )
+        }
+    }
+
+    pub fn key(&self) -> &LibKey {
+        &self.key
+    }
+
+    pub fn add_streamlet(&mut self, streamlet: Streamlet) -> Result<StreamletHandle> {
+        let key = streamlet.key().clone();
+        match self.streamlets.insert(streamlet.key().clone(), streamlet) {
+            None => Ok(StreamletHandle {
+                lib: self.key.clone(),
+                streamlet: key.clone(),
+            }),
+            Some(_lib) => Err(Error::ProjectError(format!(
+                "Error while adding {} to the library",
+                key,
+            ))),
+        }
+    }
+    pub fn get_streamlet(&self, streamlet: StreamletKey) -> Result<&Streamlet> {
+        self.streamlets.get(&streamlet).ok_or_else(|| {
+            Error::ProjectError(format!(
+                "Streamlet {} not found in library {}",
+                streamlet,
+                self.identifier()
+            ))
+        })
+    }
+
+    pub fn get_streamlet_mut(&mut self, streamlet: StreamletKey) -> Result<&mut Streamlet> {
+        match self.streamlets.get_mut(&streamlet) {
+            Some(s) => Ok(s),
+            None => Err(Error::ProjectError(format!(
+                "Streamlet {} not found in library {}",
+                streamlet, self.key
+            ))),
         }
     }
 }
@@ -86,7 +164,11 @@ pub mod tests {
         std::fs::write(path.as_path(), "").map_err(|e| FileIOError(e.to_string()))?;
         assert_eq!(
             Library::from_file(path.as_path()),
-            Library::from_builder(Name::try_new("test")?, UniquelyNamedBuilder::new()),
+            Library::from_builder(
+                Name::try_new("test")?,
+                UniqueKeyBuilder::new(),
+                UniqueKeyBuilder::new()
+            ),
         );
         Ok(())
     }
@@ -97,8 +179,9 @@ pub mod tests {
 
         pub(crate) fn empty_lib() -> Library {
             Library {
-                name: Name::try_new("lib").unwrap(),
-                streamlets: vec![],
+                key: Name::try_new("lib").unwrap(),
+                parameter_stores: HashMap::new(),
+                streamlets: HashMap::new(),
             }
         }
     }

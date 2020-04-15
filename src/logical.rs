@@ -4,16 +4,18 @@
 //!
 //! [Reference]: https://abs-tudelft.github.io/tydi/specification/logical.html
 
-use crate::{
-    physical::{BitCount, Complexity, Fields, PhysicalStream},
-    util::log2_ceil,
-    Error, Name, NonNegative, PathName, Positive, PositiveReal, Result, Reverse,
-};
-use indexmap::IndexMap;
 use std::str::FromStr;
 use std::{
     convert::{TryFrom, TryInto},
     error,
+};
+
+use indexmap::IndexMap;
+
+use crate::{
+    physical::{BitCount, Complexity, Fields, PhysicalStream},
+    util::log2_ceil,
+    Error, Name, NonNegative, PathName, Positive, PositiveReal, Result, Reverse,
 };
 
 /// Direction of a stream.

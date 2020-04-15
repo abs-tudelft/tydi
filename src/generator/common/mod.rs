@@ -405,12 +405,11 @@ pub struct Project {
 
 #[cfg(test)]
 pub(crate) mod test {
-
-    use super::*;
     use crate::cat;
 
-    pub(crate) mod records {
+    use super::*;
 
+    pub(crate) mod records {
         use super::*;
 
         pub(crate) fn prim(bits: u32) -> Type {

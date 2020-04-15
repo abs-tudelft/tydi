@@ -2,12 +2,19 @@
 //!
 //! A streamlet is a component where every [Interface] has a [LogicalType].
 
+use std::cell::{Ref, RefCell, RefMut};
+use std::collections::HashMap;
+use std::convert::TryInto;
+use std::fmt::Debug;
+use std::rc::Rc;
+use std::str::FromStr;
+
+use crate::design::implementation::composer::GenericComponent;
+use crate::design::implementation::Implementation;
+use crate::design::{ComponentKey, IFKey};
 use crate::logical::LogicalType;
 use crate::traits::Identify;
-use crate::util::UniquelyNamedBuilder;
-use crate::{Document, Error, Name, Result};
-use std::convert::TryInto;
-use std::str::FromStr;
+use crate::{Document, Error, Name, Result, Reverse, Reversed, UniqueKeyBuilder};
 
 /// Streamlet interface mode.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -16,6 +23,15 @@ pub enum Mode {
     Out,
     /// The interface is an input of the streamlet.
     In,
+}
+
+impl Reverse for Mode {
+    fn reverse(&mut self) {
+        match self {
+            Mode::Out => *self = Mode::In,
+            Mode::In => *self = Mode::Out,
+        }
+    }
 }
 
 impl FromStr for Mode {
@@ -39,30 +55,20 @@ impl FromStr for Mode {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Interface {
     /// The name of the interface.
-    name: Name,
+    key: Name,
     /// The mode of the interface.
     mode: Mode,
     /// The type of the interface.
     typ: LogicalType,
+    /// Type inference function
+    inf_f: Option<Box<fn(LogicalType) -> Result<LogicalType>>>,
     /// The documentation string of the interface, if any.
     doc: Option<String>,
 }
 
-impl Interface {
-    /// Return the [Mode] of the interface.
-    pub fn mode(&self) -> Mode {
-        self.mode
-    }
-
-    /// Return the [LogicalStreamType] of the interface.
-    pub fn typ(&self) -> LogicalType {
-        self.typ.clone()
-    }
-}
-
 impl Identify for Interface {
     fn identifier(&self) -> &str {
-        self.name.as_ref()
+        self.key.as_ref()
     }
 }
 
@@ -105,10 +111,15 @@ impl Interface {
         match n.to_string().as_str() {
             "clk" | "rst" => Err(Error::InterfaceError(format!("Name {} forbidden.", n))),
             _ => Ok(Interface {
-                name: n,
+                key: n,
                 mode,
                 typ: t,
-                doc: doc.map(|d| d.to_string()),
+                inf_f: None,
+                doc: if let Some(d) = doc {
+                    Some(d.to_string())
+                } else {
+                    None
+                },
             }),
         }
     }
@@ -117,31 +128,112 @@ impl Interface {
         self.doc = Some(doc.into());
         self
     }
+
+    pub fn with_type_inference(mut self, inf_f: fn(LogicalType) -> Result<LogicalType>) -> Self {
+        self.inf_f = Option::from(Box::new(inf_f));
+        self
+    }
+
+    pub fn infer_type(&mut self, typ: LogicalType) -> Result<()> {
+        match &self.inf_f {
+            Some(f) => {
+                self.typ = f(typ)?;
+                Ok(())
+            }
+            None => Ok(()),
+        }
+    }
+
+    pub fn key(&self) -> &IFKey {
+        &self.key
+    }
+
+    /// Return the [Mode] of the interface.
+    pub fn mode(&self) -> Mode {
+        self.mode
+    }
+
+    /// Return the [LogicalStreamType] of the interface.
+    pub fn typ(&self) -> LogicalType {
+        self.typ.clone()
+    }
 }
 
-impl Document for Interface {
-    fn doc(&self) -> Option<String> {
-        self.doc.clone()
+impl Reverse for Interface {
+    fn reverse(&mut self) {
+        self.mode = self.mode.reversed()
     }
 }
 
 /// Streamlet interface definition.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Streamlet {
     /// The name of the streamlet.
-    name: Name,
+    key: Name,
     /// The interfaces of the streamlet.
-    interfaces: Vec<Interface>,
+    interfaces: HashMap<IFKey, Rc<RefCell<Interface>>>,
     /// An optional documentation string for the streamlet to be used by back-ends.
     doc: Option<String>,
     /// Placeholder for future implementation of the streamlet. If this is None, it is a primitive.
-    implementation: Option<()>,
+    implementation: Option<Rc<Implementation>>,
+}
+
+impl PartialEq for Streamlet {
+    fn eq(&self, other: &Streamlet) -> bool {
+        self.key() == other.key()
+    }
+}
+
+impl GenericComponent for Streamlet {
+    fn key(&self) -> ComponentKey {
+        self.key.clone()
+    }
+
+    /// Return an iterator over the interfaces of this Streamlet.
+    fn interfaces<'a>(&'a self) -> Box<(dyn Iterator<Item = Ref<Interface>> + 'a)> {
+        Box::new(self.interfaces.iter().map(|(_, i)| i.borrow()))
+    }
+
+    /// Return an iterator over the interfaces of this Streamlet.
+    fn interfaces_mut<'a>(&'a self) -> Box<(dyn Iterator<Item = RefMut<Interface>> + 'a)> {
+        Box::new(self.interfaces.iter().map(|(_, i)| i.borrow_mut()))
+    }
+
+    fn streamlet(&self) -> &Streamlet {
+        self
+    }
+
+    fn get_interface(&self, key: IFKey) -> Result<Ref<Interface>> {
+        match self.interfaces.get(&key) {
+            None => Err(Error::InterfaceError(format!(
+                "Interface {} does not exist for Streamlet  {}.",
+                key,
+                self.identifier()
+            ))),
+            Some(iface) => Ok(iface.borrow()),
+        }
+    }
+
+    fn get_interface_mut(&self, key: IFKey) -> Result<RefMut<Interface>> {
+        match self.interfaces.get(&key) {
+            None => Err(Error::InterfaceError(format!(
+                "Interface {} does not exist for Streamlet  {}.",
+                key,
+                self.identifier()
+            ))),
+            Some(iface) => Ok(iface.borrow_mut()),
+        }
+    }
+
+    fn get_implementation(&self) -> Option<Rc<Implementation>> {
+        self.implementation.clone()
+    }
 }
 
 impl Streamlet {
-    /// Return an iterator over the interfaces of this Streamlet.
-    pub fn interfaces(&self) -> impl Iterator<Item = &Interface> {
-        self.interfaces.iter()
+    pub fn attach_implementation(&mut self, implementation: Implementation) -> Result<()> {
+        self.implementation = Some(Rc::from(implementation));
+        Ok(())
     }
 
     /// Construct a new streamlet from an interface builder that makes sure all interface names
@@ -171,15 +263,27 @@ impl Streamlet {
     /// ```
     pub fn from_builder(
         name: Name,
-        builder: UniquelyNamedBuilder<Interface>,
+        builder: UniqueKeyBuilder<Interface>,
         doc: Option<&str>,
     ) -> Result<Self> {
         Ok(Streamlet {
-            name,
-            interfaces: builder.finish()?,
-            doc: doc.map(|d| d.to_string()),
+            key: name,
+            interfaces: builder
+                .finish()?
+                .into_iter()
+                .map(|iface| (iface.key().clone(), Rc::new(RefCell::new(iface))))
+                .collect::<HashMap<IFKey, Rc<RefCell<Interface>>>>(),
+            doc: if let Some(d) = doc {
+                Some(d.to_string())
+            } else {
+                None
+            },
             implementation: None,
         })
+    }
+
+    pub(crate) fn set_key(&mut self, key: ComponentKey) {
+        self.key = key;
     }
 
     /// Return this streamlet with documentation added.
@@ -197,7 +301,7 @@ impl Document for Streamlet {
 
 impl Identify for Streamlet {
     fn identifier(&self) -> &str {
-        self.name.as_ref()
+        self.key.as_ref()
     }
 }
 
@@ -212,7 +316,7 @@ pub mod tests {
         pub(crate) fn nulls_streamlet(name: impl Into<String>) -> Streamlet {
             Streamlet::from_builder(
                 Name::try_new(name).unwrap(),
-                UniquelyNamedBuilder::new().with_items(vec![
+                UniqueKeyBuilder::new().with_items(vec![
                     Interface::try_new("a", Mode::In, LogicalType::Null, None).unwrap(),
                     Interface::try_new("b", Mode::Out, LogicalType::Null, None).unwrap(),
                 ]),

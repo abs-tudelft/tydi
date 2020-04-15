@@ -1,9 +1,11 @@
+use std::path::Path;
+
 use crate::design::Project;
 use crate::Result;
-use std::path::Path;
 
 pub mod chisel;
 pub mod common;
+pub mod dot;
 pub mod vhdl;
 
 /// Concatenate stuff using format with an underscore in between.

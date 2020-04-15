@@ -1,9 +1,6 @@
 //! Nom-based parsers for Streamlet Definition Files.
 
-use crate::design::{Interface, Mode, Streamlet};
-use crate::logical::{Direction, Group, LogicalType, Stream, Synchronicity, Union};
-use crate::physical::Complexity;
-use crate::{Name, PositiveReal};
+use std::collections::HashMap;
 
 use nom::{
     branch::alt,
@@ -14,7 +11,11 @@ use nom::{
     number::complete::float,
     sequence::{delimited, preceded, separated_pair, terminated, tuple},
 };
-use std::collections::HashMap;
+
+use crate::design::{Interface, Mode, Streamlet};
+use crate::logical::{Direction, Group, LogicalType, Stream, Synchronicity, Union};
+use crate::physical::Complexity;
+use crate::{Name, PositiveReal};
 
 // #[derive(Debug, PartialEq)]
 // pub struct ParserError<I> {
@@ -326,9 +327,11 @@ pub fn list_of_streamlets(input: &str) -> Result<&str, Vec<Streamlet>> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::design::streamlet::tests::streamlets;
     use crate::util::UniquelyNamedBuilder;
+    use crate::UniqueKeyBuilder;
+
+    use super::*;
 
     #[test]
     fn parse_comment() {
@@ -521,7 +524,7 @@ mod tests {
                 "",
                 Streamlet::from_builder(
                     Name::try_new("test").unwrap(),
-                    UniquelyNamedBuilder::new()
+                    UniqueKeyBuilder::new()
                         .with_item(
                             Interface::try_new(
                                 "a",
@@ -561,7 +564,7 @@ mod tests {
                 "",
                 Streamlet::from_builder(
                     Name::try_new("x").unwrap(),
-                    UniquelyNamedBuilder::new().with_items(vec![
+                    UniqueKeyBuilder::new().with_items(vec![
                         Interface::try_new(
                             "a",
                             Mode::In,

@@ -1,11 +1,12 @@
 //! Implementations of VHDL traits for common representation.
 
+use std::collections::HashMap;
+
 use crate::error::Error::BackEndError;
 use crate::generator::common::{Component, Mode, Package, Port, Record, Type};
 use crate::generator::vhdl::{Analyze, Declare, DeclareType, Split, VHDLIdentifier};
 use crate::traits::Identify;
 use crate::{cat, Document, Result};
-use std::collections::HashMap;
 
 impl VHDLIdentifier for Mode {
     fn vhdl_identifier(&self) -> Result<String> {
@@ -243,8 +244,9 @@ impl Declare for Package {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::generator::common::test::*;
+
+    use super::*;
 
     #[test]
     fn mode_decl() {

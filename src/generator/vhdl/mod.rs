@@ -3,19 +3,20 @@
 //! This module contains functionality to convert hardware defined in the common hardware
 //! representation to VHDL source files.
 
-use crate::design::Project;
-use crate::generator::common::*;
-use crate::generator::GenerateProject;
-use crate::{Error, Result, Reversed};
-use log::debug;
 use std::path::Path;
-
-use crate::cat;
-use crate::generator::common::convert::Packify;
-use crate::traits::Identify;
 use std::str::FromStr;
+
+use log::debug;
 #[cfg(feature = "cli")]
 use structopt::StructOpt;
+
+use crate::cat;
+use crate::design::Project;
+use crate::generator::common::convert::Packify;
+use crate::generator::common::*;
+use crate::generator::GenerateProject;
+use crate::traits::Identify;
+use crate::{Error, Result, Reversed};
 
 mod impls;
 
@@ -104,7 +105,7 @@ impl Default for VHDLConfig {
     fn default() -> Self {
         VHDLConfig {
             suffix: Some("gen".to_string()),
-            abstraction: Some(AbstractionLevel::Canonical),
+            abstraction: Some(AbstractionLevel::Fancy),
         }
     }
 }
@@ -247,9 +248,12 @@ impl Split for Port {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::Reversed;
     use std::fs;
+
+    use crate::Reversed;
+
+    use super::*;
+    use crate::design::implementation::composer::parser::tests::impl_parser_test;
 
     #[test]
     fn split_primitive() {
@@ -409,5 +413,19 @@ mod test {
         assert!(fs::metadata(&path.join("proj/lib_pkg.gen.vhd")).is_ok());
 
         Ok(())
+    }
+
+    #[test]
+    fn prj_impl() {
+        let _tmpdir = tempfile::tempdir().unwrap();
+
+        //let prj = impl_parser_test().unwrap();
+        let prj = impl_parser_test().unwrap();
+        let vhdl = VHDLBackEnd::default();
+        // TODO: implement actual test.
+
+        let _folder = fs::create_dir_all("output").unwrap();
+
+        assert!(vhdl.generate(&prj, "output").is_ok());
     }
 }
