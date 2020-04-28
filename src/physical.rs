@@ -1,4 +1,4 @@
-//! Physical streams.
+//! Physical type support.
 //!
 //! This modules defines the components of physical streams as described in the
 //! [Tydi specification].

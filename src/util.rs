@@ -28,15 +28,15 @@ mod tests {
 ///
 /// When finish() is called, the names will be checked for uniqueness.
 #[derive(Debug)]
-pub struct UniquelyNamedBuilder<T: Identify> {
+pub struct UniqueKeyBuilder<T: Identify> {
     /// Item storage.
     items: Vec<T>,
 }
 
-impl<T: Identify> UniquelyNamedBuilder<T> {
+impl<T: Identify> UniqueKeyBuilder<T> {
     /// Construct a new builder.
     pub fn new() -> Self {
-        UniquelyNamedBuilder::default()
+        UniqueKeyBuilder::default()
     }
 
     /// Add an item to the builder.
@@ -70,17 +70,17 @@ impl<T: Identify> UniquelyNamedBuilder<T> {
     }
 }
 
-impl<T: Identify> FromIterator<T> for UniquelyNamedBuilder<T> {
+impl<T: Identify> FromIterator<T> for UniqueKeyBuilder<T> {
     fn from_iter<U: IntoIterator<Item = T>>(iter: U) -> Self {
-        UniquelyNamedBuilder {
+        UniqueKeyBuilder {
             items: iter.into_iter().collect(),
         }
     }
 }
 
-impl<T: Identify> Default for UniquelyNamedBuilder<T> {
+impl<T: Identify> Default for UniqueKeyBuilder<T> {
     fn default() -> Self {
-        UniquelyNamedBuilder { items: Vec::new() }
+        UniqueKeyBuilder { items: Vec::new() }
     }
 }
 

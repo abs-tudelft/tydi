@@ -1,6 +1,6 @@
 //! Nom-based parsers for Streamlet Definition Files.
 
-use crate::design::{Interface, Mode, Streamlet};
+use crate::design::{Interface, Library, LibraryKey, Mode, NamedType, Streamlet, TypeRef};
 use crate::logical::{Direction, Group, LogicalType, Stream, Synchronicity, Union};
 use crate::physical::Complexity;
 use crate::{Name, PositiveReal};
@@ -136,14 +136,14 @@ pub fn bits(input: &str) -> Result<&str, LogicalType> {
     )(input)
 }
 
-pub fn logical_stream_type(input: &str) -> Result<&str, LogicalType> {
+pub fn logical_type(input: &str) -> Result<&str, LogicalType> {
     alt((null, bits, group, union, stream))(input)
 }
 
 fn fields(input: &str) -> Result<&str, Vec<(Name, LogicalType)>> {
     separated_list(
         w(tag(",")),
-        separated_pair(w(name), w(tag(":")), w(logical_stream_type)),
+        separated_pair(w(name), w(tag(":")), w(logical_type)),
     )(input)
 }
 
@@ -189,7 +189,7 @@ pub fn stream(input: &str) -> Result<&str, LogicalType> {
     map_res(
         tuple((
             w(tag("Stream<")),
-            w(logical_stream_type),
+            w(logical_type),
             opt(preceded(
                 w(tag(",")),
                 map(
@@ -204,7 +204,7 @@ pub fn stream(input: &str) -> Result<&str, LogicalType> {
                                 recognize(synchronicity),
                                 recognize(complexity),
                                 recognize(direction),
-                                recognize(logical_stream_type),
+                                recognize(logical_type),
                                 recognize(bool),
                             ))),
                         ),
@@ -252,10 +252,7 @@ pub fn stream(input: &str) -> Result<&str, LogicalType> {
 
             let user = opt
                 .as_ref()
-                .and_then(|opts| {
-                    opts.get(&'u')
-                        .map(|x| logical_stream_type(x).ok().map(|(_, x)| x))
-                })
+                .and_then(|opts| opts.get(&'u').map(|x| logical_type(x).ok().map(|(_, x)| x)))
                 .unwrap_or(Option::None);
 
             let keep = opt
@@ -291,15 +288,15 @@ pub fn interface(input: &str) -> Result<&str, Interface> {
             w(tag(":")),
             mode,
             multispace1,
-            logical_stream_type,
+            logical_type,
         )),
         |(d, n, _, m, _, t): (Option<String>, Name, _, Mode, _, LogicalType)| {
-            Interface::try_new(n, m, t, d.as_deref()).map_err(|_| ())
+            Interface::try_new(n, m, TypeRef::Anon(t), d.as_deref()).map_err(|_| ())
         },
     )(input)
 }
 
-pub fn streamlet(input: &str) -> Result<&str, Streamlet> {
+pub fn streamlet(input: &str) -> Result<&str, Declaration> {
     map_res(
         tuple((
             w(doc),
@@ -311,14 +308,69 @@ pub fn streamlet(input: &str) -> Result<&str, Streamlet> {
         )),
         |(d, _, n, _, il, _): (Option<String>, _, Name, _, Vec<Interface>, _)| {
             Streamlet::from_builder(n, il.into_iter().collect(), d.as_deref())
+                .map(Declaration::Streamlet)
         },
     )(input)
 }
 
-pub fn list_of_streamlets(input: &str) -> Result<&str, Vec<Streamlet>> {
-    map(
-        preceded(ws0, separated_list(ws1, streamlet)),
-        |l: Vec<Streamlet>| l,
+#[derive(Clone, Debug, PartialEq)]
+pub enum Declaration {
+    TypeDef(NamedType),
+    Streamlet(Streamlet),
+}
+
+// Functions meant for testing purposes only.
+impl Declaration {
+    /// Unwrap for optional typedef contained in declaration. May panic.
+    pub fn typedef(self) -> NamedType {
+        match self {
+            Declaration::TypeDef(t) => t,
+            _ => panic!(),
+        }
+    }
+
+    /// Unwrap for optional streamlet contained in declaration. May panic.
+    pub fn streamlet(self) -> Streamlet {
+        match self {
+            Declaration::Streamlet(s) => s,
+            _ => panic!(),
+        }
+    }
+}
+
+pub fn declaration(input: &str) -> Result<&str, Declaration> {
+    alt((streamlet, typedef))(input)
+}
+
+pub fn library(name: LibraryKey, input: &str) -> Result<&str, Library> {
+    map_res(
+        separated_list(ws1, declaration),
+        |decls: Vec<Declaration>| {
+            let mut types = Vec::new();
+            let mut streamlets = Vec::new();
+            decls.into_iter().for_each(|d| match d {
+                Declaration::TypeDef(t) => types.push(t),
+                Declaration::Streamlet(s) => streamlets.push(s),
+            });
+            Library::try_new(name.clone(), types, streamlets)
+        },
+    )(input)
+}
+
+pub fn typedef(input: &str) -> Result<&str, Declaration> {
+    map_res(
+        tuple((
+            w(doc),
+            tag("type"),
+            ws1,
+            w(name),
+            w(tag("=")),
+            w(logical_type),
+            tag(";"),
+        )),
+        |(d, _, _, n, _, t, _): (Option<String>, _, _, Name, _, LogicalType, _)| {
+            NamedType::try_new(n, t, d.as_deref()).map(Declaration::TypeDef)
+        },
     )(input)
 }
 
@@ -326,7 +378,7 @@ pub fn list_of_streamlets(input: &str) -> Result<&str, Vec<Streamlet>> {
 mod tests {
     use super::*;
     use crate::design::streamlet::tests::streamlets;
-    use crate::util::UniquelyNamedBuilder;
+    use crate::UniqueKeyBuilder;
 
     #[test]
     fn parse_comment() {
@@ -449,7 +501,7 @@ mod tests {
             interface("a :  in Null"),
             Ok((
                 "",
-                Interface::try_new("a", Mode::In, LogicalType::Null, None).unwrap()
+                Interface::try_new("a", Mode::In, TypeRef::anon(LogicalType::Null), None).unwrap()
             ))
         );
         assert_eq!(
@@ -462,7 +514,7 @@ mod tests {
                 Interface::try_new(
                     "b",
                     Mode::Out,
-                    LogicalType::try_new_bits(1).unwrap(),
+                    TypeRef::anon(LogicalType::try_new_bits(1).unwrap()),
                     Some(" This is a sweet interface")
                 )
                 .unwrap()
@@ -517,24 +569,35 @@ mod tests {
             )),
             Ok((
                 "",
-                Streamlet::from_builder(
-                    Name::try_new("test").unwrap(),
-                    UniquelyNamedBuilder::new()
-                        .with_item(
-                            Interface::try_new(
-                                "a",
-                                Mode::In,
-                                Group::try_new(vec![("a", 1), ("b", 2)]).unwrap(),
-                                None
+                Declaration::Streamlet(
+                    Streamlet::from_builder(
+                        Name::try_new("test").unwrap(),
+                        UniqueKeyBuilder::new()
+                            .with_item(
+                                Interface::try_new(
+                                    "a",
+                                    Mode::In,
+                                    TypeRef::anon(
+                                        LogicalType::try_new_group(vec![("a", 1), ("b", 2)])
+                                            .unwrap()
+                                    ),
+                                    None
+                                )
+                                .unwrap()
                             )
-                            .unwrap()
-                        )
-                        .with_item(
-                            Interface::try_new("c", Mode::Out, LogicalType::Null, None).unwrap()
-                        ),
-                    None
+                            .with_item(
+                                Interface::try_new(
+                                    "c",
+                                    Mode::Out,
+                                    TypeRef::anon(LogicalType::Null),
+                                    None
+                                )
+                                .unwrap()
+                            ),
+                        None
+                    )
+                    .unwrap()
                 )
-                .unwrap()
             ))
         );
     }
@@ -544,66 +607,139 @@ mod tests {
         assert_eq!(
             streamlet(
                 "/// Test
-// some other stuff
-  /* that people could put here */
-/* even though */ // it's not pretty
-    ///  unaligned doc string
+    // some other stuff
+      /* that people could put here */
+    /* even though */ // it's not pretty
+        ///  unaligned doc string
 
-            Streamlet x (
-            /// Such a weird interface
-            a : in Null,
-            /// And another one
-            b : out Null )"
+                Streamlet x (
+                /// Such a weird interface
+                a : in Null,
+                /// And another one
+                b : out Null )"
             ),
             Ok((
                 "",
-                Streamlet::from_builder(
-                    Name::try_new("x").unwrap(),
-                    UniquelyNamedBuilder::new().with_items(vec![
-                        Interface::try_new(
-                            "a",
-                            Mode::In,
-                            LogicalType::Null,
-                            Some(" Such a weird interface")
-                        )
-                        .unwrap(),
-                        Interface::try_new(
-                            "b",
-                            Mode::Out,
-                            LogicalType::Null,
-                            Some(" And another one")
-                        )
-                        .unwrap(),
-                    ]),
-                    Some(" Test\n  unaligned doc string"),
+                Declaration::Streamlet(
+                    Streamlet::from_builder(
+                        Name::try_new("x").unwrap(),
+                        UniqueKeyBuilder::new().with_items(vec![
+                            Interface::try_new(
+                                "a",
+                                Mode::In,
+                                TypeRef::anon(LogicalType::Null),
+                                Some(" Such a weird interface")
+                            )
+                            .unwrap(),
+                            Interface::try_new(
+                                "b",
+                                Mode::Out,
+                                TypeRef::anon(LogicalType::Null),
+                                Some(" And another one")
+                            )
+                            .unwrap(),
+                        ]),
+                        Some(" Test\n  unaligned doc string"),
+                    )
+                    .unwrap()
                 )
-                .unwrap()
             ))
         );
     }
 
     #[test]
-    fn parse_list_of_streamlets() {
+    fn parse_typedefs() {
         assert_eq!(
-            list_of_streamlets(concat!(
-                "Streamlet a ( a: in Null, b: out Null)\n",
-                "/* A comment */\n",
-                "Streamlet b ( a: in Null, b: out Null)\n",
-                "/// Multi-line...\n",
-                "/// doc string...\n",
-                "Streamlet c ( a: in Null, b: out Null)",
-            )),
+            typedef("type test=Null;"),
             Ok((
                 "",
-                UniquelyNamedBuilder::new()
-                    .with_items(vec![
-                        streamlets::nulls_streamlet("a"),
-                        streamlets::nulls_streamlet("b"),
-                        streamlets::nulls_streamlet("c").with_doc(" Multi-line...\n doc string..."),
-                    ])
-                    .finish()
-                    .unwrap()
+                Declaration::TypeDef(NamedType::try_new("test", LogicalType::Null, None).unwrap())
             ))
+        );
+        assert_eq!(
+            typedef("/// Some comment.\ntype test=Null;"),
+            Ok((
+                "",
+                Declaration::TypeDef(
+                    NamedType::try_new("test", LogicalType::Null, Some(" Some comment.")).unwrap()
+                )
+            ))
+        );
+        assert_eq!(
+            typedef("type  test=Null;"),
+            Ok((
+                "",
+                Declaration::TypeDef(NamedType::try_new("test", LogicalType::Null, None).unwrap())
+            ))
+        );
+        assert_eq!(
+            typedef("type test =Null;"),
+            Ok((
+                "",
+                Declaration::TypeDef(NamedType::try_new("test", LogicalType::Null, None).unwrap())
+            ))
+        );
+        assert_eq!(
+            typedef("type test=  Group<a:Null, b:Bits<5>>  ;"),
+            Ok((
+                "",
+                Declaration::TypeDef(
+                    NamedType::try_new(
+                        "test",
+                        LogicalType::try_new_group(vec![
+                            ("a", LogicalType::Null),
+                            ("b", LogicalType::try_new_bits(5).unwrap())
+                        ])
+                        .unwrap(),
+                        None
+                    )
+                    .unwrap()
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn parse_library() {
+        assert_eq!(
+            library(
+                LibraryKey::try_new("test").unwrap(),
+                concat!(
+                    "type A = Null\n;",
+                    "\n",
+                    "Streamlet a ( a: in Null, b: out Null)\n",
+                    "/* A comment */\n",
+                    "Streamlet b ( a: in Null, b: out Null)\n",
+                    "/// Multi-line...\n",
+                    "/// doc string...\n",
+                    "Streamlet c ( a: in Null, b: out Null)\n",
+                    "\n",
+                    "/// Some comment.\n",
+                    "type B = Bits<1>;",
+                )
+            )
+            .unwrap(),
+            (
+                "",
+                Library::try_new(
+                    LibraryKey::try_new("test").unwrap(),
+                    vec![
+                        NamedType::try_new("A", LogicalType::Null, None).unwrap(),
+                        NamedType::try_new(
+                            "B",
+                            LogicalType::try_new_bits(1).unwrap(),
+                            Some(" Some comment.")
+                        )
+                        .unwrap()
+                    ],
+                    vec![
+                        streamlets::simple("a"),
+                        streamlets::simple("b"),
+                        streamlets::simple("c").with_doc(" Multi-line...\n doc string..."),
+                    ]
+                )
+                .unwrap()
+            )
         );
     }
 }

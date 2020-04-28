@@ -1,8 +1,8 @@
-//! Parser methods and implementations for Tydi types.
+//! Parser methods and implementations for Tydi designs.
 //!
 //! The parser module is enabled by the `parser` feature flag. It adds some
-//! utitity parser methods and implementations of parsers for Tydi stream and
-//! streamlet types, and libraries with streamlets.
+//! utitity parser methods and implementations of parsers for Tydi types,
+//! streamlets, and libraries.
 //!
 //! The current parsers are built using [`nom`].
 //!

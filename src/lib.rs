@@ -92,7 +92,7 @@ pub mod parser;
 // TODO(mb): discuss
 pub use error::{Error, Result};
 pub use traits::{Document, Identify, Reverse, Reversed};
-pub use util::{Logger, UniquelyNamedBuilder};
+pub use util::{Logger, UniqueKeyBuilder};
 
 // Types for positive and non-negative integers.
 
@@ -103,6 +103,7 @@ pub type NonNegative = u32;
 /// Positive real.
 pub type PositiveReal = NonZeroReal<f64>;
 
+/// Type-safe real that cannot be zero.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NonZeroReal<T>(T);
 
@@ -148,11 +149,6 @@ where
 /// - The name does not start or end with an underscore
 /// - The name does not start with a digit
 /// - The name does not contain double underscores
-///
-/// # Examples
-///
-/// ```rust
-/// ```
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Name(String);
 
