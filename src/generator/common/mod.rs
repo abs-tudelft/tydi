@@ -152,7 +152,7 @@ impl Record {
     /// Append a string to the name of this record, and any nested records.
     pub fn append_name_nested(&self, with: impl Into<String>) -> Self {
         let p: String = with.into();
-        let mut result = Record::new_empty(cat!(self.identifier, p.clone()));
+        let mut result = Record::new_empty(cat!(self.identifier, p));
         for f in self.fields() {
             result.insert(match f.typ() {
                 Type::Record(r) => Field::new(
@@ -446,7 +446,7 @@ pub(crate) mod test {
             Type::record(
                 n.clone(),
                 vec![
-                    Field::new("a", rec(cat!(n.clone(), "a")), false),
+                    Field::new("a", rec(cat!(n, "a")), false),
                     Field::new("b", rec_rev(cat!(n, "b")), false),
                 ],
             )
@@ -457,7 +457,7 @@ pub(crate) mod test {
             Type::record(
                 n.clone(),
                 vec![
-                    Field::new("a", rec(cat!(n.clone(), "a")), false),
+                    Field::new("a", rec(cat!(n, "a")), false),
                     Field::new("b", rec(cat!(n, "b")), false),
                 ],
             )

@@ -22,10 +22,7 @@ jobs:
       with:
         toolchain: stable
         default: true
-    - uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --no-run --all-features --all-targets
+    - run: cargo test --no-run --all-features --all-targets --message-format=json | jq -r "select(.profile.test == true) | .executable" > test.files
     - uses: docker://kcov/kcov:v37
       with:
         entrypoint: true
@@ -37,7 +34,7 @@ jobs:
           -v "/home/runner/work/tydi/tydi":"/home/runner/work/tydi/tydi" \
           --entrypoint "/bin/bash" \
           kcov/kcov:v37 \
-          -c "mkdir -p target/cov/rust && find target/debug/tydi-* -type f -executable | xargs -l kcov --include-path=src/ --exclude-region='#[cfg(test)]' target/cov/rust"
+          -c "mkdir -p target/cov/rust && cat test.files | xargs -l kcov --include-path=src/ --exclude-region='#[cfg(test)]' target/cov/rust"
     - uses: codecov/codecov-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
