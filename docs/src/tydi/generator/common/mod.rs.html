@@ -678,7 +678,7 @@
     <span class="doccomment">/// Append a string to the name of this record, and any nested records.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">append_name_nested</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">with</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">p</span>: <span class="ident">String</span> <span class="op">=</span> <span class="ident">with</span>.<span class="ident">into</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Record</span>::<span class="ident">new_empty</span>(<span class="macro">cat</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">identifier</span>, <span class="ident">p</span>.<span class="ident">clone</span>()));
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Record</span>::<span class="ident">new_empty</span>(<span class="macro">cat</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">identifier</span>, <span class="ident">p</span>));
         <span class="kw">for</span> <span class="ident">f</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">fields</span>() {
             <span class="ident">result</span>.<span class="ident">insert</span>(<span class="kw">match</span> <span class="ident">f</span>.<span class="ident">typ</span>() {
                 <span class="ident">Type</span>::<span class="ident">Record</span>(<span class="ident">r</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Field</span>::<span class="ident">new</span>(
@@ -972,7 +972,7 @@
             <span class="ident">Type</span>::<span class="ident">record</span>(
                 <span class="ident">n</span>.<span class="ident">clone</span>(),
                 <span class="macro">vec</span><span class="macro">!</span>[
-                    <span class="ident">Field</span>::<span class="ident">new</span>(<span class="string">&quot;a&quot;</span>, <span class="ident">rec</span>(<span class="macro">cat</span><span class="macro">!</span>(<span class="ident">n</span>.<span class="ident">clone</span>(), <span class="string">&quot;a&quot;</span>)), <span class="bool-val">false</span>),
+                    <span class="ident">Field</span>::<span class="ident">new</span>(<span class="string">&quot;a&quot;</span>, <span class="ident">rec</span>(<span class="macro">cat</span><span class="macro">!</span>(<span class="ident">n</span>, <span class="string">&quot;a&quot;</span>)), <span class="bool-val">false</span>),
                     <span class="ident">Field</span>::<span class="ident">new</span>(<span class="string">&quot;b&quot;</span>, <span class="ident">rec_rev</span>(<span class="macro">cat</span><span class="macro">!</span>(<span class="ident">n</span>, <span class="string">&quot;b&quot;</span>)), <span class="bool-val">false</span>),
                 ],
             )
@@ -983,7 +983,7 @@
             <span class="ident">Type</span>::<span class="ident">record</span>(
                 <span class="ident">n</span>.<span class="ident">clone</span>(),
                 <span class="macro">vec</span><span class="macro">!</span>[
-                    <span class="ident">Field</span>::<span class="ident">new</span>(<span class="string">&quot;a&quot;</span>, <span class="ident">rec</span>(<span class="macro">cat</span><span class="macro">!</span>(<span class="ident">n</span>.<span class="ident">clone</span>(), <span class="string">&quot;a&quot;</span>)), <span class="bool-val">false</span>),
+                    <span class="ident">Field</span>::<span class="ident">new</span>(<span class="string">&quot;a&quot;</span>, <span class="ident">rec</span>(<span class="macro">cat</span><span class="macro">!</span>(<span class="ident">n</span>, <span class="string">&quot;a&quot;</span>)), <span class="bool-val">false</span>),
                     <span class="ident">Field</span>::<span class="ident">new</span>(<span class="string">&quot;b&quot;</span>, <span class="ident">rec</span>(<span class="macro">cat</span><span class="macro">!</span>(<span class="ident">n</span>, <span class="string">&quot;b&quot;</span>)), <span class="bool-val">false</span>),
                 ],
             )
