@@ -113,11 +113,7 @@ impl Typify for Union {
         let n: String = prefix.into();
         let mut result = Vec::new();
         if let Some((tag_name, tag_bc)) = self.tag() {
-            result.push(Signal::vec(
-                cat!(n.clone(), tag_name),
-                Origin::Source,
-                tag_bc,
-            ));
+            result.push(Signal::vec(cat!(n, tag_name), Origin::Source, tag_bc));
         }
         for (field_name, field_logical) in self.iter() {
             let field_result = field_logical.canonical(cat!(n.clone(), field_name));
@@ -188,7 +184,7 @@ impl Typify for Stream {
             // Set up the resulting record.
             let mut rec = Record::new_empty_stream(match name.len() {
                 0 => pre.clone(),
-                _ => cat!(pre.clone(), name),
+                _ => cat!(pre, name),
             });
 
             // Insert data record. There must be something there since it is not null.
@@ -292,13 +288,13 @@ impl Portify for Interface {
         let split = self.typ().split_streams();
 
         if let Some(sig_type) = split.signal().fancy(tn.clone()) {
-            result.push(Port::new(cat!(n.clone()), self.mode().into(), sig_type));
+            result.push(Port::new(cat!(n), self.mode().into(), sig_type));
         }
 
         // Split the LogicalType up into discrete, simple streams.
         for (path, simple_stream) in self.typ().split_streams().streams() {
             if let Some(typ) = simple_stream.fancy(cat!(tn.clone(), path)) {
-                result.push(Port::new(cat!(n.clone(), path), self.mode().into(), typ));
+                result.push(Port::new(cat!(n, path), self.mode().into(), typ));
             }
         }
 
