@@ -23,7 +23,7 @@ parser = ["nom"]
 [dependencies]
 log = "0.4"
 colored = "1.9.3"
-indexmap = "1.3"
+indexmap = "1.4"
 structopt = { version = "0.3", optional = true, default-features = false }
 nom = { version = "5", optional = true }
 
