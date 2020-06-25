@@ -58,8 +58,7 @@ jobs:
       with:
         name: docs
         path: docs
-    - uses: alex-page/blazing-fast-gh-pages-deploy@v1.1.0
+    - uses: peaceiris/actions-gh-pages@v3
       with:
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-        site-directory: .
-        commit-message: Deploy to GitHub Pages
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: .
