@@ -2,7 +2,7 @@
 
 # Tydi
 
-[![Crates.io](https://img.shields.io/crates/v/tydi)](https://crates.io/crate/tydi)
+[![Crates.io](https://img.shields.io/crates/v/tydi)](https://crates.io/crates/tydi)
 [![Docs.rs](https://docs.rs/tydi/badge.svg)](https://docs.rs/tydi)
 [![Rust](https://github.com/abs-tudelft/tydi/workflows/Rust/badge.svg)](https://github.com/abs-tudelft/tydi/actions?query=workflow%3ARust)
 [![Book](https://github.com/abs-tudelft/tydi/workflows/Book/badge.svg)](https://abs-tudelft.github.io/tydi)
