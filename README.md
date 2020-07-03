@@ -2,19 +2,23 @@
 
 # Tydi
 
-[![Website badge](https://img.shields.io/website?style=flat-square&up_message=up&url=https%3A%2F%2Fabs-tudelft.github.io%2Ftydi%2F)](#)
-[![Build badge](https://img.shields.io/github/workflow/status/abs-tudelft/tydi/Rust?style=flat-square)](#)
-[![Cov badge](https://img.shields.io/codecov/c/github/abs-tudelft/tydi?style=flat-square)](#)
-[![Lang badge](https://img.shields.io/github/languages/count/abs-tudelft/tydi?color=green&style=flat-square)](#)
-[![License badge](https://img.shields.io/crates/l/tydi/0.0.0?style=flat-square)](#)
-[![Active badge](https://img.shields.io/github/last-commit/abs-tudelft/tydi?style=flat-square)](#)
+[![Crates.io](https://img.shields.io/crates/v/tydi)](https://crates.io/crate/tydi)
+[![Docs.rs](https://docs.rs/tydi/badge.svg)](https://docs.rs/tydi)
+[![Rust](https://github.com/abs-tudelft/tydi/workflows/Rust/badge.svg)](https://github.com/abs-tudelft/tydi/actions?query=workflow%3ARust)
+[![Book](https://github.com/abs-tudelft/tydi/workflows/Book/badge.svg)](https://abs-tudelft.github.io/tydi)
 
 An open [specification] and tools for complex data structures over hardware streams.
+
+## Publications
+
+- _J. Peltenburg, J. Van Straten, M. Brobbel, Z. Al-Ars and H. P. Hofstee_  
+  **Tydi: An Open Specification for Complex Data Structures Over Hardware Streams**  
+  IEEE Micro, vol. 40, no. 4, pp. 120-130, 1 July-Aug. 2020, doi: [10.1109/MM.2020.2996373](https://doi.org/10.1109/MM.2020.2996373).
 
 ## License
 
 The `tydi` crate is licensed under the [Apache-2.0] license. See [LICENSE].
 
-[Specification]: https://abs-tudelft.github.io/tydi
-[Apache-2.0]: https://www.apache.org/licenses/LICENSE-2.0
-[LICENSE]: ./LICENSE
+[specification]: https://abs-tudelft.github.io/tydi
+[apache-2.0]: https://www.apache.org/licenses/LICENSE-2.0
+[license]: ./LICENSE
