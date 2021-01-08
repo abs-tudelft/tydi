@@ -1,3 +1,3 @@
 (function() {var implementors = {};
-implementors["tydi"] = [{"text":"impl StructOpt for <a class=\"enum\" href=\"tydi/generator/vhdl/enum.AbstractionLevel.html\" title=\"enum tydi::generator::vhdl::AbstractionLevel\">AbstractionLevel</a>","synthetic":false,"types":["tydi::generator::vhdl::AbstractionLevel"]},{"text":"impl StructOpt for <a class=\"struct\" href=\"tydi/generator/vhdl/struct.VHDLConfig.html\" title=\"struct tydi::generator::vhdl::VHDLConfig\">VHDLConfig</a>","synthetic":false,"types":["tydi::generator::vhdl::VHDLConfig"]}];
+implementors["tydi"] = [{"text":"impl StructOpt for AbstractionLevel","synthetic":false,"types":[]},{"text":"impl StructOpt for VHDLConfig","synthetic":false,"types":[]}];
 if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
