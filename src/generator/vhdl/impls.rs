@@ -151,7 +151,7 @@ impl Declare for Component {
         if let Some(doc) = self.doc() {
             result.push_str("--");
             result.push_str(doc.replace("\n", "\n--").as_str());
-            result.push_str("\n");
+            result.push('\n');
         }
         result.push_str(format!("component {}\n", self.identifier()).as_str());
         if !self.ports().is_empty() {
@@ -183,7 +183,7 @@ impl Declare for Component {
                 if ports.peek().is_some() {
                     result.push_str(";\n");
                 } else {
-                    result.push_str("\n");
+                    result.push('\n');
                 }
             }
             result.push_str("  );\n")
