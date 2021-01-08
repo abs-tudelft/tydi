@@ -778,7 +778,6 @@ mod tests {
         assert!(c31 < c311);
         assert!(c311 < c32);
         assert!(c32 < c4);
-        assert_eq!(c4, c4);
         assert_eq!(c4, c400);
         assert_eq!(c400, c4);
         assert!(!(c400 > c4));
