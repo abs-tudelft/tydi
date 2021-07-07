@@ -10,7 +10,7 @@ use nom::{
     bytes::complete::{tag, take_until, take_while},
     character::complete::{digit1, multispace1, none_of, one_of},
     combinator::{map, map_res, opt, recognize},
-    multi::{many0, many1, separated_list},
+    multi::{many0, many1, separated_list0},
     number::complete::float,
     sequence::{delimited, preceded, separated_pair, terminated, tuple},
 };
@@ -58,7 +58,9 @@ fn ws1(input: &str) -> Result<&str, Vec<&str>> {
     many1(multispace1)(input)
 }
 
-fn w<'a, T>(f: impl Fn(&'a str) -> Result<&'a str, T>) -> impl Fn(&'a str) -> Result<&'a str, T> {
+fn w<'a, T>(
+    f: impl FnMut(&'a str) -> Result<&'a str, T>,
+) -> impl FnMut(&'a str) -> Result<&'a str, T> {
     terminated(f, ws0)
 }
 
@@ -141,7 +143,7 @@ pub fn logical_stream_type(input: &str) -> Result<&str, LogicalType> {
 }
 
 fn fields(input: &str) -> Result<&str, Vec<(Name, LogicalType)>> {
-    separated_list(
+    separated_list0(
         w(tag(",")),
         separated_pair(w(name), w(tag(":")), w(logical_stream_type)),
     )(input)
@@ -162,7 +164,7 @@ pub fn union(input: &str) -> Result<&str, LogicalType> {
 }
 
 pub fn complexity(input: &str) -> Result<&str, Complexity> {
-    map_res(separated_list(w(tag(".")), digit1), |level: Vec<&str>| {
+    map_res(separated_list0(w(tag(".")), digit1), |level: Vec<&str>| {
         Complexity::new(level.iter().map(|x| x.parse().unwrap())).map_err(|_| ())
     })(input)
 }
@@ -193,7 +195,7 @@ pub fn stream(input: &str) -> Result<&str, LogicalType> {
             opt(preceded(
                 w(tag(",")),
                 map(
-                    separated_list(
+                    separated_list0(
                         w(tag(",")),
                         separated_pair(
                             w(one_of("tdscrux")),
@@ -306,7 +308,7 @@ pub fn streamlet(input: &str) -> Result<&str, Streamlet> {
             w(tag("Streamlet")),
             w(name),
             w(tag("(")),
-            separated_list(w(tag(",")), w(interface)),
+            separated_list0(w(tag(",")), w(interface)),
             tag(")"),
         )),
         |(d, _, n, _, il, _): (Option<String>, _, Name, _, Vec<Interface>, _)| {
@@ -317,7 +319,7 @@ pub fn streamlet(input: &str) -> Result<&str, Streamlet> {
 
 pub fn list_of_streamlets(input: &str) -> Result<&str, Vec<Streamlet>> {
     map(
-        preceded(ws0, separated_list(ws1, streamlet)),
+        preceded(ws0, separated_list0(ws1, streamlet)),
         |l: Vec<Streamlet>| l,
     )(input)
 }

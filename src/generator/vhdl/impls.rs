@@ -105,8 +105,7 @@ impl Analyze for Type {
         match self {
             // Only record can have nested records.
             Type::Record(rec) => {
-                let mut result: Vec<Type> = vec![];
-                result.push(self.clone());
+                let mut result: Vec<Type> = vec![self.clone()];
                 for f in rec.fields().into_iter() {
                     let children = f.typ().list_record_types();
                     result.extend(children.into_iter());
