@@ -33,7 +33,7 @@ jobs:
           -v "/var/run/docker.sock":"/var/run/docker.sock" \
           -v "/home/runner/work/tydi/tydi":"/home/runner/work/tydi/tydi" \
           --entrypoint "/bin/bash" \
-          kcov/kcov:v37 \
+          kcov/kcov:v38 \
           -c "mkdir -p target/cov/rust && cat test.files | xargs -l kcov --include-path=src/ --exclude-region='#[cfg(test)]' target/cov/rust"
     - uses: codecov/codecov-action@v1
       with:
