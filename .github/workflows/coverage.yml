@@ -23,7 +23,7 @@ jobs:
         toolchain: stable
         default: true
     - run: cargo test --no-run --all-features --all-targets --message-format=json | jq -r "select(.profile.test == true) | .executable" > test.files
-    - uses: docker://kcov/kcov:v37
+    - uses: docker://kcov/kcov:v38
       with:
         entrypoint: true
     - name: Kcov

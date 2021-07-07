@@ -17,6 +17,7 @@ static LOGGER: Logger = Logger;
 
 /// Back-end options.
 #[derive(Debug, StructOpt)]
+#[allow(clippy::upper_case_acronyms)]
 enum TargetOpt {
     /// Generate VHDL sources.
     VHDL(VHDLConfig),
