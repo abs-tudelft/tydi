@@ -579,14 +579,11 @@ impl Signal {
         origin: Origin,
         width: Option<NonNegative>,
     ) -> Option<Signal> {
-        match width {
-            None => None,
-            Some(w) => Some(Signal {
-                name: name.into(),
-                origin,
-                width: Width::Vector(w),
-            }),
-        }
+        width.map(|w| Signal {
+            name: name.into(),
+            origin,
+            width: Width::Vector(w),
+        })
     }
 
     /// Returns a vector-style signal.

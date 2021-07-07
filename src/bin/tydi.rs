@@ -147,7 +147,7 @@ mod tests {
             Opt::from_iter_safe(vec![
                 "tydi", "--debug", "generate", "test", "vhdl", "-a=fancy", "-s=gen",
             ])
-            .map_err(|e| panic!(format!("{}", e)))
+            .map_err(|e| panic!("{}", e))
             .unwrap(),
         )?;
         let expected_vhdl = tmpdir.path().join("test/test_pkg.gen.vhd");

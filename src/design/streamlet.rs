@@ -108,11 +108,7 @@ impl Interface {
                 name: n,
                 mode,
                 typ: t,
-                doc: if let Some(d) = doc {
-                    Some(d.to_string())
-                } else {
-                    None
-                },
+                doc: doc.map(|d| d.to_string()),
             }),
         }
     }
@@ -181,11 +177,7 @@ impl Streamlet {
         Ok(Streamlet {
             name,
             interfaces: builder.finish()?,
-            doc: if let Some(d) = doc {
-                Some(d.to_string())
-            } else {
-                None
-            },
+            doc: doc.map(|d| d.to_string()),
             implementation: None,
         })
     }
