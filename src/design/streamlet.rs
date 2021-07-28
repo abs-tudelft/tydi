@@ -115,11 +115,7 @@ impl Interface {
                 mode,
                 typ: t,
                 inf_f: None,
-                doc: if let Some(d) = doc {
-                    Some(d.to_string())
-                } else {
-                    None
-                },
+                doc: doc.map(|d| d.to_string()),
             }),
         }
     }
@@ -273,11 +269,7 @@ impl Streamlet {
                 .into_iter()
                 .map(|iface| (iface.key().clone(), Rc::new(RefCell::new(iface))))
                 .collect::<HashMap<IFKey, Rc<RefCell<Interface>>>>(),
-            doc: if let Some(d) = doc {
-                Some(d.to_string())
-            } else {
-                None
-            },
+            doc: doc.map(|d| d.to_string()),
             implementation: None,
         })
     }
