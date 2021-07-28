@@ -351,4 +351,20 @@ end component;
 end test;"
         );
     }
+
+    #[test]
+    fn streamlet_print() {
+        let (_, streamlet) = tydi::parser::nom::streamlet(
+            "Streamlet test (a : in Stream< Union< a  :  Null  ,b:Bits<1>,c:Group<d:Null,e:Null>>,t=0.01 ,d=2,c=4.2,u=Group<u0:Bits<1>,u1:Bits<2>>,x=false>, b : out Stream< Union< a  :  Null  ,b:Bits<1>,c:Group<d:Null,e:Null>>,t=0.01 ,d=2,c=4.2,u=Group<u0:Bits<1>,u1:Bits<2>>,x=false>)",
+        )
+        .unwrap();
+        let lib = tydi::design::library::Library::try_new(
+            Name::try_new("test").unwrap(),
+            vec![],
+            vec![streamlet],
+        );
+
+        let lib: tydi::generator::common::Package = lib.unwrap().fancy();
+        print!("{}", lib.declare().unwrap())
+    }
 }

@@ -16,9 +16,10 @@ required-features = ["cli"]
 
 [features]
 cli = ["structopt", "parser"]
-default = ["generator", "parser"]
+default = ["generator", "parser", "stdlib"]
 generator = []
 parser = ["nom"]
+stdlib = ["generator"]
 
 [dependencies]
 log = "0.4"

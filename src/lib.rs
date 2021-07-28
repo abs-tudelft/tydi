@@ -105,6 +105,8 @@ mod traits;
 pub mod generator;
 #[cfg(feature = "parser")]
 pub mod parser;
+#[cfg(feature = "stdlib")]
+pub mod stdlib;
 
 // Types for positive and non-negative integers.
 
