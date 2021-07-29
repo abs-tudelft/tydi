@@ -8,3 +8,6 @@ book/book
 /target
 **/*.rs.bk
 tarpaulin-report.html
+
+# Output
+/output
