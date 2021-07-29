@@ -42,12 +42,12 @@ impl Stub {
 
         let stream_in = op.inputs().find_map(|x| match x.typ() {
             LogicalType::Stream(s) => Some(s),
-            _ => None
+            _ => None,
         });
 
         let stream_out = op.outputs().find_map(|x| match x.typ() {
             LogicalType::Stream(s) => Some(s),
-            _ => None
+            _ => None,
         });
 
         let mut ifaces: Vec<Interface> = vec![];
@@ -64,7 +64,9 @@ impl Stub {
             log::info!("Implementing as sink.");
             is_sink = true;
         } else {
-            return Err(Error::ComposerError(format!("No input or output defined.")));
+            return Err(Error::ComposerError(format!(
+                "No input or output Stream defined."
+            )));
         }
 
         let streamlet = Streamlet::from_builder(
@@ -192,10 +194,11 @@ mod tests {
         let (_, sink_stub) =
             parser::nom::streamlet("Streamlet sink_stub (in_sink : in Stream<Bits<1>, d=0>)")
                 .unwrap();
+        let (_, invalid_stub) = parser::nom::streamlet("Streamlet invalid_stub ()").unwrap();
         let lib = Library::try_new(
             Name::try_from("test_library")?,
             vec![],
-            vec![source_stub, passthrough_stub, sink_stub],
+            vec![source_stub, passthrough_stub, sink_stub, invalid_stub],
         )?;
         prj.add_lib(lib)?;
         Ok(prj)
@@ -257,6 +260,27 @@ mod tests {
         )?;
 
         println!("Stub interface\n {:?}\n", stub);
+
+        Ok(())
+    }
+
+    #[test]
+    fn invalid_stub_returns_composition_error() -> Result<()> {
+        let lib_key = Name::try_from("test_library")?;
+        let expected_err_string = "No input or output Stream defined.";
+        let expected_error = Error::ComposerError(expected_err_string.to_string());
+        let prj = parsed_project()?;
+        match Stub::try_new(
+            &prj,
+            Name::try_from("invalid")?,
+            StreamletHandle {
+                lib: lib_key.clone(),
+                streamlet: Name::try_from("invalid_stub")?,
+            },
+        ) {
+            Err(Error::ComposerError(err_str)) if err_str == expected_err_string => (),
+            actual => panic!("Expected {:?}, got {:?}", expected_error, actual),
+        };
 
         Ok(())
     }
