@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use log::Log;
 
 use crate::design::implementation::Implementation;
-use crate::design::implementation::{composer::GenericComponent, ImplementationBackend};
+use crate::design::implementation::composer::{GenericComponent, impl_backend::ImplementationBackend};
 use crate::design::{Interface, Mode, Project, Streamlet, StreamletHandle, StreamletKey};
 use crate::generator::vhdl::VHDLBackEnd;
 use crate::generator::GenerateProject;

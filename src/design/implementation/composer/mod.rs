@@ -7,6 +7,7 @@ use crate::generator::dot::DotStyle;
 use crate::Result;
 
 pub mod impl_graph;
+pub mod impl_backend;
 pub mod misc;
 pub mod parser;
 pub mod patterns;
