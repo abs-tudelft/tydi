@@ -99,12 +99,16 @@ pub mod tests {
 
     /// Some projects that can be used throughout the crate for testing.
     pub mod proj {
+
         use super::*;
 
         pub(crate) fn empty_proj() -> Project {
+            let mut libraries = HashMap::new();
+            let empty_lib = crate::design::library::tests::libs::empty_lib();
+            libraries.insert(empty_lib.key().clone(), empty_lib);
             Project {
                 name: Name::try_new("proj").unwrap(),
-                libraries: HashMap::new(),
+                libraries: libraries,
             }
         }
     }

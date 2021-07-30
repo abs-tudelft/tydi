@@ -3,6 +3,7 @@
 //! The generator module is enabled by the `generator` feature flag.
 
 use std::borrow::Borrow;
+use std::cell::Ref;
 
 use crate::design::implementation::composer::GenericComponent;
 use crate::design::{Interface, Streamlet};
@@ -326,7 +327,10 @@ impl Componentify for Streamlet {
                     Port::new_documented("clk", Mode::In, Type::Bit, None),
                     Port::new_documented("rst", Mode::In, Type::Bit, None),
                 ];
-                self.interfaces().for_each(|interface| {
+                self.inputs().for_each(|interface| {
+                    all_ports.extend(interface.borrow().canonical(interface.identifier()));
+                });
+                self.outputs().for_each(|interface| {
                     all_ports.extend(interface.borrow().canonical(interface.identifier()));
                 });
                 all_ports
@@ -340,20 +344,24 @@ impl Componentify for Streamlet {
             cat!(self.identifier().to_string(), suffix.unwrap_or("")),
             vec![],
             {
+                let collect_ports =
+                    |interfaces: Box<(dyn Iterator<Item = Ref<Interface>>)>| -> Vec<Port> {
+                        interfaces
+                            .flat_map(|interface| {
+                                interface.borrow().fancy(
+                                    interface.identifier(),
+                                    cat!(self.identifier().to_string(), interface.identifier()),
+                                )
+                            })
+                            .collect::<Vec<Port>>()
+                    };
+
                 let mut all_ports: Vec<Port> = vec![
                     Port::new_documented("clk", Mode::In, Type::Bit, None),
                     Port::new_documented("rst", Mode::In, Type::Bit, None),
                 ];
-                all_ports.extend(
-                    self.interfaces()
-                        .flat_map(|interface| {
-                            interface.borrow().fancy(
-                                interface.identifier(),
-                                cat!(self.identifier().to_string(), interface.identifier()),
-                            )
-                        })
-                        .collect::<Vec<Port>>(),
-                );
+                all_ports.extend(collect_ports(self.inputs()));
+                all_ports.extend(collect_ports(self.outputs()));
                 all_ports
             },
             self.doc(),

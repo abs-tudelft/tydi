@@ -3,7 +3,7 @@
 //! A streamlet is a component where every [Interface] has a [LogicalType].
 
 use std::cell::{Ref, RefCell, RefMut};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::fmt::Debug;
 use std::rc::Rc;
@@ -167,7 +167,7 @@ pub struct Streamlet {
     /// The name of the streamlet.
     key: Name,
     /// The interfaces of the streamlet.
-    interfaces: HashMap<IFKey, Rc<RefCell<Interface>>>,
+    interfaces: BTreeMap<IFKey, Rc<RefCell<Interface>>>,
     /// An optional documentation string for the streamlet to be used by back-ends.
     doc: Option<String>,
     /// Placeholder for future implementation of the streamlet. If this is None, it is a primitive.
@@ -237,7 +237,7 @@ impl Streamlet {
     ///
     /// # Example
     /// ```
-    /// use tydi::{Name, UniquelyNamedBuilder};
+    /// use tydi::{Name, UniqueKeyBuilder};
     /// use tydi::logical::LogicalType;
     /// use tydi::design::{Mode, Interface, Streamlet};
     ///
@@ -252,7 +252,7 @@ impl Streamlet {
     ///    
     /// let my_streamlet = Streamlet::from_builder(
     ///     Name::try_new("baker").unwrap(),
-    ///     UniquelyNamedBuilder::new().with_items(vec![dough.unwrap(), cookies.unwrap()]),
+    ///     UniqueKeyBuilder::new().with_items(vec![dough.unwrap(), cookies.unwrap()]),
     ///     Some("I bake cookies")
     /// );
     /// assert!(my_streamlet.is_ok());
@@ -268,7 +268,7 @@ impl Streamlet {
                 .finish()?
                 .into_iter()
                 .map(|iface| (iface.key().clone(), Rc::new(RefCell::new(iface))))
-                .collect::<HashMap<IFKey, Rc<RefCell<Interface>>>>(),
+                .collect::<BTreeMap<IFKey, Rc<RefCell<Interface>>>>(),
             doc: doc.map(|d| d.to_string()),
             implementation: None,
         })
