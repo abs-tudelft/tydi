@@ -313,7 +313,7 @@ mod tests {
             },
         )?;
 
-        let mut lib = prj.get_lib_mut(lib_key.clone())?;
+        let lib = prj.get_lib_mut(lib_key.clone())?;
         lib.add_streamlet(source_stub.streamlet().clone())?;
         lib.add_streamlet(sink_stub.streamlet().clone())?;
         lib.add_streamlet(passthrough_stub.streamlet().clone())?;

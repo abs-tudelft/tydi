@@ -38,6 +38,11 @@ pub trait DeclareLibrary {
     fn declare(&self, abstraction: AbstractionLevel) -> Result<String>;
 }
 
+/// Generate supertrait for VHDL with usings declarations. (E.g. use ieee.std_logic_1164.all;)
+pub trait DeclareUsings {
+    fn declare_usings(&self) -> Result<String>;
+}
+
 /// Generate trait for VHDL identifiers.
 pub trait VHDLIdentifier {
     /// Generate a VHDL identifier from self.

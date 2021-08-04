@@ -51,7 +51,10 @@ end component;"
         let lib: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             lib.declare().unwrap(),
-            "package test is
+            "library ieee;
+use ieee.std_logic_1164.all;
+
+package test is
 
 component test_com
   port(
@@ -96,7 +99,10 @@ end test;"
         let lib: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             lib.declare().unwrap(),
-            "package test is
+            "library ieee;
+use ieee.std_logic_1164.all;
+
+package test is
 
 component test_com
   port(
@@ -163,7 +169,10 @@ end test;"
         let lib: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             lib.declare().unwrap(),
-            "package test is
+            "library ieee;
+use ieee.std_logic_1164.all;
+
+package test is
 
 component test_com
   port(
@@ -217,7 +226,10 @@ end test;"
         let pkg: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             pkg.declare().unwrap(),
-            "package test is
+            "library ieee;
+use ieee.std_logic_1164.all;
+
+package test is
 
 component test_com
   port(
@@ -292,7 +304,10 @@ end test;"
         let pkg: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             pkg.declare().unwrap(),
-            "package test is
+            "library ieee;
+use ieee.std_logic_1164.all;
+
+package test is
 
 component test_com
   port(

@@ -1,10 +1,11 @@
 //! Implementations of VHDL traits for common representation.
 
+use std::borrow::Borrow;
 use std::collections::HashMap;
 
 use crate::error::Error::BackEndError;
 use crate::generator::common::{Component, Mode, Package, Port, Record, Type};
-use crate::generator::vhdl::{Analyze, Declare, DeclareType, Split, VHDLIdentifier};
+use crate::generator::vhdl::{Analyze, Declare, DeclareType, DeclareUsings, Split, VHDLIdentifier};
 use crate::traits::Identify;
 use crate::{cat, Document, Result};
 
@@ -208,6 +209,7 @@ impl Analyze for Component {
 impl Declare for Package {
     fn declare(&self) -> Result<String> {
         let mut result = String::new();
+        result.push_str(self.declare_usings()?.as_str());
         result.push_str(format!("package {} is\n\n", self.identifier).as_str());
 
         // Whatever generated the common representation is responsible to not to use the same
@@ -238,7 +240,33 @@ impl Declare for Package {
             result.push_str(format!("{}\n\n", c.declare()?).as_str());
         }
         result.push_str(format!("end {};", self.identifier).as_str());
+
         Ok(result)
+    }
+}
+
+impl DeclareUsings for Package {
+    fn declare_usings(&self) -> Result<String> {
+        let mut usings = String::new();
+        let mut types = self
+            .components
+            .iter()
+            .flat_map(|x| x.ports().iter().map(|p| p.typ()));
+        fn uses_std_logic(t: &Type) -> bool {
+            match t {
+                Type::Bit => true,
+                Type::BitVec { width: _ } => true,
+                Type::Record(rec) => rec.fields().any(|field| uses_std_logic(field.typ())),
+                _ => false,
+            }
+        }
+
+        // Very basic for now, but could become useful if other kinds of types are supported
+        if types.any(|x| uses_std_logic(&x)) {
+            usings.push_str("library ieee;\nuse ieee.std_logic_1164.all;\n\n");
+        }
+
+        Ok(usings)
     }
 }
 
@@ -347,7 +375,10 @@ end component;"
         };
         assert_eq!(
             p.declare().unwrap(),
-            "package test is
+            "library ieee;
+use ieee.std_logic_1164.all;
+
+package test is
 
 type a_dn_type is record
   c : std_logic_vector(41 downto 0);
