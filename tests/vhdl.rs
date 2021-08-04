@@ -63,7 +63,7 @@ component test_com
   );
 end component;
 
-record test_a_type
+type test_a_type is record
   b : std_logic_vector(0 downto 0);
   c : std_logic_vector(1 downto 0);
 end record;
@@ -113,23 +113,23 @@ component test_com
   );
 end component;
 
-record test_a_dn_type
+type test_a_dn_type is record
   valid : std_logic;
   data : std_logic_vector(0 downto 0);
 end record;
 
-record test_a_up_type
+type test_a_up_type is record
   ready : std_logic;
 end record;
 
-record test_b_dn_type
+type test_b_dn_type is record
   valid : std_logic;
   data : std_logic_vector(1 downto 0);
   last : std_logic_vector(1 downto 0);
   strb : std_logic_vector(0 downto 0);
 end record;
 
-record test_b_up_type
+type test_b_up_type is record
   ready : std_logic;
 end record;
 
@@ -175,17 +175,17 @@ component test_com
   );
 end component;
 
-record test_a_data_dn_type
+type test_a_data_dn_type is record
   b : std_logic_vector(0 downto 0);
   c : std_logic_vector(1 downto 0);
 end record;
 
-record test_a_dn_type
+type test_a_dn_type is record
   valid : std_logic;
   data : test_a_data_dn_type;
 end record;
 
-record test_a_up_type
+type test_a_up_type is record
   ready : std_logic;
 end record;
 
@@ -233,25 +233,25 @@ component test_com
   );
 end component;
 
-record test_a_type
+type test_a_type is record
   b : std_logic_vector(1 downto 0);
 end record;
 
-record test_a_c_dn_type
+type test_a_c_dn_type is record
   valid : std_logic;
   data : std_logic_vector(0 downto 0);
 end record;
 
-record test_a_c_up_type
+type test_a_c_up_type is record
   ready : std_logic;
 end record;
 
-record test_d_dn_type
+type test_d_dn_type is record
   valid : std_logic;
   data : std_logic_vector(0 downto 0);
 end record;
 
-record test_d_up_type
+type test_d_up_type is record
   ready : std_logic;
 end record;
 
@@ -311,27 +311,27 @@ component test_com
   );
 end component;
 
-record test_c_type
+type test_c_type is record
   d : std_logic_vector(0 downto 0);
   e : std_logic_vector(1 downto 0);
 end record;
 
-record test_f_type
+type test_f_type is record
   tag : std_logic_vector(0 downto 0);
   h : std_logic_vector(2 downto 0);
 end record;
 
-record test_i_s_type
+type test_i_s_type is record
   t : std_logic_vector(0 downto 0);
   u : std_logic_vector(1 downto 0);
 end record;
 
-record test_i_v_type
+type test_i_v_type is record
   tag : std_logic_vector(0 downto 0);
   w : std_logic_vector(2 downto 0);
 end record;
 
-record test_i_type
+type test_i_type is record
   r : std_logic_vector(0 downto 0);
   s : test_i_s_type;
   v : test_i_v_type;

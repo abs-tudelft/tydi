@@ -19,7 +19,7 @@ impl VHDLIdentifier for Mode {
 
 fn declare_rec(rec: &Record) -> Result<String> {
     let mut children = String::new();
-    let mut this = format!("record {}\n", cat!(rec.vhdl_identifier()?));
+    let mut this = format!("type {} is record\n", cat!(rec.vhdl_identifier()?));
 
     for field in rec.fields() {
         // Declare all nested record types first.
@@ -271,11 +271,11 @@ mod test {
         assert_eq!(
             t0.declare(true).unwrap(),
             concat!(
-                "record rec_dn_type\n",
+                "type rec_dn_type is record\n",
                 "  c : std_logic_vector(41 downto 0);\n",
                 "end record;\n",
                 "\n",
-                "record rec_up_type\n",
+                "type rec_up_type is record\n",
                 "  d : std_logic_vector(1336 downto 0);\n",
                 "end record;"
             )
@@ -285,25 +285,25 @@ mod test {
         assert_eq!(
             t1.declare(true).unwrap(),
             concat!(
-                "record rec_a_dn_type\n",
+                "type rec_a_dn_type is record\n",
                 "  c : std_logic_vector(41 downto 0);\n",
                 "  d : std_logic_vector(1336 downto 0);\n",
                 "end record;\n",
                 "\n",
-                "record rec_b_dn_type\n",
+                "type rec_b_dn_type is record\n",
                 "  c : std_logic_vector(41 downto 0);\n",
                 "end record;\n",
                 "\n",
-                "record rec_dn_type\n",
+                "type rec_dn_type is record\n",
                 "  a : rec_a_dn_type;\n",
                 "  b : rec_b_dn_type;\n",
                 "end record;\n",
                 "\n",
-                "record rec_b_up_type\n",
+                "type rec_b_up_type is record\n",
                 "  d : std_logic_vector(1336 downto 0);\n",
                 "end record;\n",
                 "\n",
-                "record rec_up_type\n",
+                "type rec_up_type is record\n",
                 "  b : rec_b_up_type;\n",
                 "end record;"
             )
@@ -349,33 +349,33 @@ end component;"
             p.declare().unwrap(),
             "package test is
 
-record a_dn_type
+type a_dn_type is record
   c : std_logic_vector(41 downto 0);
 end record;
 
-record a_up_type
+type a_up_type is record
   d : std_logic_vector(1336 downto 0);
 end record;
 
-record b_a_dn_type
+type b_a_dn_type is record
   c : std_logic_vector(41 downto 0);
   d : std_logic_vector(1336 downto 0);
 end record;
 
-record b_b_dn_type
+type b_b_dn_type is record
   c : std_logic_vector(41 downto 0);
 end record;
 
-record b_dn_type
+type b_dn_type is record
   a : b_a_dn_type;
   b : b_b_dn_type;
 end record;
 
-record b_b_up_type
+type b_b_up_type is record
   d : std_logic_vector(1336 downto 0);
 end record;
 
-record b_up_type
+type b_up_type is record
   b : b_b_up_type;
 end record;
 

@@ -2,8 +2,10 @@ use std::borrow::Borrow;
 
 use log::Log;
 
+use crate::design::implementation::composer::{
+    impl_backend::ImplementationBackend, GenericComponent,
+};
 use crate::design::implementation::Implementation;
-use crate::design::implementation::composer::{GenericComponent, impl_backend::ImplementationBackend};
 use crate::design::{Interface, Mode, Project, Streamlet, StreamletHandle, StreamletKey};
 use crate::generator::vhdl::VHDLBackEnd;
 use crate::generator::GenerateProject;
@@ -173,6 +175,7 @@ impl ImplementationBackend for PassthroughStubBackend {
 #[cfg(test)]
 mod tests {
     use std::convert::TryFrom;
+    use std::fs;
 
     use crate::design::Library;
 
@@ -184,16 +187,18 @@ mod tests {
 
     fn parsed_project() -> Result<Project> {
         let mut prj = Project::new(Name::try_from("test_project")?);
-        let (_, source_stub) =
-            parser::nom::streamlet("Streamlet source_stub (out_source : out Stream<Bits<1>, d=0>)")
-                .unwrap();
-        let (_, passthrough_stub) = parser::nom::streamlet(
-            "Streamlet passthrough_stub (in_pass : in Stream<Bits<1>, d=0>, out_pass : out Stream<Bits<1>, d=0>)",
+        let (_, source_stub) = parser::nom::streamlet(
+            "Streamlet source_stub (out_source : out Stream<Bits<32>, d=0, t=8, c=8>)",
         )
         .unwrap();
-        let (_, sink_stub) =
-            parser::nom::streamlet("Streamlet sink_stub (in_sink : in Stream<Bits<1>, d=0>)")
-                .unwrap();
+        let (_, passthrough_stub) = parser::nom::streamlet(
+            "Streamlet passthrough_stub (in_pass : in Stream<Bits<32>, d=0, t=8, c=8>, out_pass : out Stream<Bits<32>, d=0, t=8, c=8>)",
+        )
+        .unwrap();
+        let (_, sink_stub) = parser::nom::streamlet(
+            "Streamlet sink_stub (in_sink : in Stream<Bits<32>, d=0, t=8, c=8>)",
+        )
+        .unwrap();
         let (_, invalid_stub) = parser::nom::streamlet("Streamlet invalid_stub ()").unwrap();
         let lib = Library::try_new(
             Name::try_from("test_library")?,
@@ -208,7 +213,7 @@ mod tests {
     fn source_stub_interfaces() -> Result<()> {
         let lib_key = Name::try_from("test_library")?;
         let prj = parsed_project()?;
-        let source_stub = Stub::try_new(
+        let stub = Stub::try_new(
             &prj,
             Name::try_from("source")?,
             StreamletHandle {
@@ -217,13 +222,7 @@ mod tests {
             },
         )?;
 
-        // prj.get_lib_mut(lib_key.clone())?.add_streamlet(source_stub.streamlet().clone())?;
-
-        // let _folder = fs::create_dir_all("output")?;
-        // let vhdl = VHDLBackEnd::default();
-        // vhdl.generate(&prj, "output")?;
-
-        println!("Stub interface\n {:?}\n", source_stub);
+        println!("Stub interface\n {:?}\n", stub);
 
         Ok(())
     }
@@ -281,6 +280,47 @@ mod tests {
             Err(Error::ComposerError(err_str)) if err_str == expected_err_string => (),
             actual => panic!("Expected {:?}, got {:?}", expected_error, actual),
         };
+
+        Ok(())
+    }
+
+    #[test]
+    fn vhdl_generation() -> Result<()> {
+        let lib_key = Name::try_from("test_library")?;
+        let mut prj = parsed_project()?;
+        let source_stub = Stub::try_new(
+            &prj,
+            Name::try_from("source")?,
+            StreamletHandle {
+                lib: lib_key.clone(),
+                streamlet: Name::try_from("source_stub")?,
+            },
+        )?;
+        let sink_stub = Stub::try_new(
+            &prj,
+            Name::try_from("sink")?,
+            StreamletHandle {
+                lib: lib_key.clone(),
+                streamlet: Name::try_from("sink_stub")?,
+            },
+        )?;
+        let passthrough_stub = Stub::try_new(
+            &prj,
+            Name::try_from("passthrough")?,
+            StreamletHandle {
+                lib: lib_key.clone(),
+                streamlet: Name::try_from("passthrough_stub")?,
+            },
+        )?;
+
+        let mut lib = prj.get_lib_mut(lib_key.clone())?;
+        lib.add_streamlet(source_stub.streamlet().clone())?;
+        lib.add_streamlet(sink_stub.streamlet().clone())?;
+        lib.add_streamlet(passthrough_stub.streamlet().clone())?;
+
+        let _folder = fs::create_dir_all("output")?;
+        let vhdl = VHDLBackEnd::default();
+        vhdl.generate(&prj, "output")?;
 
         Ok(())
     }
