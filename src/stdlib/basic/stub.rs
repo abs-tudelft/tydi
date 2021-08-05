@@ -188,15 +188,15 @@ mod tests {
     fn parsed_project() -> Result<Project> {
         let mut prj = Project::new(Name::try_from("test_project")?);
         let (_, source_stub) = parser::nom::streamlet(
-            "Streamlet source_stub (out_source : out Stream<Bits<32>, d=0, t=8, c=8>)",
+            "Streamlet source_stub (out_source : out Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>)",
         )
         .unwrap();
         let (_, passthrough_stub) = parser::nom::streamlet(
-            "Streamlet passthrough_stub (in_pass : in Stream<Bits<32>, d=0, t=8, c=8>, out_pass : out Stream<Bits<32>, d=0, t=8, c=8>)",
+            "Streamlet passthrough_stub (in_pass : in Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>, out_pass : out Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>)",
         )
         .unwrap();
         let (_, sink_stub) = parser::nom::streamlet(
-            "Streamlet sink_stub (in_sink : in Stream<Bits<32>, d=0, t=8, c=8>)",
+            "Streamlet sink_stub (in_sink : in Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>)",
         )
         .unwrap();
         let (_, invalid_stub) = parser::nom::streamlet("Streamlet invalid_stub ()").unwrap();

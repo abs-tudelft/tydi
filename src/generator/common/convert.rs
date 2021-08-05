@@ -192,6 +192,7 @@ impl Typify for Stream {
             });
 
             // Insert data record. There must be something there since it is not null.
+            // TODO: The fancy version doesn't account for throughput.
             rec.insert_new_field(
                 "data",
                 self.data().fancy(cat!(pre, name, "data")).unwrap(),
