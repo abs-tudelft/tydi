@@ -54,8 +54,6 @@ type sink_stub_in_sink_data_dn_type is record
   data : std_logic_vector(31 downto 0);
 end record;
 
-function get_val (union: sink_stub_in_sink_data_dn_type) return std_logic_vector;
-
 type sink_stub_in_sink_dn_type is record
   valid : std_logic;
   data : sink_stub_in_sink_data_dn_type;
@@ -91,16 +89,12 @@ type source_out_data_dn_type is record
   data : std_logic_vector(31 downto 0);
 end record;
 
-function get_val (union: sink_stub_in_sink_data_dn_type) return std_logic_vector;
+type source_out_data_dn_type_a_range is range 15 downto 0; -- Hypothetical, if they're different ranges
+type source_out_data_dn_type_b_range is range 31 downto 0;
 
 type source_out_dn_type is record
   valid : std_logic;
   data : sink_stub_in_sink_data_dn_type;
-end record;
-
-type source_out_dn_type is record
-  valid : std_logic;
-  data : source_out_data_dn_type;
 end record;
 
 type source_out_up_type is record
@@ -273,21 +267,3 @@ component passthrough_stub
 end component;
 
 end test_library;
-
-package body test_library is
-  function get_val (union: sink_stub_in_sink_data_dn_type) return std_logic_vector is
-  begin
-    case union.tag is
-      when a => return union.data(15 downto 0);
-      when b => return union.data(31 downto 0);
-    end case;
-  end function;
-
-  function get_val (union: source_out_data_dn_type) return std_logic_vector is
-  begin
-    case union.tag is
-      when a => return union.data(15 downto 0);
-      when b => return union.data(31 downto 0);
-    end case;
-  end function;
-end;
