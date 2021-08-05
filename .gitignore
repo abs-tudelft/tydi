@@ -12,3 +12,4 @@ tarpaulin-report.html
 
 # Output
 /output
+*.cf
