@@ -51,8 +51,8 @@ pub trait VHDLIdentifier {
 
 /// Analyze trait for VHDL objects.
 pub trait Analyze {
-    /// List all record types used.
-    fn list_record_types(&self) -> Vec<Type>;
+    /// List all nested types used.
+    fn list_nested_types(&self) -> Vec<Type>;
 }
 
 /// Abstraction levels

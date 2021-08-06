@@ -8,7 +8,7 @@ use std::cell::Ref;
 use crate::design::implementation::composer::GenericComponent;
 use crate::design::{Interface, Streamlet};
 pub use crate::error::{Error, Result};
-use crate::generator::common::{Array, Component, Mode, Package, Port, Project, Record, Type};
+use crate::generator::common::{Component, Mode, Package, Port, Project, Record, Type};
 use crate::logical::{Group, LogicalType, Stream, Union};
 use crate::physical::{Origin, Signal, Width};
 use crate::traits::Identify;
@@ -67,7 +67,7 @@ pub trait Projectify {
 pub trait Multilane {
     fn with_throughput(
         &self,
-        identity: impl Identify,
+        identity: impl Into<String>,
         throughput: NonZeroReal<f64>,
     ) -> Result<Type>;
 }
@@ -200,11 +200,13 @@ impl Typify for Stream {
                 _ => cat!(pre, name),
             });
 
+            let prefix = cat!(pre, name, "data");
+            let data = self.data().fancy(&prefix).unwrap();
             // Insert data record. There must be something there since it is not null.
             // TODO: The fancy version doesn't account for throughput.
             rec.insert_new_field(
                 "data",
-                self.data().fancy(cat!(pre, name, "data")).unwrap(),
+                data.with_throughput(&prefix, self.throughput()).unwrap(),
                 false,
             );
 
@@ -428,7 +430,7 @@ impl Projectify for crate::design::Project {
 impl Multilane for Type {
     fn with_throughput(
         &self,
-        identity: impl Identify,
+        identity: impl Into<String>,
         throughput: NonZeroReal<f64>,
     ) -> Result<Type> {
         if throughput.0 > u32::MAX as f64 {
@@ -445,7 +447,7 @@ impl Multilane for Type {
                 }),
                 Type::BitVec { width: _ } | Type::Record(_) | Type::Union(_) | Type::Array(_) => {
                     Ok(Type::array(
-                        format!("{}_array", identity.identifier()),
+                        format!("{}_array", identity.into()),
                         self.clone(),
                         element_lanes,
                     ))

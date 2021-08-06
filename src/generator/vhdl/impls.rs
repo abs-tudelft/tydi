@@ -1,10 +1,9 @@
 //! Implementations of VHDL traits for common representation.
 
-use std::borrow::Borrow;
 use std::collections::HashMap;
 
 use crate::error::Error::BackEndError;
-use crate::generator::common::{Component, Mode, Package, Port, Record, Type};
+use crate::generator::common::{Array, Component, Mode, Package, Port, Record, Type};
 use crate::generator::vhdl::{Analyze, Declare, DeclareType, DeclareUsings, Split, VHDLIdentifier};
 use crate::traits::Identify;
 use crate::{cat, Document, Result};
@@ -27,7 +26,10 @@ fn declare_rec(rec: &Record) -> Result<String> {
         if let Type::Record(nested) = field.typ() {
             children.push_str(nested.declare(false)?.clone().as_str());
             children.push_str("\n\n");
-        };
+        } else if let Type::Array(nested) = field.typ() {
+            children.push_str(nested.declare(false)?.clone().as_str());
+            children.push_str("\n\n");
+        }
 
         // Declare this record.
         this.push_str(
@@ -68,6 +70,41 @@ impl DeclareType for Record {
     }
 }
 
+impl DeclareType for Array {
+    fn declare(&self, is_root_type: bool) -> Result<String> {
+        let mut children = String::new();
+        let mut this = format!(
+            "type {} is array ({} downto {}) of ",
+            self.vhdl_identifier()?,
+            self.width() - 1,
+            0
+        );
+
+        match self.typ() {
+            Type::Bit => return Err(BackEndError("Unexpected, Bit in Array".to_string())),
+            Type::BitVec { width: _ } => this.push_str(self.typ().declare(false)?.clone().as_str()),
+            Type::Record(rec) => {
+                children.push_str(declare_rec(&rec)?.as_str());
+                children.push_str("\n\n");
+                this.push_str(rec.vhdl_identifier()?.as_str());
+            }
+            Type::Union(_) => todo!(),
+            Type::Array(arr) => {
+                children.push_str(arr.declare(false)?.clone().as_str());
+                children.push_str("\n\n");
+                this.push_str(arr.vhdl_identifier()?.as_str());
+            }
+        }
+
+        this.push_str(";");
+        if !children.is_empty() {
+            Ok(format!("{}{}", children, this))
+        } else {
+            Ok(this)
+        }
+    }
+}
+
 impl DeclareType for Type {
     fn declare(&self, is_root_type: bool) -> Result<String> {
         match self {
@@ -82,7 +119,7 @@ impl DeclareType for Type {
             }
             Type::Record(rec) => rec.declare(is_root_type),
             Type::Union(_) => todo!(),
-            Type::Array(_) => todo!(),
+            Type::Array(arr) => arr.declare(is_root_type),
         }
     }
 }
@@ -93,6 +130,7 @@ impl VHDLIdentifier for Type {
         // Any other types are used directly.
         match self {
             Type::Record(rec) => rec.vhdl_identifier(),
+            Type::Array(arr) => arr.vhdl_identifier(),
             _ => self.declare(true),
         }
     }
@@ -104,16 +142,28 @@ impl VHDLIdentifier for Record {
     }
 }
 
+impl VHDLIdentifier for Array {
+    fn vhdl_identifier(&self) -> Result<String> {
+        Ok(cat!(self.identifier().to_string(), "type"))
+    }
+}
+
 impl Analyze for Type {
-    fn list_record_types(&self) -> Vec<Type> {
+    fn list_nested_types(&self) -> Vec<Type> {
         match self {
-            // Only record can have nested records.
+            // Only record can have multiple nested records.
             Type::Record(rec) => {
                 let mut result: Vec<Type> = vec![self.clone()];
                 for f in rec.fields().into_iter() {
-                    let children = f.typ().list_record_types();
+                    let children = f.typ().list_nested_types();
                     result.extend(children.into_iter());
                 }
+                result
+            }
+            // Arrays only ever contain one type (which can be a record)
+            Type::Array(arr) => {
+                let mut result: Vec<Type> = vec![self.clone()];
+                result.extend(arr.typ().list_nested_types().into_iter());
                 result
             }
             _ => vec![],
@@ -197,7 +247,7 @@ impl Declare for Component {
 }
 
 impl Analyze for Component {
-    fn list_record_types(&self) -> Vec<Type> {
+    fn list_nested_types(&self) -> Vec<Type> {
         let mut result: Vec<Type> = vec![];
         for p in self.ports().iter() {
             if let Type::Record(_) = p.typ() {
@@ -220,15 +270,15 @@ impl Declare for Package {
         // them twice, and produce an error otherwise.
         let mut type_ids = HashMap::<String, Type>::new();
         for c in &self.components {
-            let comp_records = c.list_record_types();
-            for r in comp_records.iter() {
-                match type_ids.get(&r.vhdl_identifier()?) {
+            let comp_nested = c.list_nested_types();
+            for t in comp_nested.iter() {
+                match type_ids.get(&t.vhdl_identifier()?) {
                     None => {
-                        type_ids.insert(r.vhdl_identifier()?, r.clone());
-                        result.push_str(format!("{}\n\n", r.declare(true)?).as_str());
+                        type_ids.insert(t.vhdl_identifier()?, t.clone());
+                        result.push_str(format!("{}\n\n", t.declare(true)?).as_str());
                     }
                     Some(already_defined_type) => {
-                        if r != already_defined_type {
+                        if t != already_defined_type {
                             return Err(BackEndError(format!(
                                 "Type name conflict: {}",
                                 already_defined_type

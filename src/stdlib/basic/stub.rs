@@ -205,7 +205,7 @@ mod tests {
         .unwrap();
         let (_, passthrough_stub) = parser::nom::streamlet(
             "Streamlet passthrough_stub (in_pass : in Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>, 
-                in_pass2 : in Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>, 
+                in_pass2 : in Stream<Stream<Bits<1>>, d=0, t=8, c=8>, 
                 out_pass : out Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>)",
         )
         .unwrap();

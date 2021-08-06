@@ -173,7 +173,7 @@ impl Record {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Union {
     identifier: String,
-    types: IndexMap<Name, Type>
+    types: IndexMap<Name, Type>,
 }
 
 impl Identify for Union {
@@ -188,6 +188,16 @@ pub struct Array {
     identifier: String,
     typ: Box<Type>,
     width: NonNegative,
+}
+
+impl Array {
+    pub fn typ(&self) -> Type {
+        *self.typ.clone()
+    }
+
+    pub fn width(&self) -> NonNegative {
+        self.width
+    }
 }
 
 impl Identify for Array {
@@ -208,6 +218,7 @@ pub enum Type {
     },
     /// A record.
     Record(Record),
+    // TODO: Work out if an enumeration matches the spec/canonical implementation
     /// Unions are implemented as a record containing the data and tag, and an enumeration of the types which can be contained in it
     Union(Union),
     /// An array of any type
