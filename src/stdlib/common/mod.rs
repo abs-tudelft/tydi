@@ -93,6 +93,11 @@ impl From<Component> for Entity {
 //
 // Should probably start with the declarative part (components, signals, potentially functions & procedures)
 //
+// Architecture overall needs:
+// Usings (based on contents, what library the component came from...)
+// Entity
+// An identifier (Could just be "Behavioral"/"RTL")
+//
 // Declarative part needs:
 // Components (add as needed)
 // Signals (add as needed, with names and possibly defaults)
