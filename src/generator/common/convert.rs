@@ -7,12 +7,12 @@ use std::cell::Ref;
 
 use crate::design::implementation::composer::GenericComponent;
 use crate::design::{Interface, Streamlet};
+pub use crate::error::{Error, Result};
 use crate::generator::common::{Array, Component, Mode, Package, Port, Project, Record, Type};
 use crate::logical::{Group, LogicalType, Stream, Union};
 use crate::physical::{Origin, Signal, Width};
 use crate::traits::Identify;
-use crate::{Document, NonZeroReal, cat};
-pub use crate::error::{Error, Result};
+use crate::{cat, Document, NonZeroReal};
 
 // Generator-global constants:
 
@@ -65,7 +65,11 @@ pub trait Projectify {
 }
 
 pub trait Multilane {
-    fn with_throughput(&self, throughput: NonZeroReal<f64>) -> Result<Type>;
+    fn with_throughput(
+        &self,
+        identity: impl Identify,
+        throughput: NonZeroReal<f64>,
+    ) -> Result<Type>;
 }
 
 impl Typify for LogicalType {
@@ -422,20 +426,30 @@ impl Projectify for crate::design::Project {
 }
 
 impl Multilane for Type {
-    fn with_throughput(&self, throughput: NonZeroReal<f64>) -> Result<Type> {
+    fn with_throughput(
+        &self,
+        identity: impl Identify,
+        throughput: NonZeroReal<f64>,
+    ) -> Result<Type> {
         if throughput.0 > u32::MAX as f64 {
-            return Err(Error::InvalidArgument(format!("Throughput exceeds {}", u32::MAX)));
+            return Err(Error::InvalidArgument(format!(
+                "Throughput exceeds {}",
+                u32::MAX
+            )));
         }
         let element_lanes = throughput.0.ceil() as u32;
         if element_lanes > 1 {
-            let to_array = |id: &str| Ok(Type::array(format!("{}_array", id), self.clone(), element_lanes));
-
             match self {
-                Type::Bit => Ok(Type::BitVec { width: element_lanes }),
-                Type::BitVec { width: _ } => to_array("bitvec"), // TODO: Not sure about this
-                Type::Record(id) => to_array(id.identifier()),
-                Type::Union(id) => to_array(id.identifier()),
-                Type::Array(id) => to_array(id.identifier()),
+                Type::Bit => Ok(Type::BitVec {
+                    width: element_lanes,
+                }),
+                Type::BitVec { width: _ } | Type::Record(_) | Type::Union(_) | Type::Array(_) => {
+                    Ok(Type::array(
+                        format!("{}_array", identity.identifier()),
+                        self.clone(),
+                        element_lanes,
+                    ))
+                }
             }
         } else {
             return Ok(self.clone());
