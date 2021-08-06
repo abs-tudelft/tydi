@@ -39,29 +39,40 @@ impl GenericComponent for Stub {
 impl Stub {
     pub fn try_new(project: &Project, name: Name, op: StreamletHandle) -> Result<Self> {
         let op = project.get_lib(op.lib())?.get_streamlet(op.streamlet())?;
+        op.interfaces();
         let mut is_source: bool = false;
         let mut is_sink: bool = false;
 
-        let stream_in = op.inputs().find_map(|x| match x.typ() {
-            LogicalType::Stream(s) => Some(s),
-            _ => None,
-        });
+        let mut stream_in = op
+            .inputs()
+            .filter_map(|x| match x.typ() {
+                LogicalType::Stream(_) => Some(x),
+                _ => None,
+            })
+            .peekable();
 
-        let stream_out = op.outputs().find_map(|x| match x.typ() {
-            LogicalType::Stream(s) => Some(s),
-            _ => None,
-        });
+        let mut stream_out = op
+            .outputs()
+            .filter_map(|x| match x.typ() {
+                LogicalType::Stream(_) => Some(x),
+                _ => None,
+            })
+            .peekable();
 
         let mut ifaces: Vec<Interface> = vec![];
-        if let Some(s) = stream_in {
-            ifaces.push(Interface::try_new("in", Mode::In, s.clone(), None)?);
+        if stream_in.peek().is_some() {
+            for i in stream_in {
+                ifaces.push(i.clone());
+            }
         } else {
             log::info!("Attempting to implement as source.");
             is_source = true;
         }
 
-        if let Some(s) = stream_out {
-            ifaces.push(Interface::try_new("out", Mode::Out, s.clone(), None)?);
+        if stream_out.peek().is_some() {
+            for i in stream_out {
+                ifaces.push(i.clone());
+            }
         } else if !is_source {
             log::info!("Implementing as sink.");
             is_sink = true;
@@ -188,11 +199,14 @@ mod tests {
     fn parsed_project() -> Result<Project> {
         let mut prj = Project::new(Name::try_from("test_project")?);
         let (_, source_stub) = parser::nom::streamlet(
-            "Streamlet source_stub (out_source : out Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>)",
+            "Streamlet source_stub (out_source : out Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>, 
+                out_source2 : out Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>)",
         )
         .unwrap();
         let (_, passthrough_stub) = parser::nom::streamlet(
-            "Streamlet passthrough_stub (in_pass : in Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>, out_pass : out Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>)",
+            "Streamlet passthrough_stub (in_pass : in Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>, 
+                in_pass2 : in Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>, 
+                out_pass : out Stream<Stream<Union<a: Bits<32>, b: Bits<32>>>, d=0, t=8, c=8>)",
         )
         .unwrap();
         let (_, sink_stub) = parser::nom::streamlet(
