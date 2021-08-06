@@ -164,7 +164,7 @@ impl GenerateProject for VHDLBackEnd {
 
 /// Trait used to split types, ports, and record fields into a VHDL-friendly versions, since VHDL
 /// does not support bundles of wires with opposite directions.
-trait Split {
+pub trait Split {
     /// Split up self into a (downstream/forward, upstream/reverse) version, if applicable.
     fn split(&self) -> (Option<Self>, Option<Self>)
     where

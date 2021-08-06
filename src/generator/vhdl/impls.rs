@@ -1,6 +1,7 @@
 //! Implementations of VHDL traits for common representation.
 
 use std::collections::HashMap;
+use std::ops::Deref;
 
 use crate::error::Error::BackEndError;
 use crate::generator::common::{Array, Component, Mode, Package, Port, Record, Type};
@@ -198,17 +199,12 @@ impl VHDLIdentifier for Port {
     }
 }
 
-impl Declare for Component {
-    fn declare(&self) -> Result<String> {
+impl Declare for Vec<Port> 
+{
+    fn declare(&self) -> Result<String>  {
         let mut result = String::new();
-        if let Some(doc) = self.doc() {
-            result.push_str("--");
-            result.push_str(doc.replace("\n", "\n--").as_str());
-            result.push('\n');
-        }
-        result.push_str(format!("component {}\n", self.identifier()).as_str());
-        if !self.ports().is_empty() {
-            let mut ports = self.ports().iter().peekable();
+        if !self.is_empty() {
+            let mut ports = self.iter().peekable();
             result.push_str("  port(\n");
             while let Some(p) = ports.next() {
                 result.push_str("    ");
@@ -239,8 +235,22 @@ impl Declare for Component {
                     result.push('\n');
                 }
             }
-            result.push_str("  );\n")
+            result.push_str("  );\n");
         }
+        Ok(result)
+    }
+}
+
+impl Declare for Component {
+    fn declare(&self) -> Result<String> {
+        let mut result = String::new();
+        if let Some(doc) = self.doc() {
+            result.push_str("--");
+            result.push_str(doc.replace("\n", "\n--").as_str());
+            result.push('\n');
+        }
+        result.push_str(format!("component {}\n", self.identifier()).as_str());
+        result.push_str(self.ports().declare()?.as_str());
         result.push_str("end component;");
         Ok(result)
     }
