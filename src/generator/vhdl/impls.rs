@@ -309,7 +309,8 @@ impl DeclareUsings for Package {
                 Type::Bit => true,
                 Type::BitVec { width: _ } => true,
                 Type::Record(rec) => rec.fields().any(|field| uses_std_logic(field.typ())),
-                _ => false,
+                Type::Union(_) => todo!(),
+                Type::Array(arr) => uses_std_logic(&arr.typ()),
             }
         }
 
