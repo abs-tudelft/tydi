@@ -3,8 +3,10 @@
 //! The goal of this module is to define some common constructs seen in structural hardware
 //! generation that back-ends may or may not use.
 
+use indexmap::IndexMap;
+
 use crate::traits::Identify;
-use crate::{cat, Document};
+use crate::{cat, Document, Name};
 use crate::{NonNegative, Reversed};
 
 pub mod convert;
@@ -167,6 +169,33 @@ impl Record {
     }
 }
 
+/// Inner struct for `Type::Union`
+#[derive(Debug, Clone, PartialEq)]
+pub struct Union {
+    identifier: String,
+    types: IndexMap<Name, Type>
+}
+
+impl Identify for Union {
+    fn identifier(&self) -> &str {
+        self.identifier.as_str()
+    }
+}
+
+/// Inner struct for `Type::Array`
+#[derive(Debug, Clone, PartialEq)]
+pub struct Array {
+    identifier: String,
+    typ: Box<Type>,
+    width: NonNegative,
+}
+
+impl Identify for Array {
+    fn identifier(&self) -> &str {
+        self.identifier.as_str()
+    }
+}
+
 /// Hardware types.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -179,7 +208,10 @@ pub enum Type {
     },
     /// A record.
     Record(Record),
-    // TODO: Arrays, unions, etc...
+    /// Unions are implemented as a record containing the data and tag, and an enumeration of the types which can be contained in it
+    Union(Union),
+    /// An array of any type
+    Array(Array),
 }
 
 /// Bundle of names and types. Useful to represent flattened types.
@@ -194,6 +226,15 @@ impl Type {
     /// Construct a record type.
     pub fn record(name: impl Into<String>, fields: Vec<Field>) -> Type {
         Type::Record(Record::new(name.into(), fields))
+    }
+
+    /// Construct an array type.
+    pub fn array(name: impl Into<String>, typ: Type, width: u32) -> Type {
+        Type::Array(Array {
+            identifier: name.into(),
+            typ: Box::new(typ),
+            width,
+        })
     }
 
     /// Flatten a type to a non-nested type bundle.

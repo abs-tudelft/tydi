@@ -81,6 +81,8 @@ impl DeclareType for Type {
                 ))
             }
             Type::Record(rec) => rec.declare(is_root_type),
+            Type::Union(_) => todo!(),
+            Type::Array(_) => todo!(),
         }
     }
 }
