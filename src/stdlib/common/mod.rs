@@ -81,6 +81,34 @@ impl From<Component> for Entity {
     }
 }
 
+
+// TODO: Architecture definition
+// Based on: https://insights.sigasi.com/tech/vhdl2008.ebnf/
+// <usings>
+// architecture <identifier> of <entity_name> is
+// <architecture_declarative_part>
+// begin
+// <architecture_statement_part>
+// end architecture <identifier>;
+//
+// Should probably start with the declarative part (components, signals, potentially functions & procedures)
+//
+// Declarative part needs:
+// Components (add as needed)
+// Signals (add as needed, with names and possibly defaults)
+// Type declarations, based on signals
+//
+// Statement part can have:
+// Signal assignment
+// Component assignment (w/ labels) // NOTE: This is where the "drives defaults" part comes in
+// Processes (which are yet another layer)
+//
+// Processes can have:
+// Declarations (variables)
+// Sequential statements
+//
+// Any complex logic should probably just be string templates.
+
 #[cfg(test)]
 mod tests {
     use crate::generator::common::test::{records, test_comp};
