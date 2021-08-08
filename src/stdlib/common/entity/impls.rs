@@ -31,7 +31,7 @@ impl Document for Entity {
 }
 
 impl Entity {
-    /// Create a new component.
+    /// Create a new entity.
     pub fn new(
         identifier: impl Into<String>,
         parameters: Vec<Parameter>,
@@ -46,23 +46,23 @@ impl Entity {
         }
     }
 
-    /// Return a reference to the ports of this component.
+    /// Return a reference to the ports of this entity.
     pub fn ports(&self) -> &Vec<Port> {
         &self.ports
     }
 
-    /// Return a reference to the parameters of this component.
+    /// Return a reference to the parameters of this entity.
     pub fn parameters(&self) -> &Vec<Parameter> {
         &self.parameters
     }
 
-    /// Return this component with documentation added.
+    /// Return this entity with documentation added.
     pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
         self.doc = Some(doc.into());
         self
     }
 
-    /// Set the documentation of this component.
+    /// Set the documentation of this entity.
     pub fn set_doc(&mut self, doc: impl Into<String>) {
         self.doc = Some(doc.into())
     }

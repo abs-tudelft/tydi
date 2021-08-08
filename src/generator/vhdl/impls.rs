@@ -335,8 +335,6 @@ impl ListUsings for Package {
     }
 }
 
-impl DeclareUsings for Package {}
-
 #[cfg(test)]
 mod test {
     use crate::generator::common::test::*;

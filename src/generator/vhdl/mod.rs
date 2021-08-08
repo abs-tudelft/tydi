@@ -62,8 +62,12 @@ pub trait ListUsings {
     fn list_usings(&self) -> Result<Usings>;
 }
 
+pub trait DeclareUsings {
+    fn declare_usings(&self) -> Result<String>;
+}
+
 /// Generate supertrait for VHDL with usings declarations. (E.g. use ieee.std_logic_1164.all;)
-pub trait DeclareUsings : ListUsings {
+impl<T: ListUsings> DeclareUsings for T {
     fn declare_usings(&self) -> Result<String> {
         let mut result = String::new();
         
