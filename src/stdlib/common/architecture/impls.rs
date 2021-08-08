@@ -10,7 +10,7 @@ impl ListUsings for Architecture {
 
 
 // TODO: Architecture definition
-// Based on: https://insights.sigasi.com/tech/vhdl2008.ebnf/
+// Based on: https://insights.sigasi.com/tech/vhdl2008.ebnf/#architecture_body
 // <usings>
 // architecture <identifier> of <entity_name> is
 // <architecture_declarative_part>
