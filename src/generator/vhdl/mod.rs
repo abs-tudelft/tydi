@@ -3,13 +3,16 @@
 //! This module contains functionality to convert hardware defined in the common hardware
 //! representation to VHDL source files.
 
+use std::collections::HashSet;
 use std::path::Path;
 use std::str::FromStr;
 
+use indexmap::IndexMap;
 use log::debug;
 #[cfg(feature = "cli")]
 use structopt::StructOpt;
 
+use crate::Name;
 use crate::cat;
 use crate::design::Project;
 use crate::generator::common::convert::Packify;
@@ -38,9 +41,42 @@ pub trait DeclareLibrary {
     fn declare(&self, abstraction: AbstractionLevel) -> Result<String>;
 }
 
+/// A list of VHDL usings, indexed by library
+#[derive(Debug, Clone)]
+pub struct Usings(IndexMap<Name, HashSet<String>>);
+
+impl Usings {
+    pub fn new_empty() -> Usings {
+        Usings(IndexMap::new())
+    }
+
+    /// If the set did not have this value present, `true` is returned.
+    ///
+    /// If the set did have this value present, `false` is returned.
+    pub fn add_using(&mut self, library: Name, using: String) -> bool {
+        self.0.entry(library).or_insert(HashSet::new()).insert(using)
+    }
+}
+
+pub trait ListUsings {
+    fn list_usings(&self) -> Result<Usings>;
+}
+
 /// Generate supertrait for VHDL with usings declarations. (E.g. use ieee.std_logic_1164.all;)
-pub trait DeclareUsings {
-    fn declare_usings(&self) -> Result<String>;
+pub trait DeclareUsings : ListUsings {
+    fn declare_usings(&self) -> Result<String> {
+        let mut result = String::new();
+        
+        for (lib, usings) in self.list_usings()?.0 {
+            result.push_str(format!("library {};\n", lib).as_str());
+            for using in usings {
+                result.push_str(format!("use {}.{};\n", lib, using).as_str());
+            }
+            result.push_str("\n");
+        }
+
+        Ok(result)
+    }
 }
 
 /// Generate trait for VHDL identifiers.

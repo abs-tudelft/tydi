@@ -1,13 +1,16 @@
 //! Implementations of VHDL traits for common representation.
 
 use std::collections::HashMap;
-use std::ops::Deref;
 
 use crate::error::Error::BackEndError;
 use crate::generator::common::{Array, Component, Mode, Package, Port, Record, Type};
-use crate::generator::vhdl::{Analyze, Declare, DeclareType, DeclareUsings, Split, VHDLIdentifier};
+use crate::generator::vhdl::{
+    Analyze, Declare, DeclareType, DeclareUsings, Split, Usings, VHDLIdentifier,
+};
 use crate::traits::Identify;
-use crate::{cat, Document, Result};
+use crate::{cat, Document, Name, Result};
+
+use super::ListUsings;
 
 impl VHDLIdentifier for Mode {
     fn vhdl_identifier(&self) -> Result<String> {
@@ -199,9 +202,8 @@ impl VHDLIdentifier for Port {
     }
 }
 
-impl Declare for Vec<Port> 
-{
-    fn declare(&self) -> Result<String>  {
+impl Declare for Vec<Port> {
+    fn declare(&self) -> Result<String> {
         let mut result = String::new();
         if !self.is_empty() {
             let mut ports = self.iter().peekable();
@@ -307,9 +309,10 @@ impl Declare for Package {
     }
 }
 
-impl DeclareUsings for Package {
-    fn declare_usings(&self) -> Result<String> {
-        let mut usings = String::new();
+// NOTE: ListUsings is overkill for Packages as-is (could be simple constants, as they always use ieee.std_logic and nothing else), but serves as a decent example.
+impl ListUsings for Package {
+    fn list_usings(&self) -> Result<Usings> {
+        let mut usings = Usings::new_empty();
         let mut types = self
             .components
             .iter()
@@ -324,14 +327,15 @@ impl DeclareUsings for Package {
             }
         }
 
-        // Very basic for now, but could become useful if other kinds of types are supported
         if types.any(|x| uses_std_logic(&x)) {
-            usings.push_str("library ieee;\nuse ieee.std_logic_1164.all;\n\n");
+            usings.add_using(Name::try_new("ieee")?, "std_logic_1164.all".to_string());
         }
 
         Ok(usings)
     }
 }
+
+impl DeclareUsings for Package {}
 
 #[cfg(test)]
 mod test {
@@ -428,6 +432,21 @@ component test_comp
 end component;"
             )
         );
+    }
+
+    #[test]
+    fn package_usings_decl() {
+        let p = Package {
+            identifier: "test".to_string(),
+            components: vec![test_comp()],
+        };
+        assert_eq!(
+            p.declare_usings().unwrap(),
+            "library ieee;
+use ieee.std_logic_1164.all;
+
+"
+        )
     }
 
     #[test]
