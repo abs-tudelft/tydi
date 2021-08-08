@@ -28,6 +28,8 @@ pub struct ArchitectureDeclarations {
 /// An architecture
 #[derive(Debug)]
 pub struct Architecture {
+    /// Name of the architecture
+    identifier: Name,
     /// Entity which this architecture is for
     entity: Entity,
     /// Additional usings beyond the Package and those within it
@@ -37,17 +39,18 @@ pub struct Architecture {
 }
 
 impl Architecture {
-    /// Create the architecture based on a component contained within a package, assuming the default library (project) is "work"
-    pub fn new_work(package: Package, component_id: Name) -> Result<Architecture> {
-        Architecture::new(Name::try_new("work")?, package, component_id)
+    /// Create the architecture based on a component contained within a package, assuming the library (project) is "work" and the architecture's identifier is "Behavioral"
+    pub fn new_default(package: Package, component_id: Name) -> Result<Architecture> {
+        Architecture::new(Name::try_new("work")?, Name::try_new("Behavioral")?, package, component_id)
     }
 
     /// Create the architecture based on a component contained within a package, specify the library (project) in which the package is contained
-    pub fn new(library_id: Name, package: Package, component_id: Name) -> Result<Architecture> {
+    pub fn new(library_id: Name, identifier: Name, package: Package, component_id: Name) -> Result<Architecture> {
         if let Some(component) = package.components.iter().find(|x| component_id == *x.identifier()) {
             let mut usings = package.list_usings()?;
             usings.add_using(library_id, format!("{}.all", package.identifier));
             Ok(Architecture {
+                identifier,
                 entity: Entity::from(component.clone()),
                 usings: usings,
                 doc: None,
@@ -61,40 +64,18 @@ impl Architecture {
     pub fn add_using(&mut self, library: Name, using: String) -> bool {
         self.usings.add_using(library, using)
     }
+
+    /// Return this architecture with documentation added.
+    pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
+        self.doc = Some(doc.into());
+        self
+    }
+
+    /// Set the documentation of this architecture.
+    pub fn set_doc(&mut self, doc: impl Into<String>) {
+        self.doc = Some(doc.into())
+    }
 }
-
-
-// TODO: Architecture definition
-// Based on: https://insights.sigasi.com/tech/vhdl2008.ebnf/
-// <usings>
-// architecture <identifier> of <entity_name> is
-// <architecture_declarative_part>
-// begin
-// <architecture_statement_part>
-// end architecture <identifier>;
-//
-// Should probably start with the declarative part (components, signals, potentially functions & procedures)
-//
-// Architecture overall needs:
-// Usings (based on contents, what library the component came from...)
-// Entity
-// An identifier (Could just be "Behavioral"/"RTL")
-//
-// Declarative part needs:
-// Components (add as needed)
-// Signals (add as needed, with names and possibly defaults)
-// Type declarations, based on signals
-//
-// Statement part can have:
-// Signal assignment
-// Component assignment (w/ labels) // NOTE: This is where the "drives defaults" part comes in
-// Processes (which are yet another layer)
-//
-// Processes can have:
-// Declarations (variables)
-// Sequential statements
-//
-// Any complex logic should probably just be string templates.
 
 #[cfg(test)]
 mod tests {
@@ -119,7 +100,7 @@ mod tests {
     #[test]
     fn new_architecture() {
         let package = test_package();
-        let architecture = Architecture::new_work(package, Name::try_new("test").unwrap());
+        let architecture = Architecture::new_default(package, Name::try_new("test").unwrap());
 
         print!("{:?}", architecture);
     }

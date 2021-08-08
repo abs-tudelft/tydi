@@ -1,7 +1,7 @@
-use crate::{Document, Identify};
 use crate::generator::common::{Component, Parameter, Port};
 use crate::generator::vhdl::Declare;
 use crate::stdlib::common::entity::Entity;
+use crate::{Document, Identify};
 
 impl Declare for Entity {
     fn declare(&self) -> crate::Result<String> {
@@ -13,7 +13,7 @@ impl Declare for Entity {
         }
         result.push_str(format!("entity {} is\n", self.identifier()).as_str());
         result.push_str(self.ports().declare()?.as_str());
-        result.push_str(format!("end {};", self.identifier()).as_str());
+        result.push_str(format!("end {};\n", self.identifier()).as_str());
         Ok(result)
     }
 }
@@ -70,7 +70,12 @@ impl Entity {
 
 impl From<Component> for Entity {
     fn from(comp: Component) -> Self {
-        Entity::new(comp.identifier(), comp.parameters().to_vec(), comp.ports().to_vec(), comp.doc())
+        Entity::new(
+            comp.identifier(),
+            comp.parameters().to_vec(),
+            comp.ports().to_vec(),
+            comp.doc(),
+        )
     }
 }
 
@@ -95,7 +100,8 @@ entity test_comp is
     b_dn : out b_dn_type;
     b_up : in b_up_type
   );
-end test_comp;"
+end test_comp;
+"
             )
         );
     }
