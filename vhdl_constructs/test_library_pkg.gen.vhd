@@ -16,8 +16,35 @@ component sink_com
   );
 end component;
 
+--- Verify that multiple enums can have the same names and this construct still works:
+type pass_in_pass_data_tag_type is (a, c);
+type pass_in_pass_data_type_length_array_type is array(pass_in_pass_data_tag_type) of integer;
+constant pass_in_pass_data_type_index : pass_in_pass_data_type_length_array_type := (
+  a => 0,
+  c => 1
+);
+constant pass_in_pass_data_type_length : pass_in_pass_data_type_length_array_type := (
+  a => 32,
+  c => 8
+);
+
+subtype sink_in_sink_data_tag_type is std_logic_vector(0 downto 0);
+type sink_in_sink_data_tag_enum is (a, b);
+
+type sink_in_sink_data_tag_encoding_array_type is array(sink_in_sink_data_tag_enum) of sink_in_sink_data_tag_type;
+constant sink_in_sink_data_tag_encoding : sink_in_sink_data_tag_encoding_array_type := (
+  a => "0",
+  b => "1"
+);
+
+type sink_in_sink_data_type_length_array_type is array(sink_in_sink_data_tag_enum) of natural range<>;
+constant sink_in_sink_data_type_length : sink_in_sink_data_type_length_array_type := (
+  a => 32,
+  b => 8
+);
+
 type sink_in_sink_data_type is record
-  tag : std_logic_vector(0 downto 0);
+  tag : sink_in_sink_data_tag_type;
   a : std_logic_vector(31 downto 0);
   b : std_logic_vector(7 downto 0);
 end record;

@@ -201,7 +201,7 @@ mod tests {
         let (_, source_stub) = parser::nom::streamlet(
             "Streamlet source_stub (
                 out_source : out Stream<Union<a: Bits<32>, b: Bits<8>>, d=0, t=8, c=8>, 
-                out_source2 : out Stream<Union<a: Bits<32>, b: Bits<8>>, d=0, t=8, c=8>
+                out_source2 : out Stream<Union<a: Stream<Bits<32>, d=0, t=8, c=8>, b: Stream<Bits<8>, d=0, t=3, c=8>>, d=0, t=8, c=8>
             )",
         )
         .unwrap();
