@@ -53,6 +53,10 @@ pub struct ArchitectureStatement {
 
 }
 
+// NOTE: One of the main things to consider is probably how to handle multiple element lanes. Probably as a check on the number of lanes,
+// then wrapping in a generate statement. Need to consider indexes at that point.
+// This'd be easier if I simply always made it an array, even when the number of lanes is 1, but that gets real ugly, real fast.
+
 /// Architecture declarations.
 #[derive(Debug, Clone)]
 pub struct ArchitectureDeclarations {
