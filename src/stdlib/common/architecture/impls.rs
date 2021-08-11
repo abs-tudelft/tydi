@@ -1,4 +1,7 @@
-use crate::{Document, generator::vhdl::{Declare, DeclareUsings, ListUsings}};
+use crate::{
+    generator::vhdl::{Declare, DeclareUsings, ListUsings},
+    Document,
+};
 
 use super::*;
 
@@ -7,7 +10,6 @@ impl ListUsings for Architecture {
         Ok(self.usings.clone())
     }
 }
-
 
 // TODO: Architecture definition
 // Based on: https://insights.sigasi.com/tech/vhdl2008.ebnf/#architecture_body
@@ -54,7 +56,14 @@ impl Declare for Architecture {
             result.push('\n');
         }
 
-        result.push_str(format!("architecture {} of {} is\n", self.identifier(), self.entity.identifier()).as_str());
+        result.push_str(
+            format!(
+                "architecture {} of {} is\n",
+                self.identifier(),
+                self.entity.identifier()
+            )
+            .as_str(),
+        );
         result.push_str("--<architecture_declarative_part>\n"); // TODO: Add declarative part
         result.push_str("begin\n");
         result.push_str("--<architecture_statement_part>\n"); // TODO: Add statement part
