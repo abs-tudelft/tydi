@@ -78,10 +78,10 @@ impl DeclareType for Array {
     fn declare(&self, is_root_type: bool) -> Result<String> {
         let mut children = String::new();
         let mut this = format!(
-            "type {} is array ({} downto {}) of ",
+            "type {} is array ({} to {}) of ",
             self.vhdl_identifier()?,
-            self.width() - 1,
-            0
+            0,
+            self.width() - 1
         );
 
         match self.typ() {
