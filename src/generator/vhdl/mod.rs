@@ -232,8 +232,8 @@ impl Split for Field {
         let (down_type, up_type) = self.typ().split();
 
         let result = (
-            down_type.map(|t| Field::new(self.identifier(), t, false)),
-            up_type.map(|t| Field::new(self.identifier(), t, false)),
+            down_type.map(|t| Field::new(self.identifier(), t, false, None)),
+            up_type.map(|t| Field::new(self.identifier(), t, false, None)),
         );
 
         if self.is_reversed() {
@@ -310,10 +310,10 @@ mod test {
 
     #[test]
     fn split_field() {
-        let f0 = Field::new("test", Type::bitvec(3), false);
+        let f0 = Field::new("test", Type::bitvec(3), false, None);
         assert_eq!(f0.split(), (Some(f0), None));
 
-        let f1 = Field::new("test", Type::bitvec(3), true);
+        let f1 = Field::new("test", Type::bitvec(3), true, None);
         assert_eq!(f1.split(), (None, Some(f1.reversed())));
     }
 
@@ -322,19 +322,19 @@ mod test {
         let rec = Type::record(
             "ra",
             vec![
-                Field::new("fc", Type::Bit, false),
-                Field::new("fd", Type::Bit, true),
+                Field::new("fc", Type::Bit, false, None),
+                Field::new("fd", Type::Bit, true, None),
             ],
         );
 
         assert_eq!(
             rec.split().0.unwrap(),
-            Type::record("ra", vec![Field::new("fc", Type::Bit, false)])
+            Type::record("ra", vec![Field::new("fc", Type::Bit, false, None)])
         );
 
         assert_eq!(
             rec.split().1.unwrap(),
-            Type::record("ra", vec![Field::new("fd", Type::Bit, false)])
+            Type::record("ra", vec![Field::new("fd", Type::Bit, false, None)])
         );
     }
 
@@ -348,22 +348,24 @@ mod test {
                     Type::record(
                         "ra",
                         vec![
-                            Field::new("fc", Type::Bit, false),
-                            Field::new("fd", Type::Bit, true),
+                            Field::new("fc", Type::Bit, false, None),
+                            Field::new("fd", Type::Bit, true, None),
                         ],
                     ),
                     false,
+                    None,
                 ),
                 Field::new(
                     "fb",
                     Type::record(
                         "rb",
                         vec![
-                            Field::new("fe", Type::Bit, false),
-                            Field::new("ff", Type::Bit, true),
+                            Field::new("fe", Type::Bit, false, None),
+                            Field::new("ff", Type::Bit, true, None),
                         ],
                     ),
                     true,
+                    None,
                 ),
             ],
         );
@@ -375,13 +377,15 @@ mod test {
                 vec![
                     Field::new(
                         "fa",
-                        Type::record("ra", vec![Field::new("fc", Type::Bit, false)]),
-                        false
+                        Type::record("ra", vec![Field::new("fc", Type::Bit, false, None)]),
+                        false,
+                        None,
                     ),
                     Field::new(
                         "fb",
-                        Type::record("rb", vec![Field::new("ff", Type::Bit, false)]),
-                        false
+                        Type::record("rb", vec![Field::new("ff", Type::Bit, false, None)]),
+                        false,
+                        None,
                     )
                 ]
             )
@@ -394,13 +398,15 @@ mod test {
                 vec![
                     Field::new(
                         "fa",
-                        Type::record("ra", vec![Field::new("fd", Type::Bit, false)]),
-                        false
+                        Type::record("ra", vec![Field::new("fd", Type::Bit, false, None)]),
+                        false,
+                        None,
                     ),
                     Field::new(
                         "fb",
-                        Type::record("rb", vec![Field::new("fe", Type::Bit, false)]),
-                        false
+                        Type::record("rb", vec![Field::new("fe", Type::Bit, false, None)]),
+                        false,
+                        None,
                     )
                 ]
             )
@@ -415,8 +421,8 @@ mod test {
             Type::record(
                 "test",
                 vec![
-                    Field::new("a", Type::Bit, false),
-                    Field::new("b", Type::Bit, true),
+                    Field::new("a", Type::Bit, false, None),
+                    Field::new("b", Type::Bit, true, None),
                 ],
             ),
             None,
@@ -428,7 +434,7 @@ mod test {
             Some(Port::new_documented(
                 "test_dn",
                 Mode::Out,
-                Type::record("test_dn", vec![Field::new("a", Type::Bit, false)]),
+                Type::record("test_dn", vec![Field::new("a", Type::Bit, false, None)]),
                 None
             ))
         );
@@ -438,7 +444,7 @@ mod test {
             Some(Port::new_documented(
                 "test_up",
                 Mode::In,
-                Type::record("test_up", vec![Field::new("b", Type::Bit, false)]),
+                Type::record("test_up", vec![Field::new("b", Type::Bit, false, None)]),
                 None
             ))
         );

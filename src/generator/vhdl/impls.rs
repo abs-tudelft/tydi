@@ -35,6 +35,12 @@ fn declare_rec(rec: &Record) -> Result<String> {
             children.push_str("\n\n");
         }
 
+        if let Some(doc) = field.doc() {
+            this.push_str("  --");
+            this.push_str(doc.replace("\n", "\n  --").as_str());
+            this.push('\n');
+        }
+
         // Declare this record.
         this.push_str(
             format!(

@@ -114,7 +114,7 @@ impl Typify for Group {
         let mut rec = Record::new_empty(n.clone());
         for (field_name, field_logical) in self.iter() {
             if let Some(field_common_type) = field_logical.fancy(cat!(n.clone(), field_name)) {
-                rec.insert_new_field(field_name.to_string(), field_common_type, false)
+                rec.insert_new_field(field_name.to_string(), field_common_type, false, None)
             }
         }
         Some(Type::Record(rec))
@@ -139,11 +139,20 @@ impl Typify for Union {
         let n: String = prefix.into();
         let mut rec = Record::new_empty(n.clone());
         if let Some((tag_name, tag_bc)) = self.tag() {
-            rec.insert_new_field(tag_name, Type::bitvec(tag_bc.get()), false);
+            let mut variants_doc = vec![];
+            for (field_name, _) in self.iter() {
+                variants_doc.push(field_name.to_string());
+            }
+            rec.insert_new_field(
+                tag_name,
+                Type::bitvec(tag_bc.get()),
+                false,
+                Some(format!("Variants: {}", variants_doc.join(", "))),
+            );
         }
         for (field_name, field_logical) in self.iter() {
             if let Some(field_common_type) = field_logical.fancy(cat!(n.clone(), field_name)) {
-                rec.insert_new_field(field_name, field_common_type, false);
+                rec.insert_new_field(field_name, field_common_type, false, None);
             }
         }
         Some(Type::Union(rec))
@@ -208,20 +217,21 @@ impl Typify for Stream {
                 "data",
                 data.with_throughput(&prefix, self.throughput()).unwrap(),
                 false,
+                None,
             );
 
             // Check signals related to dimensionality, complexity, etc.
             if let Some(sig) = signals.last() {
-                rec.insert_new_field("last", sig.width().into(), sig.reversed());
+                rec.insert_new_field("last", sig.width().into(), sig.reversed(), None);
             }
             if let Some(sig) = signals.stai() {
-                rec.insert_new_field("stai", sig.width().into(), sig.reversed());
+                rec.insert_new_field("stai", sig.width().into(), sig.reversed(), None);
             }
             if let Some(sig) = signals.endi() {
-                rec.insert_new_field("endi", sig.width().into(), sig.reversed());
+                rec.insert_new_field("endi", sig.width().into(), sig.reversed(), None);
             }
             if let Some(sig) = signals.strb() {
-                rec.insert_new_field("strb", sig.width().into(), sig.reversed());
+                rec.insert_new_field("strb", sig.width().into(), sig.reversed(), None);
             }
 
             Some(Type::Record(rec))
@@ -603,9 +613,9 @@ pub(crate) mod tests {
                 Type::record(
                     "test",
                     vec![
-                        Field::new("valid", Type::Bit, false),
-                        Field::new("ready", Type::Bit, true),
-                        Field::new("data", Type::bitvec(8), false)
+                        Field::new("valid", Type::Bit, false, None),
+                        Field::new("ready", Type::Bit, true, None),
+                        Field::new("data", Type::bitvec(8), false, None)
                     ]
                 )
             );
@@ -621,24 +631,26 @@ pub(crate) mod tests {
                             Type::record(
                                 "test_a",
                                 vec![
-                                    Field::new("valid", Type::Bit, false),
-                                    Field::new("ready", Type::Bit, true),
-                                    Field::new("data", Type::bitvec(42), false)
+                                    Field::new("valid", Type::Bit, false, None),
+                                    Field::new("ready", Type::Bit, true, None),
+                                    Field::new("data", Type::bitvec(42), false, None)
                                 ]
                             ),
-                            false
+                            false,
+                            None,
                         ),
                         Field::new(
                             "b",
                             Type::record(
                                 "test_b",
                                 vec![
-                                    Field::new("valid", Type::Bit, false),
-                                    Field::new("ready", Type::Bit, true),
-                                    Field::new("data", Type::bitvec(1337), false)
+                                    Field::new("valid", Type::Bit, false, None),
+                                    Field::new("ready", Type::Bit, true, None),
+                                    Field::new("data", Type::bitvec(1337), false, None)
                                 ]
                             ),
-                            false
+                            false,
+                            None,
                         )
                     ]
                 )

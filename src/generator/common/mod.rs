@@ -40,6 +40,8 @@ pub struct Field {
     /// Whether the direction of this field should be reversed
     /// w.r.t. the other fields in the record for bulk connections.
     reversed: bool,
+    /// Documentation
+    doc: Option<String>,
 }
 
 impl Identify for Field {
@@ -50,11 +52,12 @@ impl Identify for Field {
 
 impl Field {
     /// Construct a new record field.
-    pub fn new(name: impl Into<String>, typ: Type, reversed: bool) -> Field {
+    pub fn new(name: impl Into<String>, typ: Type, reversed: bool, doc: Option<String>) -> Field {
         Field {
             name: name.into(),
             typ,
             reversed,
+            doc,
         }
     }
 
@@ -67,11 +70,28 @@ impl Field {
     pub fn is_reversed(&self) -> bool {
         self.reversed
     }
+
+    /// Return this field with documentation added.
+    pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
+        self.doc = Some(doc.into());
+        self
+    }
 }
 
 impl Reversed for Field {
     fn reversed(&self) -> Self {
-        Field::new(self.name.clone(), self.typ.clone(), !self.reversed)
+        Field::new(
+            self.name.clone(),
+            self.typ.clone(),
+            !self.reversed,
+            self.doc.clone(),
+        )
+    }
+}
+
+impl Document for Field {
+    fn doc(&self) -> Option<String> {
+        self.doc.clone()
     }
 }
 
@@ -113,15 +133,21 @@ impl Record {
         Record {
             identifier: name.into(),
             fields: vec![
-                Field::new("valid", Type::Bit, false),
-                Field::new("ready", Type::Bit, true),
+                Field::new("valid", Type::Bit, false, None),
+                Field::new("ready", Type::Bit, true, None),
             ],
         }
     }
 
     /// Create a new field and add it to the record.
-    pub fn insert_new_field(&mut self, name: impl Into<String>, typ: Type, reversed: bool) {
-        self.fields.push(Field::new(name, typ, reversed));
+    pub fn insert_new_field(
+        &mut self,
+        name: impl Into<String>,
+        typ: Type,
+        reversed: bool,
+        doc: Option<String>,
+    ) {
+        self.fields.push(Field::new(name, typ, reversed, doc));
     }
 
     /// Add a field to the record.
@@ -163,11 +189,13 @@ impl Record {
                     f.identifier(),
                     Type::Record(r.append_name_nested(p.clone())),
                     f.reversed,
+                    None,
                 ),
                 Type::Union(u) => Field::new(
                     f.identifier(),
                     Type::Union(u.append_name_nested(p.clone())),
                     f.reversed,
+                    None,
                 ),
                 _ => f.clone(),
             });
@@ -481,8 +509,8 @@ pub(crate) mod test {
             Type::record(
                 name.into(),
                 vec![
-                    Field::new("c", Type::bitvec(42), false),
-                    Field::new("d", Type::bitvec(1337), false),
+                    Field::new("c", Type::bitvec(42), false, None),
+                    Field::new("d", Type::bitvec(1337), false, None),
                 ],
             )
         }
@@ -491,14 +519,17 @@ pub(crate) mod test {
             Type::record(
                 name.into(),
                 vec![
-                    Field::new("c", Type::bitvec(42), false),
-                    Field::new("d", Type::bitvec(1337), true),
+                    Field::new("c", Type::bitvec(42), false, None),
+                    Field::new("d", Type::bitvec(1337), true, None),
                 ],
             )
         }
 
         pub(crate) fn rec_of_single(name: impl Into<String>) -> Type {
-            Type::record(name.into(), vec![Field::new("a", Type::bitvec(42), false)])
+            Type::record(
+                name.into(),
+                vec![Field::new("a", Type::bitvec(42), false, None)],
+            )
         }
 
         pub(crate) fn rec_rev_nested(name: impl Into<String>) -> Type {
@@ -506,8 +537,8 @@ pub(crate) mod test {
             Type::record(
                 n.clone(),
                 vec![
-                    Field::new("a", rec(cat!(n, "a")), false),
-                    Field::new("b", rec_rev(cat!(n, "b")), false),
+                    Field::new("a", rec(cat!(n, "a")), false, None),
+                    Field::new("b", rec_rev(cat!(n, "b")), false, None),
                 ],
             )
         }
@@ -517,8 +548,8 @@ pub(crate) mod test {
             Type::record(
                 n.clone(),
                 vec![
-                    Field::new("a", rec(cat!(n, "a")), false),
-                    Field::new("b", rec(cat!(n, "b")), false),
+                    Field::new("a", rec(cat!(n, "a")), false, None),
+                    Field::new("b", rec(cat!(n, "b")), false, None),
                 ],
             )
         }
@@ -576,8 +607,8 @@ pub(crate) mod test {
         assert!(!Type::record(
             "test",
             vec![
-                Field::new("a", Type::Bit, false),
-                Field::new("b", Type::Bit, false),
+                Field::new("a", Type::Bit, false, None),
+                Field::new("b", Type::Bit, false, None),
             ],
         )
         .has_reversed());
