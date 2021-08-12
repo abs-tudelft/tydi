@@ -27,8 +27,9 @@ package test_library is
   end component;
 
   type passthrough_stub_in_pass_data_type is record
-    tag   : std_logic_vector(0 downto 0);
-    union : std_logic_vector(31 downto 0);
+    tag : std_logic_vector(0 downto 0);
+    a   : std_logic_vector(31 downto 0);
+    b   : std_logic_vector(7 downto 0);
   end record;
 
   type passthrough_stub_in_pass_data_array_type is array (0 to 7) of passthrough_stub_in_pass_data_type;
@@ -62,7 +63,8 @@ package test_library is
 
   type passthrough_stub_out_pass_data_type is record
     tag   : std_logic_vector(0 downto 0);
-    union : std_logic_vector(31 downto 0);
+    a : std_logic_vector(31 downto 0);
+    b : std_logic_vector(7 downto 0);
   end record;
 
   type passthrough_stub_out_pass_data_array_type is array (0 to 7) of passthrough_stub_out_pass_data_type;

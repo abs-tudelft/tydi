@@ -146,7 +146,7 @@ impl Typify for Union {
                 rec.insert_new_field(field_name, field_common_type, false);
             }
         }
-        Some(Type::Record(rec))
+        Some(Type::Union(rec))
     }
 }
 

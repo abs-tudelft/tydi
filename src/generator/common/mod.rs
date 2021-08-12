@@ -8,7 +8,7 @@ use std::iter::FromIterator;
 use indexmap::IndexMap;
 
 use crate::traits::Identify;
-use crate::{cat, Document, Error, Name, Result, UniquelyNamedBuilder};
+use crate::{cat, Document};
 use crate::{NonNegative, Reversed};
 
 pub mod convert;
@@ -215,7 +215,7 @@ pub enum Type {
     /// Unions are implemented as records when using a "fancy" representation.
     ///
     /// Care needs to be taken to ensure the variant fields are assigned
-    /// from the same signal
+    /// from the same signal.
     Union(Record),
     /// An array of any type, used to represent multiple element lanes.
     Array(Array),
@@ -233,6 +233,11 @@ impl Type {
     /// Construct a record type.
     pub fn record(name: impl Into<String>, fields: Vec<Field>) -> Type {
         Type::Record(Record::new(name.into(), fields))
+    }
+
+    /// Construct a union type.
+    pub fn union(name: impl Into<String>, fields: Vec<Field>) -> Type {
+        Type::Union(Record::new(name.into(), fields))
     }
 
     /// Construct an array type.
