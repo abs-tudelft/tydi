@@ -161,7 +161,7 @@ impl DeclareChiselType for Type {
                 Ok(format!("UInt({}.W)", actual_width))
             }
             Type::Record(rec) => rec.declare(is_root_type),
-            Type::Union(_) => todo!(),
+            Type::Union(rec) => rec.declare(is_root_type),
             Type::Array(_) => todo!(),
         }
     }

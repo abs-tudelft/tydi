@@ -8,7 +8,7 @@ use std::iter::FromIterator;
 use indexmap::IndexMap;
 
 use crate::traits::Identify;
-use crate::{Document, Error, Name, Result, UniquelyNamedBuilder, cat};
+use crate::{cat, Document, Error, Name, Result, UniquelyNamedBuilder};
 use crate::{NonNegative, Reversed};
 
 pub mod convert;
@@ -176,121 +176,6 @@ impl Record {
     }
 }
 
-/// Inner struct for `Type::Union`
-#[derive(Debug, Clone, PartialEq)]
-pub struct Union {
-    identifier: String,
-    variants: Vec<Field>,
-}
-
-impl Identify for Union {
-    fn identifier(&self) -> &str {
-        self.identifier.as_str()
-    }
-}
-
-impl Union {
-    /// Construct a new union. Variants must have unique identifiers.
-    pub fn try_new(name: impl Into<String>, variants: Vec<Field>) -> Result<Union> {
-        Ok(Union {
-            identifier: name.into(),
-            variants: UniquelyNamedBuilder::from_iter(variants.into_iter()).finish()?,
-        })
-    }
-
-    /// Construct a new union without any fields.
-    pub fn new_empty(name: impl Into<String>) -> Union {
-        Union {
-            identifier: name.into(),
-            variants: vec![],
-        }
-    }
-
-    /// Create a new variant field and add it to the union. Variants must have unique identifiers.
-    pub fn try_insert_new_field(&mut self, name: impl Into<String>, typ: Type, reversed: bool) -> Result<()> {
-        let new_id = name.into();
-        if self.variants.iter().any(|x| x.identifier() == new_id) {
-            return Err(Error::InvalidArgument(format!("This union already contains a field with identifier {}", new_id)))
-        }
-        self.variants.push(Field::new(new_id, typ, reversed));
-        Ok(())
-    }
-
-    /// Add a variant field to the union. Variants must have unique identifiers.
-    pub fn try_insert(&mut self, variant: Field) -> Result<()> {
-        if self.variants.iter().any(|x| x.identifier() == variant.identifier()) {
-            return Err(Error::InvalidArgument(format!("This union already contains a field with identifier {}", variant.identifier())))
-        }
-        self.variants.push(variant);
-        Ok(())
-    }
-
-    /// Returns true if the union contains a field that is reversed.
-    /// Does not include nested unions or records.
-    pub fn has_reversed_field(&self) -> bool {
-        self.variants.iter().any(|i| i.reversed)
-    }
-
-    /// Returns true if the union contains a field that is reversed,
-    /// including any nested unions or records.
-    pub fn has_reversed(&self) -> bool {
-        self.variants
-            .iter()
-            .any(|i| i.reversed || i.typ.has_reversed())
-    }
-
-    /// Returns an iterable over the variant fields.
-    pub fn variants(&self) -> impl Iterator<Item = &Field> {
-        self.variants.iter()
-    }
-
-    /// Returns true if union contains no variants.
-    pub fn is_empty(&self) -> bool {
-        self.variants.is_empty()
-    }
-
-    /// Append a string to the name of this union, and any nested unions or records.
-    pub fn append_name_nested(&self, with: impl Into<String>) -> Self {
-        let p: String = with.into();
-        let mut result = Union::new_empty(cat!(self.identifier, p));
-        for f in self.variants() {
-            result.try_insert(match f.typ() {
-                Type::Record(r) => Field::new(
-                    f.identifier(),
-                    Type::Record(r.append_name_nested(p.clone())),
-                    f.reversed,
-                ),
-                Type::Union(u) => Field::new(
-                    f.identifier(),
-                    Type::Union(u.append_name_nested(p.clone())),
-                    f.reversed,
-                ),
-                _ => f.clone(),
-            }).unwrap(); // As these were previously unique, appending a string should not change this
-        }
-        result
-    }
-
-    /// If any variant carries data in the same stream as the union, the union contains a "union" field
-    /// the size of the largest such variant
-    pub fn union_width(&self) -> NonNegative {
-        let mut result: NonNegative = 0;
-        for v in self.variants() {
-            match v.typ() {
-                Type::Bit => if 1 > result { result = 1 },
-                Type::BitVec { width } => if width > &result { result = width.clone() },
-                Type::Record(rec) => {
-                    let mut rec_width: NonNegative = 0;
-
-                },
-                Type::Union(_) => (),
-                Type::Array(_) => todo!(),
-            }
-        }
-        result
-    }
-}
-
 /// Inner struct for `Type::Array`
 #[derive(Debug, Clone, PartialEq)]
 pub struct Array {
@@ -327,9 +212,12 @@ pub enum Type {
     },
     /// A record.
     Record(Record),
-    /// Unions are implemented as a record containing the data and tag
-    Union(Union),
-    /// An array of any type
+    /// Unions are implemented as records when using a "fancy" representation.
+    ///
+    /// Care needs to be taken to ensure the variant fields are assigned
+    /// from the same signal
+    Union(Record),
+    /// An array of any type, used to represent multiple element lanes.
     Array(Array),
 }
 
@@ -359,17 +247,17 @@ impl Type {
     /// Flatten a type to a non-nested type bundle.
     pub fn flatten(&self, prefix: Vec<String>, reversed: bool) -> TypeBundle {
         let mut result: TypeBundle = vec![];
-        match self {
-            Type::Record(rec) => rec.fields.iter().for_each(|field| {
+
+        let mut flatten_rec = |rec: &Record| {
+            rec.fields.iter().for_each(|field| {
                 let mut new_prefix = prefix.clone();
                 new_prefix.push(field.name.clone());
                 result.extend(field.typ.flatten(new_prefix, field.reversed))
-            }),
-            Type::Union(union) => union.variants.iter().for_each(|variant| {
-                let mut new_prefix = prefix.clone();
-                new_prefix.push(variant.name.clone());
-                result.extend(variant.typ.flatten(new_prefix, variant.reversed))
-            }),
+            })
+        };
+        match self {
+            Type::Record(rec) => flatten_rec(rec),
+            Type::Union(rec) => flatten_rec(rec),
             Type::Array(arr) => result.extend(arr.typ().flatten(prefix, reversed)),
             _ => result.push((prefix, self.clone(), reversed)),
         }
@@ -380,7 +268,7 @@ impl Type {
     pub fn has_reversed(&self) -> bool {
         match self {
             Type::Record(rec) => rec.has_reversed(),
-            Type::Union(union) => union.has_reversed(),
+            Type::Union(rec) => rec.has_reversed(),
             Type::Array(arr) => arr.typ().has_reversed(),
             _ => false,
         }

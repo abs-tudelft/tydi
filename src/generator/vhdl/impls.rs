@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use crate::error::Error::BackEndError;
-use crate::generator::common::{Array, Component, Mode, Package, Port, Record, Type, Union};
+use crate::generator::common::{Array, Component, Mode, Package, Port, Record, Type};
 use crate::generator::vhdl::{
     Analyze, Declare, DeclareType, DeclareUsings, Split, Usings, VHDLIdentifier,
 };
@@ -84,15 +84,22 @@ impl DeclareType for Array {
             self.width() - 1
         );
 
+        fn rec_declare_children(
+            children: &mut String,
+            rec: Record,
+            this: &mut String,
+        ) -> Result<()> {
+            children.push_str(declare_rec(&rec)?.as_str());
+            children.push_str("\n\n");
+            this.push_str(rec.vhdl_identifier()?.as_str());
+            Ok(())
+        }
+
         match self.typ() {
             Type::Bit => return Err(BackEndError("Unexpected, Bit in Array".to_string())),
             Type::BitVec { width: _ } => this.push_str(self.typ().declare(false)?.clone().as_str()),
-            Type::Record(rec) => {
-                children.push_str(declare_rec(&rec)?.as_str());
-                children.push_str("\n\n");
-                this.push_str(rec.vhdl_identifier()?.as_str());
-            }
-            Type::Union(_) => todo!(),
+            Type::Record(rec) => rec_declare_children(&mut children, rec, &mut this)?,
+            Type::Union(rec) => rec_declare_children(&mut children, rec, &mut this)?,
             Type::Array(arr) => {
                 children.push_str(arr.declare(false)?.clone().as_str());
                 children.push_str("\n\n");
@@ -122,7 +129,7 @@ impl DeclareType for Type {
                 ))
             }
             Type::Record(rec) => rec.declare(is_root_type),
-            Type::Union(_) => todo!(),
+            Type::Union(rec) => rec.declare(is_root_type),
             Type::Array(arr) => arr.declare(is_root_type),
         }
     }
@@ -134,6 +141,7 @@ impl VHDLIdentifier for Type {
         // Any other types are used directly.
         match self {
             Type::Record(rec) => rec.vhdl_identifier(),
+            Type::Union(rec) => rec.vhdl_identifier(),
             Type::Array(arr) => arr.vhdl_identifier(),
             _ => self.declare(true),
         }
@@ -141,12 +149,6 @@ impl VHDLIdentifier for Type {
 }
 
 impl VHDLIdentifier for Record {
-    fn vhdl_identifier(&self) -> Result<String> {
-        Ok(cat!(self.identifier().to_string(), "type"))
-    }
-}
-
-impl VHDLIdentifier for Union {
     fn vhdl_identifier(&self) -> Result<String> {
         Ok(cat!(self.identifier().to_string(), "type"))
     }
@@ -328,7 +330,7 @@ impl ListUsings for Package {
                 Type::Bit => true,
                 Type::BitVec { width: _ } => true,
                 Type::Record(rec) => rec.fields().any(|field| uses_std_logic(field.typ())),
-                Type::Union(_) => todo!(),
+                Type::Union(rec) => rec.fields().any(|field| uses_std_logic(field.typ())),
                 Type::Array(arr) => uses_std_logic(&arr.typ()),
             }
         }

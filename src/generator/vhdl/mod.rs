@@ -12,13 +12,13 @@ use log::debug;
 #[cfg(feature = "cli")]
 use structopt::StructOpt;
 
-use crate::Name;
 use crate::cat;
 use crate::design::Project;
 use crate::generator::common::convert::Packify;
 use crate::generator::common::*;
 use crate::generator::GenerateProject;
 use crate::traits::Identify;
+use crate::Name;
 use crate::{Error, Result, Reversed};
 
 mod impls;
@@ -54,7 +54,10 @@ impl Usings {
     ///
     /// If the set did have this value present, `false` is returned.
     pub fn add_using(&mut self, library: Name, using: String) -> bool {
-        self.0.entry(library).or_insert(HashSet::new()).insert(using)
+        self.0
+            .entry(library)
+            .or_insert(HashSet::new())
+            .insert(using)
     }
 }
 
@@ -70,7 +73,7 @@ pub trait DeclareUsings {
 impl<T: ListUsings> DeclareUsings for T {
     fn declare_usings(&self) -> Result<String> {
         let mut result = String::new();
-        
+
         for (lib, usings) in self.list_usings()?.0 {
             result.push_str(format!("library {};\n", lib).as_str());
             for using in usings {
@@ -260,27 +263,6 @@ impl Split for Record {
         let f = |r: Record| if r.is_empty() { None } else { Some(r) };
 
         (f(down_rec), f(up_rec))
-    }
-}
-
-impl Split for Union {
-    fn split(&self) -> (Option<Self>, Option<Self>) {
-        let mut down_union = Union::new_empty(self.identifier());
-        let mut up_union = Union::new_empty(self.identifier());
-
-        for f in self.variants().into_iter() {
-            let (down_field, up_field) = f.split();
-            if let Some(df) = down_field {
-                down_union.try_insert(df).unwrap()
-            };
-            if let Some(uf) = up_field {
-                up_union.try_insert(uf).unwrap()
-            };
-        }
-
-        let f = |u: Union| if u.is_empty() { None } else { Some(u) };
-
-        (f(down_union), f(up_union))
     }
 }
 
