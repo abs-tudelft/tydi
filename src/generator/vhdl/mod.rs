@@ -263,6 +263,27 @@ impl Split for Record {
     }
 }
 
+impl Split for Union {
+    fn split(&self) -> (Option<Self>, Option<Self>) {
+        let mut down_union = Union::new_empty(self.identifier());
+        let mut up_union = Union::new_empty(self.identifier());
+
+        for f in self.variants().into_iter() {
+            let (down_field, up_field) = f.split();
+            if let Some(df) = down_field {
+                down_union.try_insert(df).unwrap()
+            };
+            if let Some(uf) = up_field {
+                up_union.try_insert(uf).unwrap()
+            };
+        }
+
+        let f = |u: Union| if u.is_empty() { None } else { Some(u) };
+
+        (f(down_union), f(up_union))
+    }
+}
+
 impl Split for Port {
     fn split(&self) -> (Option<Self>, Option<Self>) {
         let (type_down, type_up) = self.typ().split();

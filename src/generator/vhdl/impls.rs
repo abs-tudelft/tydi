@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use crate::error::Error::BackEndError;
-use crate::generator::common::{Array, Component, Mode, Package, Port, Record, Type};
+use crate::generator::common::{Array, Component, Mode, Package, Port, Record, Type, Union};
 use crate::generator::vhdl::{
     Analyze, Declare, DeclareType, DeclareUsings, Split, Usings, VHDLIdentifier,
 };
@@ -75,7 +75,7 @@ impl DeclareType for Record {
 }
 
 impl DeclareType for Array {
-    fn declare(&self, is_root_type: bool) -> Result<String> {
+    fn declare(&self, _is_root_type: bool) -> Result<String> {
         let mut children = String::new();
         let mut this = format!(
             "type {} is array ({} to {}) of ",
@@ -141,6 +141,12 @@ impl VHDLIdentifier for Type {
 }
 
 impl VHDLIdentifier for Record {
+    fn vhdl_identifier(&self) -> Result<String> {
+        Ok(cat!(self.identifier().to_string(), "type"))
+    }
+}
+
+impl VHDLIdentifier for Union {
     fn vhdl_identifier(&self) -> Result<String> {
         Ok(cat!(self.identifier().to_string(), "type"))
     }
