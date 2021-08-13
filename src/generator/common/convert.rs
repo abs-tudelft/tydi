@@ -147,7 +147,7 @@ impl Typify for Union {
                 tag_name,
                 Type::bitvec(tag_bc.get()),
                 false,
-                Some(format!("Variants: {}", variants_doc.join(", "))),
+                Some(format!(" Variants: {}", variants_doc.join(", "))),
             );
         }
         for (field_name, field_logical) in self.iter() {
