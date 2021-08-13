@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 
+use crate::generator::common::Type;
 use crate::physical::Width;
 use crate::{Error, Name};
 use indexmap::map::IndexMap;
@@ -7,6 +8,29 @@ use indexmap::map::IndexMap;
 use self::bitvec::BitVecAssignment;
 
 mod bitvec;
+
+/// An object can be assigned a value or from another object
+#[derive(Debug, Clone)]
+pub enum Assignment {
+    /// An object is assigned from or driven by another object
+    Object(ObjectAssignment),
+    /// An object is assigned a value directly
+    Value(ValueAssignment),
+}
+
+/// A trait to verify whether something can be assigned from another Type
+pub trait CanAssignFrom {
+    fn can_assign_from(typ: Type) -> bool;
+}
+
+/// An object can be assigned a value or another object
+#[derive(Debug, Clone)]
+pub struct ObjectAssignment {
+    /// The object's identifier
+    identifier: Name,
+    /// The object's type
+    typ: Type,
+}
 
 /// Possible values which can be assigned to std_logic
 #[derive(Debug, Clone)]
@@ -29,13 +53,18 @@ pub enum StdLogicValue {
     DontCare,
 }
 
-/// Corresponds to the Types defined in `tydi::generator::common::Type`
+/// Assigning a value, corresponds to the Types defined in `tydi::generator::common::Type`
 #[derive(Debug, Clone)]
 pub enum ValueAssignment {
+    /// Assigning a value to a single bit
     Bit(StdLogicValue),
+    /// Assigning a value to a (part of) a bit vector
     BitVec(BitVecAssignment),
+    /// Assigning one or multiple values to a Record
     Record(IndexMap<Name, ValueAssignment>),
+    /// Assigning a value to a variant within a Union
     Union(Name, Box<ValueAssignment>),
+    // TODO: Array
 }
 
 /// A VHDL range constraint
