@@ -1,11 +1,14 @@
 use std::convert::TryInto;
+use std::fmt;
 
 use crate::generator::common::Type;
 use crate::physical::Width;
-use crate::{Error, Name};
+use crate::{Error, Name, Result};
 use indexmap::map::IndexMap;
 
 use self::bitvec::BitVecAssignment;
+
+use super::declaration::ObjectDeclaration;
 
 mod bitvec;
 
@@ -18,18 +21,83 @@ pub enum Assignment {
     Value(ValueAssignment),
 }
 
-/// A trait to verify whether something can be assigned from another Type
+/// A trait to verify whether something can be assigned
 pub trait CanAssignFrom {
-    fn can_assign_from(typ: Type) -> bool;
+    fn can_assign_from(&self, assignment: &Assignment) -> Result<()>;
 }
 
 /// An object can be assigned a value or another object
 #[derive(Debug, Clone)]
 pub struct ObjectAssignment {
-    /// The object's identifier
-    identifier: Name,
-    /// The object's type
-    typ: Type,
+    /// The object being assigned from
+    object: Box<ObjectDeclaration>,
+    /// An optional constraint on the object being assigned to
+    to_constraint: Option<AssignConstraint>,
+    /// An optional constraint on the object being assigned from
+    from_constraint: Option<AssignConstraint>,
+}
+
+impl ObjectAssignment {
+    /// Returns a reference to the object being assigned from
+    pub fn object(&self) -> &ObjectDeclaration {
+        &self.object
+    }
+
+    pub fn assign_from(mut self, from_constraint: AssignConstraint) -> Result<Self> {
+        match self.typ() {
+            Type::Bit => {
+                if from_range.width() == Width::Scalar {
+                    self.from_range = Some(from_range);
+                    Ok(self)
+                } else {
+                    todo!()
+                }
+            }
+            Type::BitVec { width } => todo!(),
+            Type::Record(_) => todo!(),
+            Type::Union(_) => todo!(),
+            Type::Array(_) => todo!(),
+        }
+    }
+
+    pub fn assign_to_range(mut self, to_range: RangeConstraint) -> Result<Self> {
+        match self.typ() {
+            Type::Bit => {
+                if to_range.width() == Width::Scalar {
+                    self.to_range = Some(to_range);
+                    Ok(self)
+                } else {
+                    Err(Error::InvalidArgument(
+                        "Cannot assign a Bit to a range".to_string(),
+                    ))
+                }
+            }
+            Type::BitVec { width } => {
+                if to_range.max_index() > *width as i32 {}
+                todo!()
+            }
+            Type::Record(_) => todo!(),
+            Type::Union(_) => todo!(),
+            Type::Array(_) => todo!(),
+        }
+    }
+
+    pub fn to_constraint(&self) -> &Option<AssignConstraint> {
+        &self.to_constraint
+    }
+
+    pub fn from_constraint(&self) -> &Option<AssignConstraint> {
+        &self.from_constraint
+    }
+
+    pub fn typ(&self) -> &Type {
+        self.object().typ()
+    }
+
+    pub fn finish(self) -> Result<Self> {
+        /// TODO: Check whether constraints are possible
+        todo!()
+    }
 }
 
 /// Possible values which can be assigned to std_logic
@@ -67,6 +135,15 @@ pub enum ValueAssignment {
     // TODO: Array
 }
 
+/// A VHDL assignment constraint
+#[derive(Debug, Clone)]
+pub enum AssignConstraint {
+    /// The most common kind of constraint, a specific range or index
+    Range(RangeConstraint),
+    /// The field of a record
+    Field(Name),
+}
+
 /// A VHDL range constraint
 #[derive(Debug, Clone)]
 pub enum RangeConstraint {
@@ -76,6 +153,16 @@ pub enum RangeConstraint {
     Downto { start: i32, end: i32 },
     /// An index within a range
     Index(i32),
+}
+
+impl fmt::Display for RangeConstraint {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            RangeConstraint::To { start, end } => write!(f, "({} to {})", start, end),
+            RangeConstraint::Downto { start, end } => write!(f, "({} downto {})", start, end),
+            RangeConstraint::Index(index) => write!(f, "({})", index),
+        }
+    }
 }
 
 impl RangeConstraint {

@@ -1,7 +1,12 @@
+use std::fmt;
+
 use crate::generator::common::{Component, Type};
-use crate::{Identify, Name, Result};
+use crate::stdlib::common::architecture::assignment::CanAssignFrom;
+use crate::{Error, Identify, Name, Result};
 
 use super::assignment::{Assignment, RangeConstraint};
+
+mod can_assign_from;
 
 // Declarations may typically be any of the following: type, subtype, signal, constant, file, alias, component, attribute, function, procedure, configuration specification. (per: https://www.ics.uci.edu/~jmoorkan/vhdlref/architec.html)
 // Per: https://insights.sigasi.com/tech/vhdl2008.ebnf/#block_declarative_item
@@ -59,6 +64,17 @@ pub enum ObjectKind {
     Port,
 }
 
+impl fmt::Display for ObjectKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ObjectKind::Signal => write!(f, "Signal"),
+            ObjectKind::Variable => write!(f, "Variable"),
+            ObjectKind::Constant => write!(f, "Constant"),
+            ObjectKind::Port => write!(f, "Port"),
+        }
+    }
+}
+
 /// Struct describing the identifier of the object, its type, its kind, and a potential default value
 #[derive(Debug, Clone)]
 pub struct ObjectDeclaration {
@@ -108,6 +124,36 @@ impl ObjectDeclaration {
             kind: ObjectKind::Port,
         }
     }
+
+    pub fn set_default(mut self, default: Assignment) -> Result<()> {
+        match self.kind() {
+            ObjectKind::Signal | ObjectKind::Variable => {
+                self.can_assign_from(&default);
+                self.default = Some(default);
+                Ok(())
+            }
+            ObjectKind::Constant | ObjectKind::Port => Err(Error::InvalidTarget(format!(
+                "Default cannot be assigned to {} object",
+                self.kind()
+            ))),
+        }
+    }
+
+    pub fn kind(&self) -> &ObjectKind {
+        &self.kind
+    }
+
+    pub fn typ(&self) -> &Type {
+        &self.typ
+    }
+
+    pub fn identifier(&self) -> &Type {
+        &self.typ
+    }
+
+    pub fn default(&self) -> &Option<Assignment> {
+        &self.default
+    }
 }
 
 /// Aliases an existing object, with optional range constraint
@@ -125,11 +171,11 @@ impl<'a> AliasDeclaration<'a> {
         object: &'a ObjectDeclaration,
         identifier: Name,
         range_constraint: RangeConstraint,
-    ) -> Result<AliasDeclaration> {
+    ) -> Result<AliasDeclaration<'a>> {
         AliasDeclaration::from_object(object, identifier).with_range(range_constraint)
     }
 
-    pub fn from_object(object: &'a ObjectDeclaration, identifier: Name) -> AliasDeclaration {
+    pub fn from_object(object: &'a ObjectDeclaration, identifier: Name) -> AliasDeclaration<'a> {
         AliasDeclaration {
             identifier,
             object,
@@ -154,7 +200,7 @@ impl<'a> AliasDeclaration<'a> {
     }
 
     /// Returns the alias's identifier
-    pub fn identifier(&self) -> Name {
-        self.identifier.clone()
+    pub fn identifier(&self) -> &Name {
+        &self.identifier
     }
 }
