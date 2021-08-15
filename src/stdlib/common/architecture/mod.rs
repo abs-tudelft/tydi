@@ -17,6 +17,7 @@ use crate::{Error, Result};
 
 use super::entity::Entity;
 
+mod object;
 mod assignment;
 mod declaration;
 mod impls;

@@ -1,12 +1,11 @@
 use std::fmt;
 
 use crate::generator::common::{Component, Type};
-use crate::stdlib::common::architecture::assignment::CanAssignFrom;
+use crate::stdlib::common::architecture::assignment::CanAssign;
 use crate::{Error, Identify, Name, Result};
 
-use super::assignment::{Assignment, RangeConstraint};
-
-mod can_assign_from;
+use super::assignment::{AssignConstraint, Assignment, RangeConstraint};
+use super::object::ObjectType;
 
 // Declarations may typically be any of the following: type, subtype, signal, constant, file, alias, component, attribute, function, procedure, configuration specification. (per: https://www.ics.uci.edu/~jmoorkan/vhdlref/architec.html)
 // Per: https://insights.sigasi.com/tech/vhdl2008.ebnf/#block_declarative_item
@@ -81,7 +80,7 @@ pub struct ObjectDeclaration {
     /// Name of the signal
     identifier: Name,
     /// (Sub-)Type of the object
-    typ: Type,
+    typ: ObjectType,
     /// Default value assigned to the object (required for constants, cannot be used for ports)
     default: Option<Assignment>,
     /// The kind of object
@@ -89,7 +88,11 @@ pub struct ObjectDeclaration {
 }
 
 impl ObjectDeclaration {
-    pub fn signal(identifier: Name, typ: Type, default: Option<Assignment>) -> ObjectDeclaration {
+    pub fn signal(
+        identifier: Name,
+        typ: ObjectType,
+        default: Option<Assignment>,
+    ) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier,
             typ,
@@ -98,7 +101,11 @@ impl ObjectDeclaration {
         }
     }
 
-    pub fn variable(identifier: Name, typ: Type, default: Option<Assignment>) -> ObjectDeclaration {
+    pub fn variable(
+        identifier: Name,
+        typ: ObjectType,
+        default: Option<Assignment>,
+    ) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier,
             typ,
@@ -107,7 +114,7 @@ impl ObjectDeclaration {
         }
     }
 
-    pub fn constant(identifier: Name, typ: Type, value: Assignment) -> ObjectDeclaration {
+    pub fn constant(identifier: Name, typ: ObjectType, value: Assignment) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier,
             typ,
@@ -116,7 +123,7 @@ impl ObjectDeclaration {
         }
     }
 
-    pub fn port(identifier: Name, typ: Type) -> ObjectDeclaration {
+    pub fn port(identifier: Name, typ: ObjectType) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier,
             typ,
@@ -128,7 +135,7 @@ impl ObjectDeclaration {
     pub fn set_default(mut self, default: Assignment) -> Result<()> {
         match self.kind() {
             ObjectKind::Signal | ObjectKind::Variable => {
-                self.can_assign_from(&default);
+                self.can_assign(&default, None);
                 self.default = Some(default);
                 Ok(())
             }
@@ -143,12 +150,12 @@ impl ObjectDeclaration {
         &self.kind
     }
 
-    pub fn typ(&self) -> &Type {
+    pub fn typ(&self) -> &ObjectType {
         &self.typ
     }
 
-    pub fn identifier(&self) -> &Type {
-        &self.typ
+    pub fn identifier(&self) -> &Name {
+        &self.identifier
     }
 
     pub fn default(&self) -> &Option<Assignment> {
@@ -156,37 +163,59 @@ impl ObjectDeclaration {
     }
 }
 
-/// Aliases an existing object, with optional range constraint
+/// Aliases an existing object, with optional field constraint
 #[derive(Debug, Clone)]
 pub struct AliasDeclaration<'a> {
     identifier: Name,
     /// Reference to an existing object declaration
     object: &'a ObjectDeclaration,
-    /// Optional range constraint - when assigning to or from the alias, this is used to determine the range it represents
-    range_constraint: Option<RangeConstraint>,
+    /// Optional constraint - when assigning to or from the alias, this is used to determine the fields it represents
+    constraint: Option<AssignConstraint>,
 }
 
 impl<'a> AliasDeclaration<'a> {
     pub fn new(
         object: &'a ObjectDeclaration,
         identifier: Name,
-        range_constraint: RangeConstraint,
+        constraint: AssignConstraint,
     ) -> Result<AliasDeclaration<'a>> {
-        AliasDeclaration::from_object(object, identifier).with_range(range_constraint)
+        AliasDeclaration::from_object(object, identifier).with_constraint(constraint)
     }
 
     pub fn from_object(object: &'a ObjectDeclaration, identifier: Name) -> AliasDeclaration<'a> {
         AliasDeclaration {
             identifier,
             object,
-            range_constraint: None,
+            constraint: None,
         }
     }
 
-    pub fn with_range(mut self, range_constraint: RangeConstraint) -> Result<Self> {
-        // TODO: Verify object supports range
-        self.range_constraint = Some(range_constraint);
-        Ok(self)
+    pub fn with_constraint(mut self, constraint: AssignConstraint) -> Result<Self> {
+        // TODO: Verify object supports constraint
+        match self.object().typ() {
+            ObjectType::Bit => Err(Error::InvalidTarget(
+                "Cannot alias a bit object with a constraint".to_string(),
+            )),
+            ObjectType::Array(array) => {
+                if let AssignConstraint::Range(range_constraint) = constraint {
+                    if range_constraint.high() <= array.high()
+                        && range_constraint.low() >= array.low()
+                    {
+                        self.constraint = Some(constraint);
+                        Ok(self)
+                    } else {
+                        Err(Error::InvalidArgument(format!("Cannot alias an array with range constraint {}, array has high: {}, low: {}", range_constraint, array.high(), array.low())))
+                    }
+                } else {
+                    Err(Error::InvalidTarget(
+                        "Cannot alias an array with a named field".to_string(),
+                    ))
+                }
+            }
+            ObjectType::Record(_) => todo!(),
+        }
+        // self.constraint = Some(constraint);
+        // Ok(self)
     }
 
     /// Returns the actual object this is aliasing
@@ -195,8 +224,8 @@ impl<'a> AliasDeclaration<'a> {
     }
 
     /// Returns the optional fixed range constraint of this alias
-    pub fn range_constraint(&self) -> &Option<RangeConstraint> {
-        &self.range_constraint
+    pub fn constraint(&self) -> &Option<AssignConstraint> {
+        &self.constraint
     }
 
     /// Returns the alias's identifier

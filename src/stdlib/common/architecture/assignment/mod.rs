@@ -9,6 +9,7 @@ use indexmap::map::IndexMap;
 use self::bitvec::BitVecAssignment;
 
 use super::declaration::ObjectDeclaration;
+use super::object::ObjectType;
 
 mod bitvec;
 
@@ -22,8 +23,22 @@ pub enum Assignment {
 }
 
 /// A trait to verify whether something can be assigned
-pub trait CanAssignFrom {
-    fn can_assign_from(&self, assignment: &Assignment) -> Result<()>;
+pub trait CanAssign {
+    /// Verifies whether the assignment is possible
+    fn can_assign(
+        &self,
+        assignment: &Assignment,
+        to_constraint: Option<&AssignConstraint>,
+    ) -> Result<()>;
+
+    /// Verifies whether the assignment is possible when applying a constraint to the entity being assigned to
+    fn can_assign_to(
+        &self,
+        assignment: &Assignment,
+        to_constraint: &AssignConstraint,
+    ) -> Result<()> {
+        self.can_assign(assignment, Some(to_constraint))
+    }
 }
 
 /// An object can be assigned a value or another object
@@ -73,7 +88,7 @@ impl ObjectAssignment {
                 }
             }
             Type::BitVec { width } => {
-                if to_range.max_index() > *width as i32 {}
+                if to_range.high() > *width as i32 {}
                 todo!()
             }
             Type::Record(_) => todo!(),
@@ -90,7 +105,7 @@ impl ObjectAssignment {
         &self.from_constraint
     }
 
-    pub fn typ(&self) -> &Type {
+    pub fn typ(&self) -> &ObjectType {
         self.object().typ()
     }
 
@@ -141,7 +156,7 @@ pub enum AssignConstraint {
     /// The most common kind of constraint, a specific range or index
     Range(RangeConstraint),
     /// The field of a record
-    Field(Name),
+    Name(Name),
 }
 
 /// A VHDL range constraint
@@ -210,7 +225,7 @@ impl RangeConstraint {
     }
 
     /// Returns the greatest index within the range constraint
-    pub fn max_index(&self) -> i32 {
+    pub fn high(&self) -> i32 {
         match self {
             RangeConstraint::To { start: _, end } => *end,
             RangeConstraint::Downto { start, end: _ } => *start,
@@ -219,7 +234,7 @@ impl RangeConstraint {
     }
 
     /// Returns the smallest index within the range constraint
-    pub fn min_index(&self) -> i32 {
+    pub fn low(&self) -> i32 {
         match self {
             RangeConstraint::To { start, end: _ } => *start,
             RangeConstraint::Downto { start: _, end } => *end,
