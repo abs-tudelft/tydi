@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use std::fmt;
 
 use crate::generator::common::Type;
@@ -28,15 +28,11 @@ pub trait CanAssign {
     fn can_assign(
         &self,
         assignment: &Assignment,
-        to_constraint: Option<&AssignConstraint>,
+        to_constraint: Option<&FieldSelection>,
     ) -> Result<()>;
 
     /// Verifies whether the assignment is possible when applying a constraint to the entity being assigned to
-    fn can_assign_to(
-        &self,
-        assignment: &Assignment,
-        to_constraint: &AssignConstraint,
-    ) -> Result<()> {
+    fn can_assign_to(&self, assignment: &Assignment, to_constraint: &FieldSelection) -> Result<()> {
         self.can_assign(assignment, Some(to_constraint))
     }
 }
@@ -46,10 +42,10 @@ pub trait CanAssign {
 pub struct ObjectAssignment {
     /// The object being assigned from
     object: Box<ObjectDeclaration>,
-    /// An optional constraint on the object being assigned to
-    to_constraint: Option<AssignConstraint>,
-    /// An optional constraint on the object being assigned from
-    from_constraint: Option<AssignConstraint>,
+    /// Optional selections on the object being assigned to
+    to_field: Vec<FieldSelection>,
+    /// Optional selections on the object being assigned from
+    from_field: Vec<FieldSelection>,
 }
 
 impl ObjectAssignment {
@@ -58,51 +54,26 @@ impl ObjectAssignment {
         &self.object
     }
 
-    pub fn assign_from(mut self, from_constraint: AssignConstraint) -> Result<Self> {
+    /// Select fields from the object being assigned
+    pub fn assign_from(mut self, from_field: FieldSelection) -> Result<Self> {
         match self.typ() {
-            Type::Bit => {
-                if from_range.width() == Width::Scalar {
-                    self.from_range = Some(from_range);
-                    Ok(self)
-                } else {
-                    todo!()
-                }
-            }
-            Type::BitVec { width } => todo!(),
-            Type::Record(_) => todo!(),
-            Type::Union(_) => todo!(),
-            Type::Array(_) => todo!(),
+            ObjectType::Bit => todo!(),
+            ObjectType::Array(_) => todo!(),
+            ObjectType::Record(_) => todo!(),
         }
     }
 
-    pub fn assign_to_range(mut self, to_range: RangeConstraint) -> Result<Self> {
-        match self.typ() {
-            Type::Bit => {
-                if to_range.width() == Width::Scalar {
-                    self.to_range = Some(to_range);
-                    Ok(self)
-                } else {
-                    Err(Error::InvalidArgument(
-                        "Cannot assign a Bit to a range".to_string(),
-                    ))
-                }
-            }
-            Type::BitVec { width } => {
-                if to_range.high() > *width as i32 {}
-                todo!()
-            }
-            Type::Record(_) => todo!(),
-            Type::Union(_) => todo!(),
-            Type::Array(_) => todo!(),
-        }
+    pub fn assign_to(mut self, to_field: FieldSelection) -> Self {
+        self.to_field.push(to_field);
+        self
     }
 
-    pub fn to_constraint(&self) -> &Option<AssignConstraint> {
-        &self.to_constraint
+    pub fn to_constraint(&self) -> &Vec<FieldSelection> {
+        &self.to_field
     }
 
-    pub fn from_constraint(&self) -> &Option<AssignConstraint> {
-        &self.from_constraint
+    pub fn from_constraint(&self) -> &Vec<FieldSelection> {
+        &self.from_field
     }
 
     pub fn typ(&self) -> &ObjectType {
@@ -152,11 +123,29 @@ pub enum ValueAssignment {
 
 /// A VHDL assignment constraint
 #[derive(Debug, Clone)]
-pub enum AssignConstraint {
+pub enum FieldSelection {
     /// The most common kind of constraint, a specific range or index
     Range(RangeConstraint),
     /// The field of a record
     Name(Name),
+}
+
+impl FieldSelection {
+    pub fn to(start: i32, end: i32) -> Result<FieldSelection> {
+        Ok(FieldSelection::Range(RangeConstraint::to(start, end)?))
+    }
+
+    pub fn downto(start: i32, end: i32) -> Result<FieldSelection> {
+        Ok(FieldSelection::Range(RangeConstraint::downto(start, end)?))
+    }
+
+    pub fn index(index: i32) -> FieldSelection {
+        FieldSelection::Range(RangeConstraint::Index(index))
+    }
+
+    pub fn name(name: &str) -> Result<FieldSelection> {
+        Ok(FieldSelection::Name(Name::try_from(name)?))
+    }
 }
 
 /// A VHDL range constraint
