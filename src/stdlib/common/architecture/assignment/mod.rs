@@ -1,25 +1,37 @@
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 
+use indexmap::map::IndexMap;
+
+use array_assignment::ArrayAssignment;
+
 use crate::generator::common::Type;
 use crate::physical::Width;
 use crate::{Error, Name, Result};
-use indexmap::map::IndexMap;
-
-use self::bitvec::BitVecAssignment;
 
 use super::declaration::ObjectDeclaration;
 use super::object::ObjectType;
 
+use self::bitvec::BitVecAssignment;
+
+mod array_assignment;
+mod assign;
 mod bitvec;
+
+/// An object can be assigned a value or from another object
+#[derive(Debug, Clone)]
+pub struct AssignedObject {
+    object: ObjectDeclaration,
+    assignment: Assignment,
+}
 
 /// An object can be assigned a value or from another object
 #[derive(Debug, Clone)]
 pub enum Assignment {
     /// An object is assigned from or driven by another object
     Object(ObjectAssignment),
-    /// An object is assigned a value directly
-    Value(ValueAssignment),
+    /// An object is assigned a value directly, or completely filled
+    Direct(DirectAssignment),
 }
 
 /// A trait to verify whether something can be assigned
@@ -42,9 +54,9 @@ pub trait CanAssign {
 pub struct ObjectAssignment {
     /// The object being assigned from
     object: Box<ObjectDeclaration>,
-    /// Optional selections on the object being assigned to
+    /// Optional selections on the object being assigned to, representing nested selections
     to_field: Vec<FieldSelection>,
-    /// Optional selections on the object being assigned from
+    /// Optional selections on the object being assigned from, representing nested selections
     from_field: Vec<FieldSelection>,
 }
 
@@ -68,11 +80,11 @@ impl ObjectAssignment {
         self
     }
 
-    pub fn to_constraint(&self) -> &Vec<FieldSelection> {
+    pub fn to_field(&self) -> &Vec<FieldSelection> {
         &self.to_field
     }
 
-    pub fn from_constraint(&self) -> &Vec<FieldSelection> {
+    pub fn from_field(&self) -> &Vec<FieldSelection> {
         &self.from_field
     }
 
@@ -107,18 +119,19 @@ pub enum StdLogicValue {
     DontCare,
 }
 
-/// Assigning a value, corresponds to the Types defined in `tydi::generator::common::Type`
+/// Directly assigning a value or an entire Record, corresponds to the Types defined in `tydi::generator::common::Type`
 #[derive(Debug, Clone)]
-pub enum ValueAssignment {
+pub enum DirectAssignment {
     /// Assigning a value to a single bit
     Bit(StdLogicValue),
     /// Assigning a value to a (part of) a bit vector
     BitVec(BitVecAssignment),
     /// Assigning one or multiple values to a Record
-    Record(IndexMap<Name, ValueAssignment>),
+    Record(IndexMap<String, Assignment>),
     /// Assigning a value to a variant within a Union
-    Union(Name, Box<ValueAssignment>),
-    // TODO: Array
+    Union(Name, Box<Assignment>),
+    /// Assigning one or more values or objects directly to an array (may overlap with ObjectAssignment)
+    Array(ArrayAssignment),
 }
 
 /// A VHDL assignment constraint
@@ -127,7 +140,16 @@ pub enum FieldSelection {
     /// The most common kind of constraint, a specific range or index
     Range(RangeConstraint),
     /// The field of a record
-    Name(Name),
+    Name(String),
+}
+
+impl fmt::Display for FieldSelection {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            FieldSelection::Range(range) => range.fmt(f),
+            FieldSelection::Name(name) => write!(f, ".{}", name),
+        }
+    }
 }
 
 impl FieldSelection {
@@ -144,7 +166,7 @@ impl FieldSelection {
     }
 
     pub fn name(name: &str) -> Result<FieldSelection> {
-        Ok(FieldSelection::Name(Name::try_from(name)?))
+        Ok(FieldSelection::Name(name.to_string()))
     }
 }
 

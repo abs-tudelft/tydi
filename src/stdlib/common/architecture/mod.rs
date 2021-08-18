@@ -17,10 +17,11 @@ use crate::{Error, Result};
 
 use super::entity::Entity;
 
-mod object;
 mod assignment;
 mod declaration;
 mod impls;
+mod object;
+mod statement;
 
 // TODO: Figure this out, either make it a struct with specific contents, or a trait for something else to implement?
 /// Architecture statement.

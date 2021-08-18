@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::generator::common::{Component, Type};
+use crate::generator::common::{Component, Mode, Type};
 use crate::stdlib::common::architecture::assignment::CanAssign;
 use crate::{Error, Identify, Name, Result};
 
@@ -54,13 +54,16 @@ pub enum ArchitectureDeclaration<'a> {
     Custom(String), // TODO: Custom (templates?)
 }
 
-/// The kind of object declared (signal, variable, constant, port)
+/// The kind of object declared (signal, variable, constant, ports)
 #[derive(Debug, Clone)]
 pub enum ObjectKind {
     Signal,
     Variable,
     Constant,
-    Port,
+    /// Represents ports declared on the entity this architecture is describing
+    EntityPort,
+    /// Represents ports on components within the architecture
+    ComponentPort,
 }
 
 impl fmt::Display for ObjectKind {
@@ -69,7 +72,25 @@ impl fmt::Display for ObjectKind {
             ObjectKind::Signal => write!(f, "Signal"),
             ObjectKind::Variable => write!(f, "Variable"),
             ObjectKind::Constant => write!(f, "Constant"),
-            ObjectKind::Port => write!(f, "Port"),
+            ObjectKind::EntityPort => write!(f, "EntityPort"),
+            ObjectKind::ComponentPort => write!(f, "ComponentPort"),
+        }
+    }
+}
+
+/// The direction of the object declared, if relevant (ports)
+#[derive(Debug, Clone)]
+pub enum ObjectMode {
+    None,
+    In,
+    Out,
+}
+
+impl From<Mode> for ObjectMode {
+    fn from(value: Mode) -> Self {
+        match value {
+            Mode::In => ObjectMode::In,
+            Mode::Out => ObjectMode::Out,
         }
     }
 }
@@ -78,9 +99,10 @@ impl fmt::Display for ObjectKind {
 #[derive(Debug, Clone)]
 pub struct ObjectDeclaration {
     /// Name of the signal
-    identifier: Name,
+    identifier: String,
     /// (Sub-)Type of the object
     typ: ObjectType,
+    mode: ObjectMode,
     /// Default value assigned to the object (required for constants, cannot be used for ports)
     default: Option<Assignment>,
     /// The kind of object
@@ -89,57 +111,79 @@ pub struct ObjectDeclaration {
 
 impl ObjectDeclaration {
     pub fn signal(
-        identifier: Name,
+        identifier: String,
         typ: ObjectType,
         default: Option<Assignment>,
     ) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier,
             typ,
+            mode: ObjectMode::None,
             default,
             kind: ObjectKind::Signal,
         }
     }
 
     pub fn variable(
-        identifier: Name,
+        identifier: String,
         typ: ObjectType,
         default: Option<Assignment>,
     ) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier,
             typ,
+            mode: ObjectMode::None,
             default,
             kind: ObjectKind::Variable,
         }
     }
 
-    pub fn constant(identifier: Name, typ: ObjectType, value: Assignment) -> ObjectDeclaration {
+    pub fn constant(identifier: String, typ: ObjectType, value: Assignment) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier,
             typ,
+            mode: ObjectMode::None,
             default: Some(value),
             kind: ObjectKind::Constant,
         }
     }
 
-    pub fn port(identifier: Name, typ: ObjectType) -> ObjectDeclaration {
+    /// Entity Ports serve as a way to represent the ports of an entity the architecture is describing.
+    /// They are not declared within the architecture itself, but can drive or be driven by other objects.
+    pub fn entity_port(identifier: String, typ: ObjectType, mode: ObjectMode) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier,
             typ,
+            mode,
             default: None,
-            kind: ObjectKind::Port,
+            kind: ObjectKind::EntityPort,
+        }
+    }
+
+    /// Defaults on component ports can be used to express default values, per https://abs-tudelft.github.io/tydi/specification/physical.html#signal-omission
+    pub fn component_port(
+        identifier: String,
+        typ: ObjectType,
+        mode: ObjectMode,
+        default: Option<Assignment>,
+    ) -> ObjectDeclaration {
+        ObjectDeclaration {
+            identifier,
+            typ,
+            mode,
+            default,
+            kind: ObjectKind::ComponentPort,
         }
     }
 
     pub fn set_default(mut self, default: Assignment) -> Result<()> {
         match self.kind() {
-            ObjectKind::Signal | ObjectKind::Variable => {
+            ObjectKind::Signal | ObjectKind::Variable | ObjectKind::ComponentPort => {
                 // self.can_assign(&default, None);
                 self.default = Some(default);
                 Ok(())
             }
-            ObjectKind::Constant | ObjectKind::Port => Err(Error::InvalidTarget(format!(
+            ObjectKind::Constant | ObjectKind::EntityPort => Err(Error::InvalidTarget(format!(
                 "Default cannot be assigned to {} object",
                 self.kind()
             ))),
@@ -154,8 +198,8 @@ impl ObjectDeclaration {
         &self.typ
     }
 
-    pub fn identifier(&self) -> &Name {
-        &self.identifier
+    pub fn identifier(&self) -> &str {
+        self.identifier.as_str()
     }
 
     pub fn default(&self) -> &Option<Assignment> {
@@ -226,25 +270,24 @@ mod tests {
 
     use indexmap::IndexMap;
 
+    use crate::stdlib::common::architecture::object::RecordObject;
+
     use super::*;
 
     fn test_bit_signal() -> Result<ObjectDeclaration> {
         Ok(ObjectDeclaration::signal(
-            Name::try_from("test_signal")?,
+            "test_signal".to_string(),
             ObjectType::Bit,
             None,
         ))
     }
 
     fn test_complex_signal() -> Result<ObjectDeclaration> {
-        let mut record: IndexMap<Name, ObjectType> = IndexMap::new();
-        record.insert(
-            Name::try_from("a")?,
-            ObjectType::array(10, -4, ObjectType::Bit)?,
-        );
+        let mut fields: IndexMap<String, ObjectType> = IndexMap::new();
+        fields.insert("a".to_string(), ObjectType::array(10, -4, ObjectType::Bit)?);
         Ok(ObjectDeclaration::signal(
-            Name::try_from("test_signal")?,
-            ObjectType::Record(record),
+            "test_signal".to_string(),
+            ObjectType::Record(RecordObject::new("record_typ".to_string(), fields)),
             None,
         ))
     }

@@ -34,13 +34,16 @@ architecture wrapper of passthrough_stub_com is
 begin
 
   passthrough_stub_in_pass_data_array_wire_map : for i in passthrough_stub_in_pass_data_array_type'range generate
-    passthrough_stub_in_pass_data_array_wire(i).tag <= in_pass_data((i + 1) * 32 - 1 downto (i + 1) * 32 - 1);
-    passthrough_stub_in_pass_data_array_wire(i).union <= in_pass_data((i + 1) * 32 - 2 downto i * 32);
+    passthrough_stub_in_pass_data_array_wire(i) <= (
+    tag => in_pass_data((i + 1) * 32 - 1 downto (i + 1) * 32 - 1),
+    a   => in_pass_data((i + 1) * 32 - 2 downto i * 32),
+    b   => in_pass_data((i + 1) * 32 - 26 downto i * 32)
+    );
   end generate;
 
   passthrough_stub_out_pass_data_array_wire_map : for i in passthrough_stub_out_pass_data_array_type'range generate
     out_pass_data((i + 1) * 32 - 1 downto (i + 1) * 32 - 1) <= passthrough_stub_out_pass_data_array_wire(i).tag;
-    out_pass_data((i + 1) * 32 - 2 downto i * 32) <= passthrough_stub_out_pass_data_array_wire(i).union;
+    out_pass_data((i + 1) * 32 - 2 downto i * 32)           <= passthrough_stub_out_pass_data_array_wire(i).a or passthrough_stub_out_pass_data_array_wire(i).b;
   end generate;
 
   wrap : passthrough_stub port map(
