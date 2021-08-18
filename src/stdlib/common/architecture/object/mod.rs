@@ -187,10 +187,9 @@ impl ObjectType {
                 to_object.can_assign_type(&from_object)
             }
             Assignment::Direct(direct) => match direct {
-                DirectAssignment::Bit(_) => todo!(),
-                DirectAssignment::BitVec(_) => todo!(),
+                DirectAssignment::Value(_) => todo!(),
                 DirectAssignment::Record(_) => todo!(),
-                DirectAssignment::Union(_, _) => todo!(),
+                DirectAssignment::Union { variant: _, assignment: _ } => todo!(),
                 DirectAssignment::Array(_) => todo!(),
             },
         }

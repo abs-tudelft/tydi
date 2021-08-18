@@ -252,7 +252,7 @@ impl<'a> AliasDeclaration<'a> {
         self.object
     }
 
-    /// Returns the optional fixed range constraint of this alias
+    /// Returns the optional field selection of this alias
     pub fn field_selection(&self) -> &Vec<FieldSelection> {
         &self.field_selection
     }
@@ -260,6 +260,15 @@ impl<'a> AliasDeclaration<'a> {
     /// Returns the alias's identifier
     pub fn identifier(&self) -> &Name {
         &self.identifier
+    }
+
+    /// Returns the object type of the alias (after fields have been selected)
+    pub fn typ(&self) -> Result<ObjectType> {
+        let mut object = self.object().typ().clone();
+        for field in self.field_selection() {
+            object = object.get_field(field)?;
+        }
+        Ok(object)
     }
 }
 
