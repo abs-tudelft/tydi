@@ -4,7 +4,9 @@ use indexmap::IndexMap;
 
 use crate::{
     generator::common::Component,
-    stdlib::common::architecture::{declaration::ObjectMode, object::ObjectType},
+    stdlib::common::architecture::{
+        assignment::Assign, declaration::ObjectMode, object::ObjectType,
+    },
     Error, Identify, Name, Result,
 };
 
@@ -59,7 +61,16 @@ impl PortMapping {
     }
 
     pub fn map_port(mut self, identifier: String, assignment: Assignment) -> Result<Self> {
-        
+        let port = self
+            .ports()
+            .get(&identifier)
+            .ok_or(Error::InvalidArgument(format!(
+                "Port {} does not exist on this component",
+                identifier
+            )))?;
+        let assigned = port.assign(assignment)?;
+        self.mappings.insert(identifier, assigned);
+        Ok(self)
     }
 
     pub fn finish(self) -> Result<Self> {

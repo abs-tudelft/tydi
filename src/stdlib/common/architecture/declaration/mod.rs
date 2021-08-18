@@ -1,7 +1,6 @@
 use std::fmt;
 
 use crate::generator::common::{Component, Mode, Type};
-use crate::stdlib::common::architecture::assignment::CanAssign;
 use crate::{Error, Identify, Name, Result};
 
 use super::assignment::{Assignment, FieldSelection, RangeConstraint};
@@ -265,7 +264,7 @@ impl<'a> AliasDeclaration<'a> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use std::convert::TryFrom;
 
     use indexmap::IndexMap;
@@ -274,7 +273,7 @@ mod tests {
 
     use super::*;
 
-    fn test_bit_signal() -> Result<ObjectDeclaration> {
+    pub(crate) fn test_bit_signal() -> Result<ObjectDeclaration> {
         Ok(ObjectDeclaration::signal(
             "test_signal".to_string(),
             ObjectType::Bit,
@@ -282,7 +281,7 @@ mod tests {
         ))
     }
 
-    fn test_complex_signal() -> Result<ObjectDeclaration> {
+    pub(crate) fn test_complex_signal() -> Result<ObjectDeclaration> {
         let mut fields: IndexMap<String, ObjectType> = IndexMap::new();
         fields.insert("a".to_string(), ObjectType::array(10, -4, ObjectType::Bit)?);
         Ok(ObjectDeclaration::signal(

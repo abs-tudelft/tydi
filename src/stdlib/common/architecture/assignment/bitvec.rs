@@ -65,6 +65,35 @@ impl BitVecAssignment {
         }
     }
 
+    pub fn new(range_constraint: Option<RangeConstraint>, value: BitVecValue) -> BitVecAssignment {
+        BitVecAssignment {
+            range_constraint,
+            value,
+        }
+    }
+
+    pub fn from_str(value: &str) -> Result<BitVecAssignment> {
+        let logicvals = value
+            .chars()
+            .map(StdLogicValue::from_char)
+            .collect::<Result<Vec<StdLogicValue>>>()?;
+        Ok(BitVecAssignment {
+            range_constraint: None,
+            value: BitVecValue::Full(logicvals),
+        })
+    }
+
+    pub fn from_str_range(value: &str, range: RangeConstraint) -> Result<BitVecAssignment> {
+        let logicvals = value
+            .chars()
+            .map(StdLogicValue::from_char)
+            .collect::<Result<Vec<StdLogicValue>>>()?;
+        Ok(BitVecAssignment {
+            range_constraint: Some(range),
+            value: BitVecValue::Full(logicvals),
+        })
+    }
+
     /// Create a new downto-range assignment of a bit vector
     pub fn downto(
         value: Vec<StdLogicValue>,
@@ -166,6 +195,47 @@ impl BitVecAssignment {
     /// Returns the range constraint of this assignment
     pub fn range_constraint(&self) -> Option<RangeConstraint> {
         self.range_constraint.clone()
+    }
+
+    pub fn value(&self) -> &BitVecValue {
+        &self.value
+    }
+
+    /// Declares the value assigned for the object being assigned to (identifier required in case Range is empty)
+    pub fn declare_for(&self, object_identifier: String) -> String {
+        match self.value() {
+            BitVecValue::Others(value) => format!("(others => '{}')", value),
+            BitVecValue::Indexed(value) => format!("'{}'", value),
+            BitVecValue::Full(bitvec) => {
+                let mut result = String::new();
+                for value in bitvec {
+                    result.push_str(value.to_string().as_str());
+                }
+                format!("\"{}\"", result)
+            }
+            BitVecValue::Unsigned(value) => match self.range_constraint() {
+                Some(range_constraint) => format!(
+                    "std_logic_vector(to_unsigned({}, {})",
+                    value,
+                    range_constraint.width_u32()
+                ),
+                None => format!(
+                    "std_logic_vector(to_unsigned({}, {}'length)",
+                    value, object_identifier
+                ),
+            },
+            BitVecValue::Signed(value) => match self.range_constraint() {
+                Some(range_constraint) => format!(
+                    "std_logic_vector(to_signed({}, {})",
+                    value,
+                    range_constraint.width_u32()
+                ),
+                None => format!(
+                    "std_logic_vector(to_signed({}, {}'length)",
+                    value, object_identifier
+                ),
+            },
+        }
     }
 }
 

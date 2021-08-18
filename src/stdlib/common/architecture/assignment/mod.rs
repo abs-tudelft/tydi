@@ -14,15 +14,35 @@ use super::object::ObjectType;
 
 use self::bitvec::BitVecAssignment;
 
-mod array_assignment;
-mod assign;
-mod bitvec;
+pub mod array_assignment;
+pub mod assign;
+pub mod assignment_from;
+pub mod bitvec;
+pub mod declare;
 
-/// An object can be assigned a value or from another object
+pub trait Assign {
+    fn assign(&self, assignment: Assignment) -> Result<AssignedObject>;
+}
+
+/// Describing a specific object being assigned with something
 #[derive(Debug, Clone)]
 pub struct AssignedObject {
     object: ObjectDeclaration,
     assignment: Assignment,
+}
+
+impl AssignedObject {
+    pub fn new(object: ObjectDeclaration, assignment: Assignment) -> AssignedObject {
+        AssignedObject { object, assignment }
+    }
+
+    pub fn object(&self) -> &ObjectDeclaration {
+        &self.object
+    }
+
+    pub fn assignment(&self) -> &Assignment {
+        &self.assignment
+    }
 }
 
 /// An object can be assigned a value or from another object
@@ -34,18 +54,13 @@ pub enum Assignment {
     Direct(DirectAssignment),
 }
 
-/// A trait to verify whether something can be assigned
-pub trait CanAssign {
-    /// Verifies whether the assignment is possible
-    fn can_assign(
-        &self,
-        assignment: &Assignment,
-        to_constraint: Option<&FieldSelection>,
-    ) -> Result<()>;
+impl Assignment {
+    pub fn direct_record(record: IndexMap<String, Assignment>) -> Assignment {
+        Assignment::Direct(DirectAssignment::Record(record))
+    }
 
-    /// Verifies whether the assignment is possible when applying a constraint to the entity being assigned to
-    fn can_assign_to(&self, assignment: &Assignment, to_constraint: &FieldSelection) -> Result<()> {
-        self.can_assign(assignment, Some(to_constraint))
+    pub fn direct_union(name: String, assignment: Assignment) -> Assignment {
+        Assignment::Direct(DirectAssignment::Union(name, Box::new(assignment)))
     }
 }
 
@@ -119,6 +134,48 @@ pub enum StdLogicValue {
     DontCare,
 }
 
+impl StdLogicValue {
+    pub fn from_char(val: char) -> Result<StdLogicValue> {
+        match val {
+            'U' => Ok(StdLogicValue::U),
+            'X' => Ok(StdLogicValue::X),
+            '1' => Ok(StdLogicValue::Logic(true)),
+            '0' => Ok(StdLogicValue::Logic(false)),
+            'Z' => Ok(StdLogicValue::Z),
+            'W' => Ok(StdLogicValue::W),
+            'L' => Ok(StdLogicValue::L),
+            'H' => Ok(StdLogicValue::H),
+            '-' => Ok(StdLogicValue::DontCare),
+            _ => Err(Error::InvalidArgument(format!(
+                "Unsupported std_logic value {}",
+                val
+            ))),
+        }
+    }
+}
+
+impl fmt::Display for StdLogicValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let symbol = match self {
+            StdLogicValue::U => "U",
+            StdLogicValue::X => "X",
+            StdLogicValue::Logic(value) => {
+                if *value {
+                    "1"
+                } else {
+                    "0"
+                }
+            }
+            StdLogicValue::Z => "Z",
+            StdLogicValue::W => "W",
+            StdLogicValue::L => "L",
+            StdLogicValue::H => "H",
+            StdLogicValue::DontCare => "-",
+        };
+        write!(f, "{}", symbol)
+    }
+}
+
 /// Directly assigning a value or an entire Record, corresponds to the Types defined in `tydi::generator::common::Type`
 #[derive(Debug, Clone)]
 pub enum DirectAssignment {
@@ -129,7 +186,7 @@ pub enum DirectAssignment {
     /// Assigning one or multiple values to a Record
     Record(IndexMap<String, Assignment>),
     /// Assigning a value to a variant within a Union
-    Union(Name, Box<Assignment>),
+    Union(String, Box<Assignment>),
     /// Assigning one or more values or objects directly to an array (may overlap with ObjectAssignment)
     Array(ArrayAssignment),
 }
@@ -219,9 +276,11 @@ impl RangeConstraint {
     /// Returns the width of the range
     pub fn width(&self) -> Width {
         match self {
-            RangeConstraint::To { start, end } => Width::Vector((end - start).try_into().unwrap()),
+            RangeConstraint::To { start, end } => {
+                Width::Vector((1 + end - start).try_into().unwrap())
+            }
             RangeConstraint::Downto { start, end } => {
-                Width::Vector((start - end).try_into().unwrap())
+                Width::Vector((1 + start - end).try_into().unwrap())
             }
             RangeConstraint::Index(_) => Width::Scalar,
         }

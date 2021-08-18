@@ -4,8 +4,8 @@
 
 use crate::generator::common::*;
 
-mod entity;
-mod architecture;
+pub mod entity;
+pub mod architecture;
 
 /// Indicates that a component drives default values
 ///

@@ -17,11 +17,11 @@ use crate::{Error, Result};
 
 use super::entity::Entity;
 
-mod assignment;
-mod declaration;
-mod impls;
-mod object;
-mod statement;
+pub mod assignment;
+pub mod declaration;
+pub mod impls;
+pub mod object;
+pub mod statement;
 
 // TODO: Figure this out, either make it a struct with specific contents, or a trait for something else to implement?
 /// Architecture statement.
@@ -51,7 +51,7 @@ pub struct Architecture {
 
 impl Architecture {
     /// Create the architecture based on a component contained within a package, assuming the library (project) is "work" and the architecture's identifier is "Behavioral"
-    pub fn new_default(package: Package, component_id: Name) -> Result<Architecture> {
+    pub fn new_default(package: &Package, component_id: Name) -> Result<Architecture> {
         Architecture::new(
             Name::try_new("work")?,
             Name::try_new("Behavioral")?,
@@ -64,7 +64,7 @@ impl Architecture {
     pub fn new(
         library_id: Name,
         identifier: Name,
-        package: Package,
+        package: &Package,
         component_id: Name,
     ) -> Result<Architecture> {
         if let Some(component) = package
@@ -107,7 +107,7 @@ impl Architecture {
 
 #[cfg(test)]
 mod tests {
-    use crate::generator::common::convert::Packify;
+    use crate::generator::{common::convert::Packify, vhdl::Declare};
 
     use super::*;
 
@@ -128,8 +128,10 @@ mod tests {
     #[test]
     fn new_architecture() {
         let package = test_package();
-        let architecture = Architecture::new_default(package, Name::try_new("test").unwrap());
+        let architecture =
+            Architecture::new_default(&package, Name::try_new("test").unwrap()).unwrap();
 
-        print!("{:?}", architecture);
+        print!("{}\n\n", package.declare().unwrap());
+        print!("{}\n\n", architecture.declare().unwrap());
     }
 }

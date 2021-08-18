@@ -165,8 +165,8 @@ impl ObjectType {
                     }
                 } else {
                     Err(Error::InvalidTarget(format!(
-                        "Cannot assign {} to Array",
-                        typ
+                        "Cannot assign {} to {}",
+                        typ, self
                     )))
                 }
             }
@@ -174,51 +174,25 @@ impl ObjectType {
     }
 
     pub fn can_assign(&self, assignment: &Assignment) -> Result<()> {
-        match self {
-            ObjectType::Bit => match assignment {
-                Assignment::Object(object) => {
-                    if object.to_field().len() > 0 {
-                        return Err(Error::InvalidTarget(
-                            "Cannot assign to a field of a Bit".to_string(),
-                        ));
-                    }
-                    match object.typ() {
-                        ObjectType::Bit => Ok(()),
-                        ObjectType::Array(_) | ObjectType::Record(_) => {
-                            if object.from_field().len() > 0 {
-                                let mut selected_object: ObjectType = object.typ().clone();
-                                for field in object.from_field() {
-                                    selected_object = selected_object.get_field(field)?;
-                                }
-                                self.can_assign_type(&selected_object)
-                            } else {
-                                Err(Error::InvalidTarget(format!(
-                                    "Cannot assign an entire {} to a Bit",
-                                    object.typ()
-                                )))
-                            }
-                        }
-                    }
+        match assignment {
+            Assignment::Object(object) => {
+                let mut from_object = object.typ().clone();
+                for field in object.from_field() {
+                    from_object = from_object.get_field(field)?;
                 }
-                Assignment::Direct(value) => match value {
-                    DirectAssignment::Bit(_) => Ok(()),
-                    DirectAssignment::BitVec(bitvec) => {
-                        if let Some(RangeConstraint::Index(_)) = bitvec.range_constraint() {
-                            Ok(())
-                        } else {
-                            Err(Error::InvalidTarget(
-                                "Cannot assign Bit Vector to Bit".to_string(),
-                            ))
-                        }
-                    }
-                    DirectAssignment::Record(record_assignments) => Err(Error::InvalidTarget(
-                        "Cannot perform name-indexed assignment to Bit".to_string(),
-                    )),
-                    DirectAssignment::Union(_, _) => todo!(),
-                },
+                let mut to_object = self.clone();
+                for field in object.to_field() {
+                    to_object = to_object.get_field(field)?;
+                }
+                to_object.can_assign_type(&from_object)
+            }
+            Assignment::Direct(direct) => match direct {
+                DirectAssignment::Bit(_) => todo!(),
+                DirectAssignment::BitVec(_) => todo!(),
+                DirectAssignment::Record(_) => todo!(),
+                DirectAssignment::Union(_, _) => todo!(),
+                DirectAssignment::Array(_) => todo!(),
             },
-            ObjectType::Array(_) => todo!(),
-            ObjectType::Record(_) => todo!(),
         }
     }
 }
