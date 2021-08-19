@@ -47,6 +47,55 @@ pub enum BitVecValue {
     Signed(i32),
 }
 
+impl BitVecValue {
+    pub fn declare(&self) -> Result<String> {
+        match self {
+            BitVecValue::Others(value) => Ok(format!("(others => '{}')", value)),
+            BitVecValue::Indexed(value) => Ok(format!("'{}'", value)),
+            BitVecValue::Full(bitvec) => {
+                let mut result = String::new();
+                for value in bitvec {
+                    result.push_str(value.to_string().as_str());
+                }
+                Ok(format!("\"{}\"", result))
+            }
+            BitVecValue::Unsigned(_) | BitVecValue::Signed(_) => Err(Error::InvalidTarget("Unable to declare bit vector value, signed and unsigned values require a width or object identifier.".to_string())),
+        }
+    }
+
+    /// Declares the value assigned for the object being assigned to (identifier required in case Range is empty)
+    pub fn declare_for(&self, object_identifier: String) -> String {
+        match self {
+            BitVecValue::Others(_) | BitVecValue::Indexed(_) | BitVecValue::Full(_) => {
+                self.declare().unwrap()
+            }
+            BitVecValue::Unsigned(value) => format!(
+                "std_logic_vector(to_unsigned({}, {}'length))",
+                value, object_identifier
+            ),
+            BitVecValue::Signed(value) => format!(
+                "std_logic_vector(to_signed({}, {}'length))",
+                value, object_identifier
+            ),
+        }
+    }
+
+    /// Declares the value assigned for the object being assigned to (identifier required in case Range is empty)
+    pub fn declare_for_width(&self, width: u32) -> String {
+        match self {
+            BitVecValue::Others(_) | BitVecValue::Indexed(_) | BitVecValue::Full(_) => {
+                self.declare().unwrap()
+            }
+            BitVecValue::Unsigned(value) => {
+                format!("std_logic_vector(to_unsigned({}, {}))", value, width)
+            }
+            BitVecValue::Signed(value) => {
+                format!("std_logic_vector(to_signed({}, {}))", value, width)
+            }
+        }
+    }
+}
+
 /// A struct for describing an assignment to a bit vector
 #[derive(Debug, Clone)]
 pub struct BitVecAssignment {
@@ -203,38 +252,9 @@ impl BitVecAssignment {
 
     /// Declares the value assigned for the object being assigned to (identifier required in case Range is empty)
     pub fn declare_for(&self, object_identifier: String) -> String {
-        match self.value() {
-            BitVecValue::Others(value) => format!("(others => '{}')", value),
-            BitVecValue::Indexed(value) => format!("'{}'", value),
-            BitVecValue::Full(bitvec) => {
-                let mut result = String::new();
-                for value in bitvec {
-                    result.push_str(value.to_string().as_str());
-                }
-                format!("\"{}\"", result)
-            }
-            BitVecValue::Unsigned(value) => match self.range_constraint() {
-                Some(range_constraint) => format!(
-                    "std_logic_vector(to_unsigned({}, {})",
-                    value,
-                    range_constraint.width_u32()
-                ),
-                None => format!(
-                    "std_logic_vector(to_unsigned({}, {}'length)",
-                    value, object_identifier
-                ),
-            },
-            BitVecValue::Signed(value) => match self.range_constraint() {
-                Some(range_constraint) => format!(
-                    "std_logic_vector(to_signed({}, {})",
-                    value,
-                    range_constraint.width_u32()
-                ),
-                None => format!(
-                    "std_logic_vector(to_signed({}, {}'length)",
-                    value, object_identifier
-                ),
-            },
+        match self.range_constraint() {
+            Some(range_constraint) => self.value().declare_for_width(range_constraint.width_u32()),
+            None => self.value().declare_for(object_identifier),
         }
     }
 }

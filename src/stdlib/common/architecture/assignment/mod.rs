@@ -69,7 +69,7 @@ impl AssignedObject {
                         RecordAssignment::Single {
                             field,
                             assignment: _,
-                        } => result.push_str(field),
+                        } => result.push_str(format!(".{}", field).as_str()),
                         // Records with multiple, but not all fields assigned have to be handled manually, while full assignments require no field selection on the assigned
                         RecordAssignment::Multiple(_) => (),
                         RecordAssignment::Full(_) => (),
@@ -251,6 +251,24 @@ impl FieldAssignment {
         match self {
             FieldAssignment::Value(value) => value.declare_for(object_identifier),
             FieldAssignment::Object(object) => object.to_string(),
+        }
+    }
+
+    // TODO: This concept needs to be re-written at some point, bit vectors never should have gotten their own "to" fields
+    /// If this assignment further selects a field on the object/field being assigned to (e.g., a range for bit vectors), outputs the string representation of that range.
+    pub fn assigns_to(&self) -> String {
+        match self {
+            FieldAssignment::Value(value) => match value {
+                ValueAssignment::Bit(_) => "".to_string(),
+                ValueAssignment::BitVec(bitvec) => {
+                    if let Some(range) = bitvec.range_constraint() {
+                        range.to_string()
+                    } else {
+                        "".to_string()
+                    }
+                }
+            },
+            FieldAssignment::Object(_) => "".to_string(),
         }
     }
 }
