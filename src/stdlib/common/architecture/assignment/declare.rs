@@ -1,14 +1,8 @@
 use crate::{
-    generator::vhdl::Declare,
-    stdlib::common::architecture::{
-        assignment::record_assignment::RecordAssignment,
-        declaration::{ObjectDeclaration, ObjectKind},
-        object::ObjectType,
-    },
-    Error, Result,
+    stdlib::common::architecture::declaration::{ObjectKind}, Result,
 };
 
-use super::{AssignedObject, Assignment, DirectAssignment};
+use super::{AssignedObject};
 
 pub trait DeclareAssignment {
     /// Declare the full assignment, pre is useful for tabs/spaces, post is useful for closing characters (','/';')
@@ -19,91 +13,20 @@ impl DeclareAssignment for AssignedObject {
     fn declare(&self, pre: &str, post: &str) -> Result<String> {
         let mut result = pre.to_string();
         result.push_str(&self.object_string());
-        let assign_symbol = match self.object.kind() {
+        result.push_str(match self.object.kind() {
             ObjectKind::Signal => " <= ",
             ObjectKind::Variable => " := ",
             ObjectKind::Constant => " := ",
             ObjectKind::EntityPort => " <= ",
             ObjectKind::ComponentPort => " => ",
-        };
-        match self.assignment() {
-            Assignment::Object(object) => {
-                result.push_str(assign_symbol);
-                result.push_str(object.object().identifier());
-                for field in object.from_field() {
-                    result.push_str(field.to_string().as_str())
-                }
-                result.push_str(post);
-            }
-            Assignment::Direct(direct) => match direct {
-                DirectAssignment::Value(value_assignment) => {
-                    result.push_str(assign_symbol);
-                    result.push_str(&value_assignment.declare_for(self.object_string()));
-                    result.push_str(post);
-                }
-                DirectAssignment::Record(record) => {
-                    if let ObjectType::Record(record_obj) = self.object().typ() {
-                        match record {
-                            RecordAssignment::Single {
-                                field: _,
-                                assignment,
-                            } => {
-                                result.push_str(assign_symbol);
-                                result.push_str(&assignment.declare_for(self.object_string()));
-                                result.push_str(post);
-                            }
-                            RecordAssignment::Multiple(assignments) => {
-                                let mut assigns = Vec::new();
-                                for key in record_obj.fields().keys() {
-                                    if let Some(assignment) = assignments.get(key) {
-                                        let obj_w_field = &format!(
-                                            "{}.{}{}",
-                                            self.object_string(),
-                                            key,
-                                            assignment.assigns_to()
-                                        );
-                                        assigns.push(format!(
-                                            "{}{}{}",
-                                            obj_w_field,
-                                            assign_symbol,
-                                            assignment.declare_for(obj_w_field.to_string()),
-                                        ));
-                                    }
-                                }
-                                result = assigns.join(&format!("{}\n{}", post, pre));
-                                result.push_str(post);
-                            }
-                            RecordAssignment::Full(assignments) => {
-                                result.push_str(assign_symbol);
-                                result.push_str("(");
-                                let mut inner_assigns = Vec::new();
-                                // Use the ordering of the record itself, to avoid errors
-                                for key in record_obj.fields().keys() {
-                                    inner_assigns.push(format!(
-                                        "\n {} {} => {}",
-                                        pre,
-                                        key,
-                                        assignments.get(key).ok_or(Error::InvalidArgument(format!("Attempting full record assignment, assignment for field \"{}\" is missing", key)))?.declare_for(self.object_string()),
-                                    ));
-                                }
-                                result.push_str(inner_assigns.join(",").as_str());
-                                result.push_str(&format!("\n{}){}", pre, post));
-                            }
-                        }
-                    } else {
-                        return Err(Error::InvalidTarget(format!(
-                            "Cannot assign Record to type {}",
-                            self.object().typ()
-                        )));
-                    }
-                }
-                DirectAssignment::Union {
-                    variant: _,
-                    assignment: _,
-                } => todo!(),
-                DirectAssignment::Array(_) => todo!(),
-            },
-        }
+        });
+        result.push_str(
+            &self
+                .assignment()
+                .declare_for(self.object_string())?
+                .replace("##pre##", pre),
+        );
+        result.push_str(post);
         result.push_str("\n");
         Ok(result)
     }
@@ -116,11 +39,11 @@ mod tests {
     use indexmap::IndexMap;
 
     use crate::generator::common::test::records;
-    use crate::stdlib::common::architecture::assignment::{RangeConstraint, StdLogicValue};
-    use crate::stdlib::common::architecture::declaration::ObjectMode;
+    use crate::stdlib::common::architecture::assignment::{Assignment, AssignmentKind, StdLogicValue};
+    use crate::stdlib::common::architecture::declaration::{ObjectDeclaration, ObjectMode};
     use crate::stdlib::common::architecture::object::ObjectType;
     use crate::stdlib::common::architecture::{
-        assignment::bitvec::BitVecAssignment, declaration::tests::test_complex_signal,
+        assignment::bitvec::BitVecValue, declaration::tests::test_complex_signal,
     };
     use crate::Result;
 
@@ -185,13 +108,12 @@ mod tests {
 
     #[test]
     fn print_bitvec_assign() -> Result<()> {
-        let a_others = BitVecAssignment::others(StdLogicValue::Logic(true), None)?;
-        let a_unsigned = BitVecAssignment::unsigned(32, None)?;
-        let a_unsigned_range =
-            BitVecAssignment::unsigned(32, Some(RangeConstraint::downto(10, 0)?))?;
-        let a_signed = BitVecAssignment::signed(-32, None)?;
-        let a_signed_range = BitVecAssignment::signed(-32, Some(RangeConstraint::to(0, 10)?))?;
-        let a_str = BitVecAssignment::from_str("1-XUL0H")?;
+        let a_others = BitVecValue::Others(StdLogicValue::Logic(true));
+        let a_unsigned = BitVecValue::Unsigned(32);
+        let a_unsigned_range = BitVecValue::Unsigned(32);
+        let a_signed = BitVecValue::Signed(-32);
+        let a_signed_range = BitVecValue::Signed(-32);
+        let a_str = BitVecValue::from_str("1-XUL0H")?;
         print!(
             "{}",
             AssignedObject::new(test_complex_signal()?, a_others.into()).declare("", ";")?
@@ -202,8 +124,11 @@ mod tests {
         );
         print!(
             "{}",
-            AssignedObject::new(test_complex_signal()?, a_unsigned_range.into())
-                .declare("", ";")?
+            AssignedObject::new(
+                test_complex_signal()?,
+                Assignment::from(a_unsigned_range).to_downto(10, 0)?
+            )
+            .declare("", ";")?
         );
         print!(
             "{}",
@@ -211,7 +136,11 @@ mod tests {
         );
         print!(
             "{}",
-            AssignedObject::new(test_complex_signal()?, a_signed_range.into()).declare("", ";")?
+            AssignedObject::new(
+                test_complex_signal()?,
+                Assignment::from(a_signed_range).to_to(0, 10)?
+            )
+            .declare("", ";")?
         );
         print!(
             "{}",
@@ -222,26 +151,19 @@ mod tests {
 
     #[test]
     fn print_record_assign() -> Result<()> {
-        let a_single = RecordAssignment::single(
-            "c".to_string(),
-            BitVecAssignment::others(StdLogicValue::H, None)?.into(),
-        );
+        let a_single = BitVecValue::Others(StdLogicValue::H);
         let mut multifields = IndexMap::new();
         multifields.insert(
             "c".to_string(),
-            BitVecAssignment::others(StdLogicValue::H, None)?.into(),
+            BitVecValue::Others(StdLogicValue::H).into(),
         );
-        multifields.insert(
-            "d".to_string(),
-            BitVecAssignment::signed(-55, Some(RangeConstraint::downto(60, 40)?))?.into(),
-        );
-        let a_multiple = RecordAssignment::multiple(multifields.clone());
-        let a_full = RecordAssignment::full(multifields.clone());
+        multifields.insert("d".to_string(), BitVecValue::Signed(-55).into());
+        let a_full = AssignmentKind::full_record(multifields);
         print!(
             "{}",
             AssignedObject::new(
                 test_record_var("rectype".to_string(), "recname".to_string())?,
-                a_single.into()
+                Assignment::from(a_single.clone()).to_named("c")
             )
             .declare("", ";")?
         );
@@ -249,7 +171,7 @@ mod tests {
             "{}",
             AssignedObject::new(
                 test_record_var("rectype".to_string(), "recname2".to_string())?,
-                a_multiple.into()
+                Assignment::from(a_single.clone()).to_named("c").to_downto(40, 30)?
             )
             .declare("", ";")?
         );
@@ -259,7 +181,7 @@ mod tests {
                 test_record_var("rectype".to_string(), "recname3".to_string())?,
                 a_full.into()
             )
-            .declare("", ";")?
+            .declare("  ", ";")?
         );
         Ok(())
     }

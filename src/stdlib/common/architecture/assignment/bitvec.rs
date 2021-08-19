@@ -27,8 +27,6 @@ fn min_length_signed(value: i32) -> u32 {
 pub enum BitVecValue {
     /// Value assigned as (others => value)
     Others(StdLogicValue),
-    /// A single value assigned to an index
-    Indexed(StdLogicValue),
     /// A full, specific range of std_logic values is assigned
     ///
     /// Result (example): "01-XULH"
@@ -48,10 +46,55 @@ pub enum BitVecValue {
 }
 
 impl BitVecValue {
+    /// Create a bit vector value from a string
+    pub fn from_str(value: &str) -> Result<BitVecValue> {
+        let logicvals = value
+            .chars()
+            .map(StdLogicValue::from_char)
+            .collect::<Result<Vec<StdLogicValue>>>()?;
+        Ok(BitVecValue::Full(logicvals))
+    }
+
+    pub fn validate_width(&self, width: u32) -> Result<()> {
+        match self {
+            BitVecValue::Others(_) => Ok(()),
+            BitVecValue::Full(full) => {
+                if full.len() == width.try_into().unwrap() {
+                    Ok(())
+                } else {
+                    Err(Error::InvalidArgument(format!(
+                        "Value with length {} cannot be assigned to bit vector with length {}",
+                        full.len(),
+                        width
+                    )))
+                }
+            }
+            BitVecValue::Unsigned(value) => {
+                if min_length_unsigned(*value) > width {
+                    Err(Error::InvalidArgument(format!(
+                        "Cannot assign unsigned integer {} to range with width {}",
+                        value, width
+                    )))
+                } else {
+                    Ok(())
+                }
+            }
+            BitVecValue::Signed(value) => {
+                if min_length_signed(*value) > width {
+                    Err(Error::InvalidArgument(format!(
+                        "Cannot assign signed integer {} to range with width {}",
+                        value, width
+                    )))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+    }
+
     pub fn declare(&self) -> Result<String> {
         match self {
             BitVecValue::Others(value) => Ok(format!("(others => '{}')", value)),
-            BitVecValue::Indexed(value) => Ok(format!("'{}'", value)),
             BitVecValue::Full(bitvec) => {
                 let mut result = String::new();
                 for value in bitvec {
@@ -66,9 +109,7 @@ impl BitVecValue {
     /// Declares the value assigned for the object being assigned to (identifier required in case Range is empty)
     pub fn declare_for(&self, object_identifier: String) -> String {
         match self {
-            BitVecValue::Others(_) | BitVecValue::Indexed(_) | BitVecValue::Full(_) => {
-                self.declare().unwrap()
-            }
+            BitVecValue::Others(_) | BitVecValue::Full(_) => self.declare().unwrap(),
             BitVecValue::Unsigned(value) => format!(
                 "std_logic_vector(to_unsigned({}, {}'length))",
                 value, object_identifier
@@ -80,181 +121,31 @@ impl BitVecValue {
         }
     }
 
-    /// Declares the value assigned for the object being assigned to (identifier required in case Range is empty)
-    pub fn declare_for_width(&self, width: u32) -> String {
+    /// Declares the value assigned for the range being assigned to
+    pub fn declare_for_range(&self, range: &RangeConstraint) -> Result<String> {
         match self {
-            BitVecValue::Others(_) | BitVecValue::Indexed(_) | BitVecValue::Full(_) => {
-                self.declare().unwrap()
-            }
-            BitVecValue::Unsigned(value) => {
-                format!("std_logic_vector(to_unsigned({}, {}))", value, width)
-            }
-            BitVecValue::Signed(value) => {
-                format!("std_logic_vector(to_signed({}, {}))", value, width)
-            }
-        }
-    }
-}
-
-/// A struct for describing an assignment to a bit vector
-#[derive(Debug, Clone)]
-pub struct BitVecAssignment {
-    /// When range_constraint is None, the entire range is assigned
-    range_constraint: Option<RangeConstraint>,
-    /// The values assigned to the range
-    value: BitVecValue,
-}
-
-impl BitVecAssignment {
-    /// Create a new index-based assignment of a bit vector
-    pub fn index(value: StdLogicValue, index: i32) -> BitVecAssignment {
-        BitVecAssignment {
-            range_constraint: Some(RangeConstraint::Index(index)),
-            value: BitVecValue::Indexed(value),
-        }
-    }
-
-    pub fn new(range_constraint: Option<RangeConstraint>, value: BitVecValue) -> BitVecAssignment {
-        BitVecAssignment {
-            range_constraint,
-            value,
-        }
-    }
-
-    pub fn from_str(value: &str) -> Result<BitVecAssignment> {
-        let logicvals = value
-            .chars()
-            .map(StdLogicValue::from_char)
-            .collect::<Result<Vec<StdLogicValue>>>()?;
-        Ok(BitVecAssignment {
-            range_constraint: None,
-            value: BitVecValue::Full(logicvals),
-        })
-    }
-
-    pub fn from_str_range(value: &str, range: RangeConstraint) -> Result<BitVecAssignment> {
-        let logicvals = value
-            .chars()
-            .map(StdLogicValue::from_char)
-            .collect::<Result<Vec<StdLogicValue>>>()?;
-        Ok(BitVecAssignment {
-            range_constraint: Some(range),
-            value: BitVecValue::Full(logicvals),
-        })
-    }
-
-    /// Create a new downto-range assignment of a bit vector
-    pub fn downto(
-        value: Vec<StdLogicValue>,
-        start: i32,
-        end: i32,
-    ) -> crate::Result<BitVecAssignment> {
-        if usize::try_from(start - end)
-            .map(|w| w == value.len())
-            .unwrap_or(false)
-        {
-            Ok(BitVecAssignment {
-                range_constraint: Some(RangeConstraint::downto(start, end)?),
-                value: BitVecValue::Full(value),
-            })
-        } else {
-            Err(Error::InvalidArgument(format!("Values do not match range")))
-        }
-    }
-
-    /// Create a new to-range assignment of a bit vector
-    pub fn to(value: Vec<StdLogicValue>, start: i32, end: i32) -> crate::Result<BitVecAssignment> {
-        if usize::try_from(end - start)
-            .map(|w| w == value.len())
-            .unwrap_or(false)
-        {
-            Ok(BitVecAssignment {
-                range_constraint: Some(RangeConstraint::to(start, end)?),
-                value: BitVecValue::Full(value),
-            })
-        } else {
-            Err(Error::InvalidArgument(format!("Values do not match range")))
-        }
-    }
-
-    /// Create a new assignment of a bit vector, with all values assigned to `value`
-    pub fn others(
-        value: StdLogicValue,
-        range_constraint: Option<RangeConstraint>,
-    ) -> crate::Result<BitVecAssignment> {
-        if let Some(RangeConstraint::Index(_)) = range_constraint {
-            return Err(Error::InvalidTarget(
-                "Cannot assign (others => '') to indexed std_logic".to_string(),
-            ));
-        }
-        Ok(BitVecAssignment {
-            range_constraint,
-            value: BitVecValue::Others(value),
-        })
-    }
-
-    /// Create a new assignment of a bit vector from an unsigned integer (natural)
-    pub fn unsigned(
-        value: u32,
-        range_constraint: Option<RangeConstraint>,
-    ) -> crate::Result<BitVecAssignment> {
-        if let Some(constraint) = &range_constraint {
-            if let RangeConstraint::Index(_) = constraint {
-                return Err(Error::InvalidTarget(
+            BitVecValue::Others(_) | BitVecValue::Full(_) => self.declare(),
+            BitVecValue::Unsigned(value) => match range.width() {
+                Width::Scalar => Err(Error::InvalidTarget(
                     "Cannot assign an std_logic_vector(unsigned) to indexed std_logic".to_string(),
-                ));
-            } else if min_length_unsigned(value) > constraint.width_u32() {
-                return Err(Error::InvalidArgument(format!(
-                    "Cannot assign unsigned integer {} to range with width {}",
-                    value,
-                    constraint.width_u32()
-                )));
-            }
-        }
-        Ok(BitVecAssignment {
-            range_constraint,
-            value: BitVecValue::Unsigned(value),
-        })
-    }
-
-    /// Create a new assignment of a bit vector from a signed integer
-    pub fn signed(
-        value: i32,
-        range_constraint: Option<RangeConstraint>,
-    ) -> crate::Result<BitVecAssignment> {
-        if let Some(constraint) = &range_constraint {
-            if let RangeConstraint::Index(_) = constraint {
-                return Err(Error::InvalidTarget(
+                )),
+                Width::Vector(width) => {
+                    self.validate_width(width)?;
+                    Ok(format!(
+                        "std_logic_vector(to_unsigned({}, {}))",
+                        value, width
+                    ))
+                }
+            },
+            BitVecValue::Signed(value) => match range.width() {
+                Width::Scalar => Err(Error::InvalidTarget(
                     "Cannot assign an std_logic_vector(signed) to indexed std_logic".to_string(),
-                ));
-            } else if min_length_signed(value) > constraint.width_u32() {
-                return Err(Error::InvalidArgument(format!(
-                    "Cannot assign signed integer {} to range with width {}",
-                    value,
-                    constraint.width_u32()
-                )));
-            }
-        }
-        Ok(BitVecAssignment {
-            range_constraint,
-            value: BitVecValue::Signed(value),
-        })
-    }
-
-    /// Returns the range constraint of this assignment
-    pub fn range_constraint(&self) -> Option<RangeConstraint> {
-        self.range_constraint.clone()
-    }
-
-    pub fn value(&self) -> &BitVecValue {
-        &self.value
-    }
-
-    /// Declares the value assigned for the object being assigned to (identifier required in case Range is empty)
-    pub fn declare_for(&self, object_identifier: String) -> String {
-        match self.range_constraint() {
-            Some(range_constraint) => self.value().declare_for_width(range_constraint.width_u32()),
-            None => self.value().declare_for(object_identifier),
+                )),
+                Width::Vector(width) => {
+                    self.validate_width(width)?;
+                    Ok(format!("std_logic_vector(to_signed({}, {}))", value, width))
+                }
+            },
         }
     }
 }

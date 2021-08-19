@@ -11,11 +11,13 @@ use crate::{
         common::{Array, Record, Type},
         vhdl::VHDLIdentifier,
     },
-    stdlib::common::architecture::assignment::DirectAssignment,
+    stdlib::common::architecture::assignment::{
+        bitvec::BitVecValue, DirectAssignment, ValueAssignment,
+    },
     Error, Identify, Name, Result,
 };
 
-use super::assignment::{Assignment, FieldSelection, RangeConstraint};
+use super::assignment::{Assignment, AssignmentKind, FieldSelection, RangeConstraint};
 
 /// Types of VHDL objects, possibly referring to fields
 #[derive(Debug, Clone)]
@@ -158,7 +160,7 @@ impl ObjectType {
                         Ok(())
                     } else {
                         Err(Error::InvalidTarget(format!(
-                            "Cannot assign record type {} directly to record type {}",
+                            "Cannot assign record type {} to record type {}",
                             from_record.type_name(),
                             to_record.type_name(),
                         )))
@@ -174,23 +176,31 @@ impl ObjectType {
     }
 
     pub fn can_assign(&self, assignment: &Assignment) -> Result<()> {
-        match assignment {
-            Assignment::Object(object) => {
-                let mut from_object = object.typ().clone();
-                for field in object.from_field() {
-                    from_object = from_object.get_field(field)?;
-                }
-                let mut to_object = self.clone();
-                for field in object.to_field() {
-                    to_object = to_object.get_field(field)?;
-                }
-                to_object.can_assign_type(&from_object)
-            }
-            Assignment::Direct(direct) => match direct {
-                DirectAssignment::Value(_) => todo!(),
-                DirectAssignment::Record(_) => todo!(),
-                DirectAssignment::Union { variant: _, assignment: _ } => todo!(),
-                DirectAssignment::Array(_) => todo!(),
+        let mut to_object = self.clone();
+        for field in assignment.to_field() {
+            to_object = to_object.get_field(field)?;
+        }
+        match assignment.kind() {
+            AssignmentKind::Object(object) => to_object.can_assign_type(&object.typ()?),
+            AssignmentKind::Direct(direct) => match direct {
+                DirectAssignment::Value(value) => match value {
+                    ValueAssignment::Bit(_) => match to_object {
+                        ObjectType::Bit => Ok(()),
+                        ObjectType::Array(_) | ObjectType::Record(_) => Err(Error::InvalidTarget(
+                            format!("Cannot assign Bit to {}", to_object),
+                        )),
+                    },
+                    ValueAssignment::BitVec(bitvec) => match to_object {
+                        ObjectType::Array(array) if array.is_bitvector() => {
+                            bitvec.validate_width(array.width())
+                        },
+                        _ => Err(Error::InvalidTarget(
+                            format!("Cannot assign Bit Vector to {}", to_object),
+                        )),
+                    },
+                },
+                DirectAssignment::FullRecord(_) => todo!(),
+                DirectAssignment::FullArray(_) => todo!(),
             },
         }
     }
@@ -293,6 +303,13 @@ impl ArrayObject {
 
     pub fn width(&self) -> u32 {
         (self.high - self.low).try_into().unwrap()
+    }
+
+    pub fn is_bitvector(&self) -> bool {
+        match self.typ() {
+            ObjectType::Bit => true,
+            _ => false,
+        }
     }
 }
 

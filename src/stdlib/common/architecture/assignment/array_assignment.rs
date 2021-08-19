@@ -1,56 +1,40 @@
+use indexmap::IndexMap;
+
 use crate::{
-    stdlib::common::architecture::assignment::{Assignment, RangeConstraint},
+    stdlib::common::architecture::assignment::{AssignmentKind, RangeConstraint},
     Error, Result,
 };
-
-use super::{DirectAssignment, FieldAssignment};
 
 /// An enum for describing an assignment to an array
 #[derive(Debug, Clone)]
 pub enum ArrayAssignment {
-    /// Assigning a range of an array with a value
-    Range(ArrayRangeAssignment),
     /// Assigning all of an array directly (may concatenate objects)
-    Direct(Vec<FieldAssignment>),
+    Direct(Vec<AssignmentKind>),
+    /// Assign some fields directly, and assign all other fields a single value (e.g. ( 1 => '1', others => '0' ), or ( 1 downto 0 => '1', others => '0' ))
+    Partial {
+        direct: IndexMap<RangeConstraint, AssignmentKind>,
+        others: Box<AssignmentKind>,
+    },
     /// Assigning a single value to all of an array
-    Others(Box<FieldAssignment>),
+    Others(Box<AssignmentKind>),
 }
 
-#[derive(Debug, Clone)]
-pub struct ArrayRangeAssignment {
-    assignment: Box<FieldAssignment>,
-    range_constraint: RangeConstraint,
-}
-
-impl ArrayRangeAssignment {
-    pub fn new(
-        assignment: FieldAssignment,
-        range_constraint: RangeConstraint,
-    ) -> Result<ArrayRangeAssignment> {
-        todo!()
-        // match assignment {
-        //     DirectAssignment::Bit(_) => match range_constraint {
-        //         RangeConstraint::Index(_) => Ok(ArrayRangeAssignment {
-        //             assignment: Box::new(assignment),
-        //             range_constraint,
-        //         }),
-        //         _ => Err(Error::InvalidTarget(format!(
-        //             "Cannot assign Bit to range {}",
-        //             range_constraint
-        //         ))),
-        //     },
-        //     DirectAssignment::BitVec(_) => todo!(),
-        //     DirectAssignment::Record(_) => todo!(),
-        //     DirectAssignment::Union(_, _) => todo!(),
-        //     DirectAssignment::Array(_) => todo!(),
-        // }
+impl ArrayAssignment {
+    pub fn direct(values: Vec<AssignmentKind>) -> ArrayAssignment {
+        ArrayAssignment::Direct(values)
     }
 
-    pub fn assignment(&self) -> &FieldAssignment {
-        &self.assignment
+    pub fn partial(
+        direct: IndexMap<RangeConstraint, AssignmentKind>,
+        others: AssignmentKind,
+    ) -> ArrayAssignment {
+        ArrayAssignment::Partial {
+            direct,
+            others: Box::new(others),
+        }
     }
 
-    pub fn range_constraint(&self) -> &RangeConstraint {
-        &self.range_constraint
+    pub fn others(value: AssignmentKind) -> ArrayAssignment {
+        ArrayAssignment::Others(Box::new(value))
     }
 }

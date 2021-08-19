@@ -11,12 +11,12 @@ use crate::{
 };
 
 use super::{
-    assignment::{AssignedObject, Assignment},
+    assignment::{AssignedObject, AssignmentKind},
     declaration::ObjectDeclaration,
 };
 
 pub enum Statement {
-    Assignment(Assignment),
+    Assignment(AssignmentKind),
     PortMapping(PortMapping),
 }
 
@@ -60,7 +60,7 @@ impl PortMapping {
         &self.mappings
     }
 
-    pub fn map_port(mut self, identifier: String, assignment: Assignment) -> Result<Self> {
+    pub fn map_port(mut self, identifier: String, assignment: AssignmentKind) -> Result<Self> {
         let port = self
             .ports()
             .get(&identifier)

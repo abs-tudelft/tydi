@@ -12,18 +12,16 @@ use crate::{Error, Name, Result};
 use super::declaration::ObjectDeclaration;
 use super::object::ObjectType;
 
-use self::bitvec::BitVecAssignment;
-use self::record_assignment::RecordAssignment;
+use self::bitvec::BitVecValue;
 
 pub mod array_assignment;
 pub mod assign;
 pub mod assignment_from;
 pub mod bitvec;
 pub mod declare;
-pub mod record_assignment;
 
 pub trait Assign {
-    fn assign(&self, assignment: Assignment) -> Result<AssignedObject>;
+    fn assign(&self, assignment: AssignmentKind) -> Result<AssignedObject>;
 }
 
 /// Describing a specific object being assigned with something
@@ -46,67 +44,142 @@ impl AssignedObject {
         &self.assignment
     }
 
-    /// The object declaration with any field selections on it (barring records which have multiple, but not all fields selected)
+    /// The object declaration with any field selections on it
     pub fn object_string(&self) -> String {
         let mut result = self.object().identifier().to_string();
-        match self.assignment() {
-            Assignment::Object(object) => {
-                for field in object.to_field() {
-                    result.push_str(field.to_string().as_str())
-                }
-            }
-            Assignment::Direct(direct) => match direct {
-                DirectAssignment::Value(value) => match value {
-                    ValueAssignment::Bit(_) => (),
-                    ValueAssignment::BitVec(bitvec) => {
-                        if let Some(range_constraint) = bitvec.range_constraint() {
-                            result.push_str(&range_constraint.to_string());
-                        }
-                    }
-                },
-                DirectAssignment::Record(record) => {
-                    match record {
-                        RecordAssignment::Single {
-                            field,
-                            assignment: _,
-                        } => result.push_str(format!(".{}", field).as_str()),
-                        // Records with multiple, but not all fields assigned have to be handled manually, while full assignments require no field selection on the assigned
-                        RecordAssignment::Multiple(_) => (),
-                        RecordAssignment::Full(_) => (),
-                    }
-                }
-                DirectAssignment::Union {
-                    variant,
-                    assignment: _,
-                } => result.push_str(variant),
-                DirectAssignment::Array(array) => match array {
-                    ArrayAssignment::Range(array_range) => {
-                        result.push_str(&array_range.range_constraint().to_string())
-                    }
-                    ArrayAssignment::Direct(_) => (),
-                    ArrayAssignment::Others(_) => (),
-                },
-            },
+        for field in self.assignment().to_field() {
+            result.push_str(&field.to_string());
         }
         result
     }
 }
 
-/// An object can be assigned a value or from another object
+/// An object can be assigned from another object or directly
 #[derive(Debug, Clone)]
-pub enum Assignment {
-    /// An object is assigned from or driven by another object
-    Object(ObjectAssignment),
-    /// An object is assigned a value directly, or completely filled
-    Direct(DirectAssignment),
+pub struct Assignment {
+    /// Indicates assignment to (nested) fields. (Named or range)
+    to_field: Vec<FieldSelection>,
+    /// Indicates the kind of assignment (object to object, or directly to object)
+    kind: AssignmentKind,
 }
 
 impl Assignment {
-    pub fn direct_union(name: String, assignment: FieldAssignment) -> Assignment {
-        Assignment::Direct(DirectAssignment::Union {
-            variant: name,
-            assignment: Box::new(assignment),
-        })
+    pub fn to(mut self, to: FieldSelection) -> Self {
+        self.to_field.push(to);
+        self
+    }
+
+    /// Append a named field selection
+    pub fn to_named(self, to: &str) -> Self {
+        self.to(FieldSelection::Name(to.to_string()))
+    }
+
+    /// Append a range field selection
+    pub fn to_range(self, to: RangeConstraint) -> Self {
+        self.to(FieldSelection::Range(to))
+    }
+
+    /// Append a downto range field selection
+    pub fn to_downto(self, start: i32, end: i32) -> Result<Self> {
+        Ok(self.to_range(RangeConstraint::downto(start, end)?))
+    }
+
+    /// Append a to range field selection
+    pub fn to_to(self, start: i32, end: i32) -> Result<Self> {
+        Ok(self.to_range(RangeConstraint::to(start, end)?))
+    }
+
+    /// Append a to range field selection
+    pub fn to_index(self, start: i32, end: i32) -> Result<Self> {
+        Ok(self.to_range(RangeConstraint::to(start, end)?))
+    }
+
+    /// Returns the fields selected
+    pub fn to_field(&self) -> &Vec<FieldSelection> {
+        &self.to_field
+    }
+
+    /// Returns the assignment kind
+    pub fn kind(&self) -> &AssignmentKind {
+        &self.kind
+    }
+
+    pub fn declare_for(&self, object_identifier: String) -> Result<String> {
+        if let AssignmentKind::Direct(DirectAssignment::Value(ValueAssignment::BitVec(bitvec))) =
+            self.kind()
+        {
+            if let Some(FieldSelection::Range(range)) = self.to_field().last() {
+                return bitvec.declare_for_range(range);
+            }
+        }
+        self.kind().declare_for(object_identifier)
+    }
+}
+
+/// An object can be assigned a value or from another object
+#[derive(Debug, Clone)]
+pub enum AssignmentKind {
+    /// An object is assigned from or driven by another object
+    Object(ObjectAssignment),
+    /// An object is assigned a value, or all fields are assigned/driven at once
+    Direct(DirectAssignment),
+}
+
+impl AssignmentKind {
+    pub fn full_record(fields: IndexMap<String, AssignmentKind>) -> AssignmentKind {
+        AssignmentKind::Direct(DirectAssignment::FullRecord(fields))
+    }
+
+    pub fn declare_for(&self, object_identifier: String) -> Result<String> {
+        match self {
+            AssignmentKind::Object(object) => Ok(object.to_string()),
+            AssignmentKind::Direct(direct) => match direct {
+                DirectAssignment::Value(value) => match value {
+                    ValueAssignment::Bit(bit) => Ok(format!("'{}'", bit)),
+                    ValueAssignment::BitVec(bitvec) => Ok(bitvec.declare_for(object_identifier)),
+                },
+                DirectAssignment::FullRecord(record) => {
+                    let mut field_assignments = Vec::new();
+                    for (field, value) in record {
+                        field_assignments.push(format!(
+                            "\n##pre## {} => {}",
+                            field,
+                            value.declare_for(format!("{}.{}", object_identifier, field))?
+                        ));
+                    }
+                    Ok(format!("({}\n##pre##)", field_assignments.join(",")))
+                }
+                DirectAssignment::FullArray(array) => match array {
+                    ArrayAssignment::Direct(direct) => {
+                        let mut positionals = Vec::new();
+                        for value in direct {
+                            positionals
+                                .push(value.declare_for(format!("{}'element", object_identifier))?);
+                        }
+                        Ok(format!("( {} )", positionals.join(", ")))
+                    }
+                    ArrayAssignment::Partial { direct, others } => {
+                        let mut field_assignments = Vec::new();
+                        for (range, value) in direct {
+                            field_assignments.push(format!(
+                                "\n##pre## {} => {}",
+                                range.to_string().replace("(", "").replace(")", ""),
+                                value.declare_for(format!("{}'element", object_identifier))?
+                            ));
+                        }
+                        field_assignments.push(format!(
+                            "\n##pre## others => {}",
+                            others.declare_for(format!("{}'element", object_identifier))?
+                        ));
+                        Ok(format!("({}\n##pre##)", field_assignments.join(",")))
+                    }
+                    ArrayAssignment::Others(value) => Ok(format!(
+                        "( others => {} )",
+                        value.declare_for(format!("{}'element", object_identifier))?
+                    )),
+                },
+            },
+        }
     }
 }
 
@@ -115,10 +188,18 @@ impl Assignment {
 pub struct ObjectAssignment {
     /// The object being assigned from
     object: Box<ObjectDeclaration>,
-    /// Optional selections on the object being assigned to, representing nested selections
-    to_field: Vec<FieldSelection>,
     /// Optional selections on the object being assigned from, representing nested selections
     from_field: Vec<FieldSelection>,
+}
+
+impl fmt::Display for ObjectAssignment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut result = self.object().identifier().to_string();
+        for field in self.from_field() {
+            result.push_str(&field.to_string());
+        }
+        write!(f, "{}", result)
+    }
 }
 
 impl ObjectAssignment {
@@ -128,34 +209,31 @@ impl ObjectAssignment {
     }
 
     /// Select fields from the object being assigned
-    pub fn assign_from(mut self, from_field: FieldSelection) -> Result<Self> {
-        match self.typ() {
-            ObjectType::Bit => todo!(),
-            ObjectType::Array(_) => todo!(),
-            ObjectType::Record(_) => todo!(),
+    pub fn assign_from(mut self, fields: Vec<FieldSelection>) -> Result<Self> {
+        let mut object = self.object().typ().clone();
+        // Verify the fields exist
+        for field in self.from_field() {
+            object = object.get_field(field)?;
         }
-    }
+        for field in fields {
+            object = object.get_field(&field)?;
+            self.from_field.push(field)
+        }
 
-    pub fn assign_to(mut self, to_field: FieldSelection) -> Self {
-        self.to_field.push(to_field);
-        self
-    }
-
-    pub fn to_field(&self) -> &Vec<FieldSelection> {
-        &self.to_field
+        Ok(self)
     }
 
     pub fn from_field(&self) -> &Vec<FieldSelection> {
         &self.from_field
     }
 
-    pub fn typ(&self) -> &ObjectType {
-        self.object().typ()
-    }
-
-    pub fn finish(self) -> Result<Self> {
-        /// TODO: Check whether constraints are possible
-        todo!()
+    /// Returns the object type of the selected field
+    pub fn typ(&self) -> Result<ObjectType> {
+        let mut object = self.object().typ().clone();
+        for field in self.from_field() {
+            object = object.get_field(field)?;
+        }
+        Ok(object)
     }
 }
 
@@ -227,50 +305,10 @@ impl fmt::Display for StdLogicValue {
 pub enum DirectAssignment {
     /// Assigning a specific value to a bit vector or single bit
     Value(ValueAssignment),
-    /// Assigning one or multiple values to a Record
-    Record(RecordAssignment),
-    /// Assigning a value to a variant within a Union
-    Union {
-        variant: String,
-        assignment: Box<FieldAssignment>,
-    },
-    /// Assigning one or more values or objects directly to an array (may overlap with ObjectAssignment)
-    Array(ArrayAssignment),
-}
-
-/// Possible assignments to a specific field
-#[derive(Debug, Clone)]
-pub enum FieldAssignment {
-    Value(ValueAssignment),
-    Object(DirectObjectAssignment),
-}
-
-impl FieldAssignment {
-    /// Declares the value or object assigned for the object being assigned to (identifier required in case Range is empty for BitVec)
-    pub fn declare_for(&self, object_identifier: String) -> String {
-        match self {
-            FieldAssignment::Value(value) => value.declare_for(object_identifier),
-            FieldAssignment::Object(object) => object.to_string(),
-        }
-    }
-
-    // TODO: This concept needs to be re-written at some point, bit vectors never should have gotten their own "to" fields
-    /// If this assignment further selects a field on the object/field being assigned to (e.g., a range for bit vectors), outputs the string representation of that range.
-    pub fn assigns_to(&self) -> String {
-        match self {
-            FieldAssignment::Value(value) => match value {
-                ValueAssignment::Bit(_) => "".to_string(),
-                ValueAssignment::BitVec(bitvec) => {
-                    if let Some(range) = bitvec.range_constraint() {
-                        range.to_string()
-                    } else {
-                        "".to_string()
-                    }
-                }
-            },
-            FieldAssignment::Object(_) => "".to_string(),
-        }
-    }
+    /// Assigning all fields of a Record
+    FullRecord(IndexMap<String, AssignmentKind>),
+    /// Assigning all fields of an Array
+    FullArray(ArrayAssignment),
 }
 
 /// Directly assigning a value or an entire Record, corresponds to the Types defined in `tydi::generator::common::Type`
@@ -279,86 +317,7 @@ pub enum ValueAssignment {
     /// Assigning a value to a single bit
     Bit(StdLogicValue),
     /// Assigning a value to a (part of) a bit vector
-    BitVec(BitVecAssignment),
-}
-
-impl ValueAssignment {
-    /// Declares the value assigned for the object being assigned to (identifier required in case Range is empty for BitVec)
-    pub fn declare_for(&self, object_identifier: String) -> String {
-        match self {
-            ValueAssignment::Bit(bit) => format!("'{}'", bit),
-            ValueAssignment::BitVec(bitvec) => bitvec.declare_for(object_identifier),
-        }
-    }
-}
-
-/// Directly assigning a value or an entire Record, corresponds to the Types defined in `tydi::generator::common::Type`
-#[derive(Debug, Clone)]
-pub struct DirectObjectAssignment {
-    /// The object being assigned from
-    object: ObjectDeclaration,
-    /// Optionally, the fields selected on the object (nested)
-    field_selection: Vec<FieldSelection>,
-}
-
-impl fmt::Display for DirectObjectAssignment {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut result = self.object().identifier().to_string();
-        for field in self.field_selection() {
-            result.push_str(&field.to_string());
-        }
-        write!(f, "{}", result)
-    }
-}
-
-impl DirectObjectAssignment {
-    pub fn new(
-        object: ObjectDeclaration,
-        fields: Vec<FieldSelection>,
-    ) -> Result<DirectObjectAssignment> {
-        DirectObjectAssignment::new_empty(object).with_selection(fields)
-    }
-
-    pub fn new_empty(object: ObjectDeclaration) -> DirectObjectAssignment {
-        DirectObjectAssignment {
-            object,
-            field_selection: vec![],
-        }
-    }
-
-    /// Returns the declared object
-    pub fn object(&self) -> &ObjectDeclaration {
-        &self.object
-    }
-
-    /// Apply one or more field selections to the object
-    pub fn with_selection(mut self, fields: Vec<FieldSelection>) -> Result<Self> {
-        let mut object = self.object().typ().clone();
-        // Verify the fields exist
-        for field in self.field_selection() {
-            object = object.get_field(field)?;
-        }
-        for field in fields {
-            object = object.get_field(&field)?;
-            self.field_selection.push(field)
-        }
-
-        Ok(self)
-    }
-
-    /// Returns the optional field selection
-    pub fn field_selection(&self) -> &Vec<FieldSelection> {
-        &self.field_selection
-    }
-
-    /// Returns the object type of the selected field
-    pub fn typ(&self) -> Result<ObjectType> {
-        let mut object = self.object().typ().clone();
-        for field in self.field_selection() {
-            object = object.get_field(field)?;
-        }
-        Ok(object)
-    }
+    BitVec(BitVecValue),
 }
 
 /// A VHDL assignment constraint

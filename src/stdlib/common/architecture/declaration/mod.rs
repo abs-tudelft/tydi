@@ -3,7 +3,7 @@ use std::fmt;
 use crate::generator::common::{Component, Mode, Type};
 use crate::{Error, Identify, Name, Result};
 
-use super::assignment::{Assignment, FieldSelection, RangeConstraint};
+use super::assignment::{AssignmentKind, FieldSelection, RangeConstraint};
 use super::object::ObjectType;
 
 // Declarations may typically be any of the following: type, subtype, signal, constant, file, alias, component, attribute, function, procedure, configuration specification. (per: https://www.ics.uci.edu/~jmoorkan/vhdlref/architec.html)
@@ -103,7 +103,7 @@ pub struct ObjectDeclaration {
     typ: ObjectType,
     mode: ObjectMode,
     /// Default value assigned to the object (required for constants, cannot be used for ports)
-    default: Option<Assignment>,
+    default: Option<AssignmentKind>,
     /// The kind of object
     kind: ObjectKind,
 }
@@ -112,7 +112,7 @@ impl ObjectDeclaration {
     pub fn signal(
         identifier: String,
         typ: ObjectType,
-        default: Option<Assignment>,
+        default: Option<AssignmentKind>,
     ) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier,
@@ -126,7 +126,7 @@ impl ObjectDeclaration {
     pub fn variable(
         identifier: String,
         typ: ObjectType,
-        default: Option<Assignment>,
+        default: Option<AssignmentKind>,
     ) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier,
@@ -137,7 +137,7 @@ impl ObjectDeclaration {
         }
     }
 
-    pub fn constant(identifier: String, typ: ObjectType, value: Assignment) -> ObjectDeclaration {
+    pub fn constant(identifier: String, typ: ObjectType, value: AssignmentKind) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier,
             typ,
@@ -164,7 +164,7 @@ impl ObjectDeclaration {
         identifier: String,
         typ: ObjectType,
         mode: ObjectMode,
-        default: Option<Assignment>,
+        default: Option<AssignmentKind>,
     ) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier,
@@ -175,7 +175,7 @@ impl ObjectDeclaration {
         }
     }
 
-    pub fn set_default(mut self, default: Assignment) -> Result<()> {
+    pub fn set_default(mut self, default: AssignmentKind) -> Result<()> {
         match self.kind() {
             ObjectKind::Signal | ObjectKind::Variable | ObjectKind::ComponentPort => {
                 // self.can_assign(&default, None);
@@ -201,7 +201,7 @@ impl ObjectDeclaration {
         self.identifier.as_str()
     }
 
-    pub fn default(&self) -> &Option<Assignment> {
+    pub fn default(&self) -> &Option<AssignmentKind> {
         &self.default
     }
 }
