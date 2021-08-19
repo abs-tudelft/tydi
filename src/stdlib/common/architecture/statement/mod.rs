@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    assignment::{AssignedObject, AssignmentKind},
+    assignment::{AssignedObject, Assignment, AssignmentKind},
     declaration::ObjectDeclaration,
 };
 
@@ -60,7 +60,7 @@ impl PortMapping {
         &self.mappings
     }
 
-    pub fn map_port(mut self, identifier: String, assignment: AssignmentKind) -> Result<Self> {
+    pub fn map_port(mut self, identifier: String, assignment: &Assignment) -> Result<Self> {
         let port = self
             .ports()
             .get(&identifier)

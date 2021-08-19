@@ -78,7 +78,6 @@ impl ObjectType {
                         }
                     } else {
                         if range.high() <= array.high() && range.low() >= array.low() {
-                            // NOTE: Not sure why/if this is possible (returning a reference owned by a function)
                             Ok(ObjectType::array(
                                 range.high(),
                                 range.low(),
@@ -99,7 +98,7 @@ impl ObjectType {
                 )),
             },
             ObjectType::Record(record) => match field {
-                FieldSelection::Range(range) => Err(Error::InvalidTarget(
+                FieldSelection::Range(_) => Err(Error::InvalidTarget(
                     "Cannot select a range on a record".to_string(),
                 )),
                 FieldSelection::Name(name) => Ok(record
@@ -193,10 +192,11 @@ impl ObjectType {
                     ValueAssignment::BitVec(bitvec) => match to_object {
                         ObjectType::Array(array) if array.is_bitvector() => {
                             bitvec.validate_width(array.width())
-                        },
-                        _ => Err(Error::InvalidTarget(
-                            format!("Cannot assign Bit Vector to {}", to_object),
-                        )),
+                        }
+                        _ => Err(Error::InvalidTarget(format!(
+                            "Cannot assign Bit Vector to {}",
+                            to_object
+                        ))),
                     },
                 },
                 DirectAssignment::FullRecord(_) => todo!(),

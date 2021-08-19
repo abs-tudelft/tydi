@@ -21,7 +21,7 @@ pub mod bitvec;
 pub mod declare;
 
 pub trait Assign {
-    fn assign(&self, assignment: AssignmentKind) -> Result<AssignedObject>;
+    fn assign(&self, assignment: &Assignment) -> Result<AssignedObject>;
 }
 
 /// Describing a specific object being assigned with something

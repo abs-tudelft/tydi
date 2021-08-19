@@ -1,8 +1,6 @@
-use crate::{
-    stdlib::common::architecture::declaration::{ObjectKind}, Result,
-};
+use crate::{stdlib::common::architecture::declaration::ObjectKind, Result};
 
-use super::{AssignedObject};
+use super::AssignedObject;
 
 pub trait DeclareAssignment {
     /// Declare the full assignment, pre is useful for tabs/spaces, post is useful for closing characters (','/';')
@@ -39,7 +37,9 @@ mod tests {
     use indexmap::IndexMap;
 
     use crate::generator::common::test::records;
-    use crate::stdlib::common::architecture::assignment::{Assignment, AssignmentKind, StdLogicValue};
+    use crate::stdlib::common::architecture::assignment::{
+        Assign, Assignment, AssignmentKind, StdLogicValue,
+    };
     use crate::stdlib::common::architecture::declaration::{ObjectDeclaration, ObjectMode};
     use crate::stdlib::common::architecture::object::ObjectType;
     use crate::stdlib::common::architecture::{
@@ -88,18 +88,9 @@ mod tests {
 
     #[test]
     fn print_bit_assign() -> Result<()> {
-        let sig = AssignedObject::new(
-            test_bit_signal_object()?,
-            StdLogicValue::Logic(false).into(),
-        );
-        let var = AssignedObject::new(
-            test_bit_variable_object()?,
-            StdLogicValue::Logic(true).into(),
-        );
-        let port = AssignedObject::new(
-            test_bit_component_port_object()?,
-            StdLogicValue::DontCare.into(),
-        );
+        let sig = test_bit_signal_object()?.assign(&StdLogicValue::Logic(false).into())?;
+        let var = test_bit_variable_object()?.assign(&StdLogicValue::Logic(true).into())?;
+        let port = test_bit_component_port_object()?.assign(&StdLogicValue::DontCare.into())?;
         print!("{}", sig.declare("", ";")?);
         print!("{}", var.declare("", ";")?);
         print!("{}", port.declare("   ", ",")?);
@@ -132,7 +123,19 @@ mod tests {
         );
         print!(
             "{}",
-            AssignedObject::new(test_complex_signal()?, a_signed.into()).declare("", ";")?
+            AssignedObject::new(test_complex_signal()?, a_signed.clone().into()).declare("", ";")?
+        );
+        // This won't work, because assign actually checks whether it's possible to assign this :)
+        // print!(
+        //     "{}",
+        //     test_complex_signal()?.assign(&a_signed.clone().into())?.declare("", ";")?
+        // );
+        // But this will
+        print!(
+            "{}",
+            test_complex_signal()?
+                .assign(&Assignment::from(a_signed.clone()).to_named("a").to_downto(4, -3)?)?
+                .declare("", ";")?
         );
         print!(
             "{}",
@@ -171,7 +174,9 @@ mod tests {
             "{}",
             AssignedObject::new(
                 test_record_var("rectype".to_string(), "recname2".to_string())?,
-                Assignment::from(a_single.clone()).to_named("c").to_downto(40, 30)?
+                Assignment::from(a_single.clone())
+                    .to_named("c")
+                    .to_downto(40, 30)?
             )
             .declare("", ";")?
         );
