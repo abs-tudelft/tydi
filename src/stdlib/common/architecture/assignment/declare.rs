@@ -123,7 +123,8 @@ mod tests {
         );
         print!(
             "{}",
-            AssignedObject::new(test_complex_signal()?, a_signed.clone().into()).declare("", ";")?
+            AssignedObject::new(test_complex_signal()?, a_signed.clone().into())
+                .declare("", ";")?
         );
         // This won't work, because assign actually checks whether it's possible to assign this :)
         // print!(
@@ -134,7 +135,11 @@ mod tests {
         print!(
             "{}",
             test_complex_signal()?
-                .assign(&Assignment::from(a_signed.clone()).to_named("a").to_downto(4, -3)?)?
+                .assign(
+                    &Assignment::from(a_signed.clone())
+                        .to_named("a")
+                        .to_downto(4, -3)?
+                )?
                 .declare("", ";")?
         );
         print!(
@@ -164,21 +169,19 @@ mod tests {
         let a_full = AssignmentKind::full_record(multifields);
         print!(
             "{}",
-            AssignedObject::new(
-                test_record_var("rectype".to_string(), "recname".to_string())?,
-                Assignment::from(a_single.clone()).to_named("c")
-            )
-            .declare("", ";")?
+            test_record_var("rectype".to_string(), "recname".to_string())?
+                .assign(&Assignment::from(a_single.clone()).to_named("c"))?
+                .declare("", ";")?
         );
         print!(
             "{}",
-            AssignedObject::new(
-                test_record_var("rectype".to_string(), "recname2".to_string())?,
-                Assignment::from(a_single.clone())
-                    .to_named("c")
-                    .to_downto(40, 30)?
-            )
-            .declare("", ";")?
+            test_record_var("rectype".to_string(), "recname2".to_string())?
+                .assign(
+                    &Assignment::from(a_single.clone())
+                        .to_named("c")
+                        .to_downto(40, 30)?
+                )?
+                .declare("", ";")?
         );
         print!(
             "{}",
