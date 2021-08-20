@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    assignment::{AssignedObject, Assignment, AssignmentKind},
+    assignment::{AssignDeclaration, Assignment, AssignmentKind},
     declaration::ObjectDeclaration,
 };
 
@@ -27,7 +27,7 @@ pub struct PortMapping {
     ports: IndexMap<String, ObjectDeclaration>,
     /// Mappings for those ports, will be declared in the order of the original component declaration,
     /// irrespective of the order they're mapped during generation.
-    mappings: HashMap<String, AssignedObject>,
+    mappings: HashMap<String, AssignDeclaration>,
 }
 
 impl PortMapping {
@@ -56,7 +56,7 @@ impl PortMapping {
         &self.ports
     }
 
-    pub fn mappings(&self) -> &HashMap<String, AssignedObject> {
+    pub fn mappings(&self) -> &HashMap<String, AssignDeclaration> {
         &self.mappings
     }
 

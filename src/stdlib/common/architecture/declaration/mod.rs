@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use std::fmt;
 
 use crate::generator::common::{Component, Mode, Type};
@@ -110,12 +111,12 @@ pub struct ObjectDeclaration {
 
 impl ObjectDeclaration {
     pub fn signal(
-        identifier: String,
+        identifier: impl Into<String>,
         typ: ObjectType,
         default: Option<AssignmentKind>,
     ) -> ObjectDeclaration {
         ObjectDeclaration {
-            identifier,
+            identifier: identifier.into(),
             typ,
             mode: ObjectMode::None,
             default,
@@ -124,12 +125,12 @@ impl ObjectDeclaration {
     }
 
     pub fn variable(
-        identifier: String,
+        identifier: impl Into<String>,
         typ: ObjectType,
         default: Option<AssignmentKind>,
     ) -> ObjectDeclaration {
         ObjectDeclaration {
-            identifier,
+            identifier: identifier.into(),
             typ,
             mode: ObjectMode::None,
             default,
@@ -137,9 +138,13 @@ impl ObjectDeclaration {
         }
     }
 
-    pub fn constant(identifier: String, typ: ObjectType, value: AssignmentKind) -> ObjectDeclaration {
+    pub fn constant(
+        identifier: impl Into<String>,
+        typ: ObjectType,
+        value: AssignmentKind,
+    ) -> ObjectDeclaration {
         ObjectDeclaration {
-            identifier,
+            identifier: identifier.into(),
             typ,
             mode: ObjectMode::None,
             default: Some(value),
@@ -149,9 +154,13 @@ impl ObjectDeclaration {
 
     /// Entity Ports serve as a way to represent the ports of an entity the architecture is describing.
     /// They are not declared within the architecture itself, but can drive or be driven by other objects.
-    pub fn entity_port(identifier: String, typ: ObjectType, mode: ObjectMode) -> ObjectDeclaration {
+    pub fn entity_port(
+        identifier: impl Into<String>,
+        typ: ObjectType,
+        mode: ObjectMode,
+    ) -> ObjectDeclaration {
         ObjectDeclaration {
-            identifier,
+            identifier: identifier.into(),
             typ,
             mode,
             default: None,
@@ -161,13 +170,13 @@ impl ObjectDeclaration {
 
     /// Defaults on component ports can be used to express default values, per https://abs-tudelft.github.io/tydi/specification/physical.html#signal-omission
     pub fn component_port(
-        identifier: String,
+        identifier: impl Into<String>,
         typ: ObjectType,
         mode: ObjectMode,
         default: Option<AssignmentKind>,
     ) -> ObjectDeclaration {
         ObjectDeclaration {
-            identifier,
+            identifier: identifier.into(),
             typ,
             mode,
             default,
@@ -204,12 +213,16 @@ impl ObjectDeclaration {
     pub fn default(&self) -> &Option<AssignmentKind> {
         &self.default
     }
+
+    pub fn mode(&self) -> &ObjectMode {
+        &self.mode
+    }
 }
 
 /// Aliases an existing object, with optional field constraint
 #[derive(Debug, Clone)]
 pub struct AliasDeclaration<'a> {
-    identifier: Name,
+    identifier: String,
     /// Reference to an existing object declaration
     object: &'a ObjectDeclaration,
     /// Optional field selection(s) - when assigning to or from the alias, this is used to determine the fields it represents
@@ -219,15 +232,18 @@ pub struct AliasDeclaration<'a> {
 impl<'a> AliasDeclaration<'a> {
     pub fn new(
         object: &'a ObjectDeclaration,
-        identifier: Name,
+        identifier: impl Into<String>,
         fields: Vec<FieldSelection>,
     ) -> Result<AliasDeclaration<'a>> {
         AliasDeclaration::from_object(object, identifier).with_selection(fields)
     }
 
-    pub fn from_object(object: &'a ObjectDeclaration, identifier: Name) -> AliasDeclaration<'a> {
+    pub fn from_object(
+        object: &'a ObjectDeclaration,
+        identifier: impl Into<String>,
+    ) -> AliasDeclaration<'a> {
         AliasDeclaration {
-            identifier,
+            identifier: identifier.into(),
             object,
             field_selection: vec![],
         }
@@ -258,7 +274,7 @@ impl<'a> AliasDeclaration<'a> {
     }
 
     /// Returns the alias's identifier
-    pub fn identifier(&self) -> &Name {
+    pub fn identifier(&self) -> &str {
         &self.identifier
     }
 
@@ -269,6 +285,20 @@ impl<'a> AliasDeclaration<'a> {
             object = object.get_field(field)?;
         }
         Ok(object)
+    }
+}
+
+impl<'a> TryInto<ObjectDeclaration> for AliasDeclaration<'a> {
+    type Error = Error;
+
+    fn try_into(self) -> Result<ObjectDeclaration> {
+        Ok(ObjectDeclaration {
+            identifier: self.identifier().to_string(),
+            typ: self.typ()?,
+            mode: self.object().mode().clone(),
+            default: None,
+            kind: self.object().kind().clone(),
+        })
     }
 }
 
@@ -294,7 +324,7 @@ pub mod tests {
         let mut fields: IndexMap<String, ObjectType> = IndexMap::new();
         fields.insert("a".to_string(), ObjectType::array(10, -4, ObjectType::Bit)?);
         Ok(ObjectDeclaration::signal(
-            "test_signal".to_string(),
+            "test_signal",
             ObjectType::Record(RecordObject::new("record_typ".to_string(), fields)),
             None,
         ))
@@ -303,100 +333,61 @@ pub mod tests {
     #[test]
     fn alias_verification_success() -> Result<()> {
         AliasDeclaration::from_object(&test_bit_signal()?, Name::try_from("test_signal_alias")?);
-        AliasDeclaration::from_object(
-            &test_complex_signal()?,
-            Name::try_from("test_signal_alias")?,
-        )
-        .with_selection(vec![FieldSelection::name("a")?])?;
-        AliasDeclaration::from_object(
-            &test_complex_signal()?,
-            Name::try_from("test_signal_alias")?,
-        )
-        .with_selection(vec![
-            FieldSelection::name("a")?,
-            FieldSelection::downto(10, -4)?,
-        ])?;
-        AliasDeclaration::from_object(
-            &test_complex_signal()?,
-            Name::try_from("test_signal_alias")?,
-        )
-        .with_selection(vec![FieldSelection::name("a")?])?
-        .with_selection(vec![FieldSelection::downto(10, -4)?])?;
-        AliasDeclaration::from_object(
-            &test_complex_signal()?,
-            Name::try_from("test_signal_alias")?,
-        )
-        .with_selection(vec![
-            FieldSelection::name("a")?,
-            FieldSelection::downto(4, -1)?,
-        ])?;
-        AliasDeclaration::from_object(
-            &test_complex_signal()?,
-            Name::try_from("test_signal_alias")?,
-        )
-        .with_selection(vec![
-            FieldSelection::name("a")?,
-            FieldSelection::to(-4, 10)?,
-        ])?;
-        AliasDeclaration::from_object(
-            &test_complex_signal()?,
-            Name::try_from("test_signal_alias")?,
-        )
-        .with_selection(vec![FieldSelection::name("a")?, FieldSelection::index(10)])?;
-        AliasDeclaration::from_object(
-            &test_complex_signal()?,
-            Name::try_from("test_signal_alias")?,
-        )
-        .with_selection(vec![FieldSelection::name("a")?, FieldSelection::index(-4)])?;
+        AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
+            .with_selection(vec![FieldSelection::name("a")?])?;
+        AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
+            .with_selection(vec![
+                FieldSelection::name("a")?,
+                FieldSelection::downto(10, -4)?,
+            ])?;
+        AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
+            .with_selection(vec![FieldSelection::name("a")?])?
+            .with_selection(vec![FieldSelection::downto(10, -4)?])?;
+        AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
+            .with_selection(vec![
+                FieldSelection::name("a")?,
+                FieldSelection::downto(4, -1)?,
+            ])?;
+        AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
+            .with_selection(vec![
+                FieldSelection::name("a")?,
+                FieldSelection::to(-4, 10)?,
+            ])?;
+        AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
+            .with_selection(vec![FieldSelection::name("a")?, FieldSelection::index(10)])?;
+        AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
+            .with_selection(vec![FieldSelection::name("a")?, FieldSelection::index(-4)])?;
         Ok(())
     }
 
     #[test]
     fn alias_verification_error() -> Result<()> {
         is_invalid_target(
-            AliasDeclaration::from_object(
-                &test_bit_signal()?,
-                Name::try_from("test_signal_alias")?,
-            )
-            .with_selection(vec![FieldSelection::name("a")?]),
+            AliasDeclaration::from_object(&test_bit_signal()?, "test_signal_alias")
+                .with_selection(vec![FieldSelection::name("a")?]),
         )?;
         is_invalid_target(
-            AliasDeclaration::from_object(
-                &test_bit_signal()?,
-                Name::try_from("test_signal_alias")?,
-            )
-            .with_selection(vec![FieldSelection::index(1)]),
+            AliasDeclaration::from_object(&test_bit_signal()?, "test_signal_alias")
+                .with_selection(vec![FieldSelection::index(1)]),
         )?;
         is_invalid_target(
-            AliasDeclaration::from_object(
-                &test_complex_signal()?,
-                Name::try_from("test_signal_alias")?,
-            )
-            .with_selection(vec![FieldSelection::index(1)]),
+            AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
+                .with_selection(vec![FieldSelection::index(1)]),
         )?;
         is_invalid_argument(
-            AliasDeclaration::from_object(
-                &test_complex_signal()?,
-                Name::try_from("test_signal_alias")?,
-            )
-            .with_selection(vec![FieldSelection::name("b")?]),
+            AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
+                .with_selection(vec![FieldSelection::name("b")?]),
         )?;
         is_invalid_target(
-            AliasDeclaration::from_object(
-                &test_complex_signal()?,
-                Name::try_from("test_signal_alias")?,
-            )
-            .with_selection(vec![FieldSelection::name("a")?, FieldSelection::name("a")?]),
+            AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
+                .with_selection(vec![FieldSelection::name("a")?, FieldSelection::name("a")?]),
         )?;
         is_invalid_argument(
-            AliasDeclaration::from_object(
-                &test_complex_signal()?,
-                Name::try_from("test_signal_alias")?,
-            )
-            .with_selection(vec![
-                FieldSelection::name("a")?,
-                FieldSelection::downto(11, -4)?,
-            ]),
+            AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
+                .with_selection(vec![
+                    FieldSelection::name("a")?,
+                    FieldSelection::downto(11, -4)?,
+                ]),
         )?;
         Ok(())
     }

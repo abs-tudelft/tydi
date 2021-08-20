@@ -7,7 +7,7 @@ use array_assignment::ArrayAssignment;
 
 use crate::generator::common::Type;
 use crate::physical::Width;
-use crate::{Error, Name, Result};
+use crate::{Document, Error, Name, Result};
 
 use super::declaration::ObjectDeclaration;
 use super::object::ObjectType;
@@ -21,19 +21,26 @@ pub mod bitvec;
 pub mod declare;
 
 pub trait Assign {
-    fn assign(&self, assignment: &Assignment) -> Result<AssignedObject>;
+    fn assign(&self, assignment: &(impl Into<Assignment> + Clone)) -> Result<AssignDeclaration>;
 }
 
-/// Describing a specific object being assigned with something
+/// Describing the declaration of an assignment
 #[derive(Debug, Clone)]
-pub struct AssignedObject {
+pub struct AssignDeclaration {
+    /// The declared object being assigned
     object: ObjectDeclaration,
+    /// The assignment to the declared object
     assignment: Assignment,
+    doc: Option<String>,
 }
 
-impl AssignedObject {
-    pub fn new(object: ObjectDeclaration, assignment: Assignment) -> AssignedObject {
-        AssignedObject { object, assignment }
+impl AssignDeclaration {
+    pub fn new(object: ObjectDeclaration, assignment: Assignment) -> AssignDeclaration {
+        AssignDeclaration {
+            object,
+            assignment,
+            doc: None,
+        }
     }
 
     pub fn object(&self) -> &ObjectDeclaration {
@@ -51,6 +58,23 @@ impl AssignedObject {
             result.push_str(&field.to_string());
         }
         result
+    }
+
+    /// Return this assignment declaration with documentation added.
+    pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
+        self.doc = Some(doc.into());
+        self
+    }
+
+    /// Set the documentation of this assignment declaration.
+    pub fn set_doc(&mut self, doc: impl Into<String>) {
+        self.doc = Some(doc.into())
+    }
+}
+
+impl Document for AssignDeclaration {
+    fn doc(&self) -> Option<String> {
+        self.doc.clone()
     }
 }
 

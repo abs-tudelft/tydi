@@ -1,15 +1,21 @@
-use crate::{stdlib::common::architecture::declaration::ObjectKind, Result};
+use crate::{stdlib::common::architecture::declaration::ObjectKind, Document, Result};
 
-use super::AssignedObject;
+use super::AssignDeclaration;
 
 pub trait DeclareAssignment {
     /// Declare the full assignment, pre is useful for tabs/spaces, post is useful for closing characters (','/';')
     fn declare(&self, pre: &str, post: &str) -> Result<String>;
 }
 
-impl DeclareAssignment for AssignedObject {
+impl DeclareAssignment for AssignDeclaration {
     fn declare(&self, pre: &str, post: &str) -> Result<String> {
         let mut result = pre.to_string();
+        if let Some(doc) = self.doc() {
+            result.push_str("--");
+            result.push_str(doc.replace("\n", &format!("\n{}--", pre)).as_str());
+            result.push_str("\n");
+            result.push_str(pre);
+        }
         result.push_str(&self.object_string());
         result.push_str(match self.object.kind() {
             ObjectKind::Signal => " <= ",
@@ -87,13 +93,21 @@ mod tests {
     }
 
     #[test]
-    fn print_bit_assign() -> Result<()> {
-        let sig = test_bit_signal_object()?.assign(&StdLogicValue::Logic(false).into())?;
-        let var = test_bit_variable_object()?.assign(&StdLogicValue::Logic(true).into())?;
-        let port = test_bit_component_port_object()?.assign(&StdLogicValue::DontCare.into())?;
-        print!("{}", sig.declare("", ";")?);
-        print!("{}", var.declare("", ";")?);
-        print!("{}", port.declare("   ", ",")?);
+    fn test_bit_assign() -> Result<()> {
+        let sig = test_bit_signal_object()?.assign(&StdLogicValue::Logic(false))?;
+        let var = test_bit_variable_object()?.assign(&StdLogicValue::Logic(true))?;
+        let port = test_bit_component_port_object()?
+            .assign(&StdLogicValue::DontCare)?
+            .with_doc("This is\nSome neat documentation");
+        assert_eq!(sig.declare("", ";")?, "test_signal <= '0';\n");
+        assert_eq!(var.declare("", ";")?, "test_variable := '1';\n");
+        assert_eq!(
+            port.declare("   ", ",")?,
+            r#"   --This is
+   --Some neat documentation
+   test_component_port => '-',
+"#
+        );
         Ok(())
     }
 
@@ -107,15 +121,15 @@ mod tests {
         let a_str = BitVecValue::from_str("1-XUL0H")?;
         print!(
             "{}",
-            AssignedObject::new(test_complex_signal()?, a_others.into()).declare("", ";")?
+            AssignDeclaration::new(test_complex_signal()?, a_others.into()).declare("", ";")?
         );
         print!(
             "{}",
-            AssignedObject::new(test_complex_signal()?, a_unsigned.into()).declare("", ";")?
+            AssignDeclaration::new(test_complex_signal()?, a_unsigned.into()).declare("", ";")?
         );
         print!(
             "{}",
-            AssignedObject::new(
+            AssignDeclaration::new(
                 test_complex_signal()?,
                 Assignment::from(a_unsigned_range).to_downto(10, 0)?
             )
@@ -123,7 +137,7 @@ mod tests {
         );
         print!(
             "{}",
-            AssignedObject::new(test_complex_signal()?, a_signed.clone().into())
+            AssignDeclaration::new(test_complex_signal()?, a_signed.clone().into())
                 .declare("", ";")?
         );
         // This won't work, because assign actually checks whether it's possible to assign this :)
@@ -144,7 +158,7 @@ mod tests {
         );
         print!(
             "{}",
-            AssignedObject::new(
+            AssignDeclaration::new(
                 test_complex_signal()?,
                 Assignment::from(a_signed_range).to_to(0, 10)?
             )
@@ -152,7 +166,7 @@ mod tests {
         );
         print!(
             "{}",
-            AssignedObject::new(test_complex_signal()?, a_str.into()).declare("", ";")?
+            AssignDeclaration::new(test_complex_signal()?, a_str.into()).declare("", ";")?
         );
         Ok(())
     }
@@ -185,7 +199,7 @@ mod tests {
         );
         print!(
             "{}",
-            AssignedObject::new(
+            AssignDeclaration::new(
                 test_record_var("rectype".to_string(), "recname3".to_string())?,
                 a_full.into()
             )
