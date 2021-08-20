@@ -334,29 +334,26 @@ pub mod tests {
     fn alias_verification_success() -> Result<()> {
         AliasDeclaration::from_object(&test_bit_signal()?, Name::try_from("test_signal_alias")?);
         AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
-            .with_selection(vec![FieldSelection::name("a")?])?;
+            .with_selection(vec![FieldSelection::name("a")])?;
         AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
             .with_selection(vec![
-                FieldSelection::name("a")?,
+                FieldSelection::name("a"),
                 FieldSelection::downto(10, -4)?,
             ])?;
         AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
-            .with_selection(vec![FieldSelection::name("a")?])?
+            .with_selection(vec![FieldSelection::name("a")])?
             .with_selection(vec![FieldSelection::downto(10, -4)?])?;
         AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
             .with_selection(vec![
-                FieldSelection::name("a")?,
+                FieldSelection::name("a"),
                 FieldSelection::downto(4, -1)?,
             ])?;
         AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
-            .with_selection(vec![
-                FieldSelection::name("a")?,
-                FieldSelection::to(-4, 10)?,
-            ])?;
+            .with_selection(vec![FieldSelection::name("a"), FieldSelection::to(-4, 10)?])?;
         AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
-            .with_selection(vec![FieldSelection::name("a")?, FieldSelection::index(10)])?;
+            .with_selection(vec![FieldSelection::name("a"), FieldSelection::index(10)])?;
         AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
-            .with_selection(vec![FieldSelection::name("a")?, FieldSelection::index(-4)])?;
+            .with_selection(vec![FieldSelection::name("a"), FieldSelection::index(-4)])?;
         Ok(())
     }
 
@@ -364,7 +361,7 @@ pub mod tests {
     fn alias_verification_error() -> Result<()> {
         is_invalid_target(
             AliasDeclaration::from_object(&test_bit_signal()?, "test_signal_alias")
-                .with_selection(vec![FieldSelection::name("a")?]),
+                .with_selection(vec![FieldSelection::name("a")]),
         )?;
         is_invalid_target(
             AliasDeclaration::from_object(&test_bit_signal()?, "test_signal_alias")
@@ -376,16 +373,16 @@ pub mod tests {
         )?;
         is_invalid_argument(
             AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
-                .with_selection(vec![FieldSelection::name("b")?]),
+                .with_selection(vec![FieldSelection::name("b")]),
         )?;
         is_invalid_target(
             AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
-                .with_selection(vec![FieldSelection::name("a")?, FieldSelection::name("a")?]),
+                .with_selection(vec![FieldSelection::name("a"), FieldSelection::name("a")]),
         )?;
         is_invalid_argument(
             AliasDeclaration::from_object(&test_complex_signal()?, "test_signal_alias")
                 .with_selection(vec![
-                    FieldSelection::name("a")?,
+                    FieldSelection::name("a"),
                     FieldSelection::downto(11, -4)?,
                 ]),
         )?;

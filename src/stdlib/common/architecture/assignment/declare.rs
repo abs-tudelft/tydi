@@ -199,11 +199,9 @@ mod tests {
         );
         print!(
             "{}",
-            AssignDeclaration::new(
-                test_record_var("rectype".to_string(), "recname3".to_string())?,
-                a_full.into()
-            )
-            .declare("  ", ";")?
+            test_record_var("rectype".to_string(), "recname3".to_string())?
+                .assign(&a_full)?
+                .declare("  ", ";")?
         );
         Ok(())
     }

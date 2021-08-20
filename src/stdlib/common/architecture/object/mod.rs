@@ -199,7 +199,24 @@ impl ObjectType {
                         ))),
                     },
                 },
-                DirectAssignment::FullRecord(_) => todo!(),
+                DirectAssignment::FullRecord(record) => {
+                    if let ObjectType::Record(to_record) = &to_object {
+                        if to_record.fields().len() == record.len() {
+                            for (field, value) in record {
+                                let to_field = to_object.get_field(&FieldSelection::name(field))?;
+                                to_field.can_assign(&Assignment::from(value.clone()))?;
+                            }
+                            Ok(())
+                        } else {
+                            Err(Error::InvalidArgument(format!("Attempted full record assignment. Number of fields do not match. Record has {} fields, assignment has {} fields", to_record.fields().len(), record.len())))
+                        }
+                    } else {
+                        Err(Error::InvalidTarget(format!(
+                            "Cannot perform full Record assignment to {}",
+                            to_object
+                        )))
+                    }
+                }
                 DirectAssignment::FullArray(_) => todo!(),
             },
         }

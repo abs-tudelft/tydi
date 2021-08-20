@@ -363,20 +363,26 @@ impl fmt::Display for FieldSelection {
 }
 
 impl FieldSelection {
-    pub fn to(start: i32, end: i32) -> Result<FieldSelection> {
-        Ok(FieldSelection::Range(RangeConstraint::to(start, end)?))
+    pub fn to(start: impl Into<i32>, end: impl Into<i32>) -> Result<FieldSelection> {
+        Ok(FieldSelection::Range(RangeConstraint::to(
+            start.into(),
+            end.into(),
+        )?))
     }
 
-    pub fn downto(start: i32, end: i32) -> Result<FieldSelection> {
-        Ok(FieldSelection::Range(RangeConstraint::downto(start, end)?))
+    pub fn downto(start: impl Into<i32>, end: impl Into<i32>) -> Result<FieldSelection> {
+        Ok(FieldSelection::Range(RangeConstraint::downto(
+            start.into(),
+            end.into(),
+        )?))
     }
 
-    pub fn index(index: i32) -> FieldSelection {
-        FieldSelection::Range(RangeConstraint::Index(index))
+    pub fn index(index: impl Into<i32>) -> FieldSelection {
+        FieldSelection::Range(RangeConstraint::Index(index.into()))
     }
 
-    pub fn name(name: &str) -> Result<FieldSelection> {
-        Ok(FieldSelection::Name(name.to_string()))
+    pub fn name(name: impl Into<String>) -> FieldSelection {
+        FieldSelection::Name(name.into())
     }
 }
 
