@@ -42,6 +42,7 @@ mod tests {
 
     use indexmap::IndexMap;
 
+    use crate::generator::common::Mode;
     use crate::generator::common::test::records;
     use crate::stdlib::common::architecture::assignment::{
         Assign, Assignment, AssignmentKind, StdLogicValue,
@@ -75,19 +76,31 @@ mod tests {
         Ok(ObjectDeclaration::component_port(
             "test_component_port".to_string(),
             ObjectType::Bit,
-            ObjectMode::In,
+            Mode::In,
             None,
         ))
     }
 
-    pub(crate) fn test_record_var(
-        typename: String,
-        identifier: String,
+    pub(crate) fn test_record_signal(
+        typename: impl Into<String>,
+        identifier: impl Into<String>,
     ) -> Result<ObjectDeclaration> {
         let rec_type = records::rec(typename);
         Ok(ObjectDeclaration::signal(
             identifier,
             rec_type.try_into()?,
+            None,
+        ))
+    }
+
+    pub(crate) fn test_bitvec_signal(
+        identifier: impl Into<String>,
+        high: i32,
+        low: i32,
+    ) -> Result<ObjectDeclaration> {
+        Ok(ObjectDeclaration::signal(
+            identifier,
+            ObjectType::bit_vector(high, low)?,
             None,
         ))
     }
@@ -183,13 +196,13 @@ mod tests {
         let a_full = AssignmentKind::full_record(multifields);
         print!(
             "{}",
-            test_record_var("rectype".to_string(), "recname".to_string())?
+            test_record_signal("rectype", "recname")?
                 .assign(&Assignment::from(a_single.clone()).to_named("c"))?
                 .declare("", ";")?
         );
         print!(
             "{}",
-            test_record_var("rectype".to_string(), "recname2".to_string())?
+            test_record_signal("rectype", "recname2")?
                 .assign(
                     &Assignment::from(a_single.clone())
                         .to_named("c")
@@ -199,9 +212,26 @@ mod tests {
         );
         print!(
             "{}",
-            test_record_var("rectype".to_string(), "recname3".to_string())?
+            test_record_signal("rectype", "recname3")?
                 .assign(&a_full)?
                 .declare("  ", ";")?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn print_array_assign() -> Result<()> {
+        print!(
+            "{}",
+            test_bitvec_signal("recname", 10, 0)?
+                .assign(&Assignment::from(StdLogicValue::U).to_index(4))?
+                .declare("", ";")?
+        );
+        print!(
+            "{}",
+            test_bitvec_signal("recname", 8, 0)?
+                .assign(&BitVecValue::from_str("10ZWUHLX-")?)?
+                .declare("", ";")?
         );
         Ok(())
     }

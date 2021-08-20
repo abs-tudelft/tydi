@@ -12,7 +12,7 @@ use crate::{
         vhdl::VHDLIdentifier,
     },
     stdlib::common::architecture::assignment::{
-        bitvec::BitVecValue, DirectAssignment, ValueAssignment,
+        array_assignment::ArrayAssignment, bitvec::BitVecValue, DirectAssignment, ValueAssignment,
     },
     Error, Identify, Name, Result,
 };
@@ -217,7 +217,55 @@ impl ObjectType {
                         )))
                     }
                 }
-                DirectAssignment::FullArray(_) => todo!(),
+                DirectAssignment::FullArray(array) => {
+                    if let ObjectType::Array(to_array) = &to_object {
+                        match array {
+                            ArrayAssignment::Direct(direct) => {
+                                if to_array.width() == direct.len().try_into().unwrap() {
+                                    for value in direct {
+                                        to_array
+                                            .typ()
+                                            .can_assign(&Assignment::from(value.clone()))?;
+                                    }
+                                    Ok(())
+                                } else {
+                                    Err(Error::InvalidArgument(format!("Attempted full array assignment. Number of fields do not match. Array has {} fields, assignment has {} fields", to_array.width(), direct.len())))
+                                }
+                            }
+                            ArrayAssignment::Partial { direct, others } => {
+                                let mut ranges_assigned: Vec<&RangeConstraint> = vec![];
+                                for (range, value) in direct {
+                                    if !range.is_between(to_array.high(), to_array.low())? {
+                                        return Err(Error::InvalidArgument(format!(
+                                            "{} is not between {} and {}",
+                                            range,
+                                            to_array.high(),
+                                            to_array.low()
+                                        )));
+                                    }
+                                    if ranges_assigned.iter().any(|x| x.overlaps(range)) {
+                                        return Err(Error::InvalidArgument(format!("Array assignment: {} overlaps with a range which was already assigned.", range)));
+                                    }
+                                    to_array
+                                        .typ()
+                                        .can_assign(&Assignment::from(value.clone()))?;
+                                    ranges_assigned.push(range);
+                                }
+                                to_array
+                                    .typ()
+                                    .can_assign(&Assignment::from(others.as_ref().clone()))
+                            }
+                            ArrayAssignment::Others(others) => to_array
+                                .typ()
+                                .can_assign(&Assignment::from(others.as_ref().clone())),
+                        }
+                    } else {
+                        Err(Error::InvalidTarget(format!(
+                            "Cannot perform full Array assignment to {}",
+                            to_object
+                        )))
+                    }
+                }
             },
         }
     }
@@ -319,7 +367,7 @@ impl ArrayObject {
     }
 
     pub fn width(&self) -> u32 {
-        (self.high - self.low).try_into().unwrap()
+        (1 + self.high - self.low).try_into().unwrap()
     }
 
     pub fn is_bitvector(&self) -> bool {

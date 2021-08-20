@@ -114,8 +114,8 @@ impl Assignment {
     }
 
     /// Append a to range field selection
-    pub fn to_index(self, start: i32, end: i32) -> Result<Self> {
-        Ok(self.to_range(RangeConstraint::to(start, end)?))
+    pub fn to_index(self, index: i32) -> Self {
+        self.to_range(RangeConstraint::Index(index))
     }
 
     /// Returns the fields selected
@@ -262,7 +262,7 @@ impl ObjectAssignment {
 }
 
 /// Possible values which can be assigned to std_logic
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StdLogicValue {
     /// Uninitialized, 'U'
     U,
@@ -468,6 +468,28 @@ impl RangeConstraint {
             RangeConstraint::To { start, end: _ } => *start,
             RangeConstraint::Downto { start: _, end } => *end,
             RangeConstraint::Index(index) => *index,
+        }
+    }
+
+    /// Verifies whether a range constraint overlaps with this range constraint
+    pub fn overlaps(&self, other: &RangeConstraint) -> bool {
+        self.low() <= other.high() && other.low() <= self.high()
+    }
+
+    /// Verifies whether a range constraint is inside of this range constraint
+    pub fn contains(&self, other: &RangeConstraint) -> bool {
+        self.high() >= other.high() && self.low() <= other.low()
+    }
+
+    /// Verifies whether this range constraint is between `high` and `low`
+    pub fn is_between(&self, high: i32, low: i32) -> Result<bool> {
+        if low > high {
+            Err(Error::InvalidArgument(format!(
+                "{} > {}! Low cannot be greater than high",
+                low, high
+            )))
+        } else {
+            Ok(high >= self.high() && low <= self.low())
         }
     }
 }

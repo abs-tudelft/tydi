@@ -55,7 +55,7 @@ pub enum ArchitectureDeclaration<'a> {
 }
 
 /// The kind of object declared (signal, variable, constant, ports)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObjectKind {
     Signal,
     Variable,
@@ -78,21 +78,25 @@ impl fmt::Display for ObjectKind {
     }
 }
 
-/// The direction of the object declared, if relevant (ports)
-#[derive(Debug, Clone)]
+// TODO: Currently unused and hard to implement, as the modes of hence undefined objects needs to be changed when they are assigned, which requires persistent mutable references to their declarations.
+// Consider first declaring a signal, then assigning one of the entity's "in" ports to that signal, then assigning that signal to an "in" port of a component.
+// This requires changing the mode of the signal with the first (declared) assignment, and keeping track of it for each subsequent assignment. (To make sure you don't accidentally connect the "in" of the entity to the "out" of the component)
+// Now consider that there can be multiple signals between these steps, and that these signals can consist of multiple fields (records, arrays), each of which can also be assigned objects...
+// So the challenge will be making sure that assigning something like some_record <= (a => some_other_record.a.b.c.d, b => some_array(4 to 8)) forces all objects to which the fields belong into appropriate modes.
+// Basically, this only works if each object declaration is only ever a single mutable reference, which requires some significant rewrites at this point, and dealing with Rust's lifetimes.
+/// The state of the object, with respect to the architecture
+///
+/// (E.g., an "in" port on the entity is "Assigned", but so is an "out" port of a component inside the architecture)
+///
+/// "Out" objects can be assigned "Assigned" objects or "Undefined" objects (which then become "Out" objects themselves)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObjectMode {
-    None,
-    In,
+    /// The object does not have a defined mode yet
+    Undefined,
+    /// The object is carrying a value (the "in" port of an entity and the "out" port of a component, or a signal which was assigned a value)
+    Assigned,
+    /// The object is used to carry a value out of the architecture (the "out" port of an entity and the "in" port of a component)
     Out,
-}
-
-impl From<Mode> for ObjectMode {
-    fn from(value: Mode) -> Self {
-        match value {
-            Mode::In => ObjectMode::In,
-            Mode::Out => ObjectMode::Out,
-        }
-    }
 }
 
 /// Struct describing the identifier of the object, its type, its kind, and a potential default value
@@ -118,7 +122,7 @@ impl ObjectDeclaration {
         ObjectDeclaration {
             identifier: identifier.into(),
             typ,
-            mode: ObjectMode::None,
+            mode: ObjectMode::Undefined,
             default,
             kind: ObjectKind::Signal,
         }
@@ -132,7 +136,11 @@ impl ObjectDeclaration {
         ObjectDeclaration {
             identifier: identifier.into(),
             typ,
-            mode: ObjectMode::None,
+            mode: if let Some(_) = default {
+                ObjectMode::Assigned
+            } else {
+                ObjectMode::Undefined
+            },
             default,
             kind: ObjectKind::Variable,
         }
@@ -146,7 +154,7 @@ impl ObjectDeclaration {
         ObjectDeclaration {
             identifier: identifier.into(),
             typ,
-            mode: ObjectMode::None,
+            mode: ObjectMode::Assigned,
             default: Some(value),
             kind: ObjectKind::Constant,
         }
@@ -157,12 +165,15 @@ impl ObjectDeclaration {
     pub fn entity_port(
         identifier: impl Into<String>,
         typ: ObjectType,
-        mode: ObjectMode,
+        mode: Mode,
     ) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier: identifier.into(),
             typ,
-            mode,
+            mode: match mode {
+                Mode::In => ObjectMode::Assigned,
+                Mode::Out => ObjectMode::Out,
+            },
             default: None,
             kind: ObjectKind::EntityPort,
         }
@@ -172,19 +183,23 @@ impl ObjectDeclaration {
     pub fn component_port(
         identifier: impl Into<String>,
         typ: ObjectType,
-        mode: ObjectMode,
+        mode: Mode,
         default: Option<AssignmentKind>,
     ) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier: identifier.into(),
             typ,
-            mode,
+            mode: match mode {
+                Mode::In => ObjectMode::Out, // An "in" port requires an object going out of the architecture
+                Mode::Out => ObjectMode::Assigned, // An "out" port is already assigned a value
+            },
             default,
             kind: ObjectKind::ComponentPort,
         }
     }
 
     pub fn set_default(mut self, default: AssignmentKind) -> Result<()> {
+        // TODO: Verify mode as well
         match self.kind() {
             ObjectKind::Signal | ObjectKind::Variable | ObjectKind::ComponentPort => {
                 // self.can_assign(&default, None);

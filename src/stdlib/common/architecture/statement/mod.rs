@@ -3,7 +3,7 @@ use std::{collections::HashMap, convert::TryFrom};
 use indexmap::IndexMap;
 
 use crate::{
-    generator::common::Component,
+    generator::common::{Component, Mode},
     stdlib::common::architecture::{
         assignment::Assign, declaration::ObjectMode, object::ObjectType,
     },
@@ -39,7 +39,7 @@ impl PortMapping {
                 ObjectDeclaration::component_port(
                     port.identifier().to_string(),
                     ObjectType::try_from(port.typ().clone())?,
-                    ObjectMode::from(port.mode()),
+                    port.mode(),
                     None, // TODO: Figure out if there might be some way to determine defaults (signal omissions) at this point
                 ),
             );
