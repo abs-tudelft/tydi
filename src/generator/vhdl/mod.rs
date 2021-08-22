@@ -53,11 +53,22 @@ impl Usings {
     /// If the set did not have this value present, `true` is returned.
     ///
     /// If the set did have this value present, `false` is returned.
-    pub fn add_using(&mut self, library: Name, using: String) -> bool {
+    pub fn add_using(&mut self, library: Name, using: impl Into<String>) -> bool {
         self.0
             .entry(library)
             .or_insert(HashSet::new())
-            .insert(using)
+            .insert(using.into())
+    }
+
+    pub fn usings(&self) -> &IndexMap<Name, HashSet<String>> {
+        &self.0
+    }
+
+    /// Combine two usings
+    pub fn combine(&mut self, other: &Usings) {
+        for (library, using) in other.usings() {
+            self.0.insert(library.clone(), using.clone());
+        }
     }
 }
 

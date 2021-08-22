@@ -1,11 +1,8 @@
-use crate::{
-    generator::vhdl::{Declare, DeclareUsings, ListUsings},
-    Document,
-};
+use crate::{Document, Result, generator::vhdl::{Declare, DeclareUsings, ListUsings}};
 
 use super::*;
 
-impl ListUsings for Architecture {
+impl ListUsings for Architecture<'_> {
     fn list_usings(&self) -> Result<Usings> {
         Ok(self.usings.clone())
     }
@@ -42,8 +39,8 @@ impl ListUsings for Architecture {
 // Sequential statements
 //
 // Any complex logic should probably just be string templates.
-impl Declare for Architecture {
-    fn declare(&self) -> crate::Result<String> {
+impl<'a> Declare for Architecture<'a> {
+    fn declare(&self) -> Result<String> {
         let mut result = String::new();
         result.push_str(self.declare_usings()?.as_str());
 
@@ -64,21 +61,27 @@ impl Declare for Architecture {
             )
             .as_str(),
         );
-        result.push_str("--<architecture_declarative_part>\n"); // TODO: Add declarative part
+        result.push_str("--<architecture_declarative_part>\n");
+        for declaration in self.declarations() {
+            result.push_str(&declaration.declare("   ", ";")?);
+        }
         result.push_str("begin\n");
-        result.push_str("--<architecture_statement_part>\n"); // TODO: Add statement part
+        result.push_str("--<architecture_statement_part>\n");
+        for statement in self.statements() {
+            result.push_str(&statement.declare("   ", ";")?);
+        }
         result.push_str(format!("end {};\n", self.identifier()).as_str());
         Ok(result)
     }
 }
 
-impl Identify for Architecture {
+impl Identify for Architecture<'_> {
     fn identifier(&self) -> &str {
         self.identifier.as_ref()
     }
 }
 
-impl Document for Architecture {
+impl Document for Architecture<'_> {
     fn doc(&self) -> Option<String> {
         self.doc.clone()
     }

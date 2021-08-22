@@ -1,21 +1,16 @@
-use std::cmp::max;
-use std::convert::TryFrom;
-use std::convert::TryInto;
-use std::fmt;
-
-use indexmap::IndexMap;
-
 use crate::{
     generator::{
-        common::{Component, Package, Type},
+        common::Package,
         vhdl::{ListUsings, Usings},
     },
-    physical::Width,
     Identify, Name,
 };
 use crate::{Error, Result};
 
 use super::entity::Entity;
+
+use self::declaration::ArchitectureDeclaration;
+use self::statement::Statement;
 
 pub mod assignment;
 pub mod declaration;
@@ -23,22 +18,13 @@ pub mod impls;
 pub mod object;
 pub mod statement;
 
-// TODO: Figure this out, either make it a struct with specific contents, or a trait for something else to implement?
-/// Architecture statement.
-#[derive(Debug, Clone)]
-pub struct ArchitectureStatement {}
-
 // NOTE: One of the main things to consider is probably how to handle multiple element lanes. Probably as a check on the number of lanes,
 // then wrapping in a generate statement. Need to consider indexes at that point.
 // This'd be easier if I simply always made it an array, even when the number of lanes is 1, but that gets real ugly, real fast.
 
-/// Architecture declarations.
-#[derive(Debug, Clone)]
-pub struct ArchitectureDeclarations {}
-
 /// An architecture
-#[derive(Debug)]
-pub struct Architecture {
+#[derive(Debug, Clone)]
+pub struct Architecture<'a> {
     /// Name of the architecture
     identifier: Name,
     /// Entity which this architecture is for
@@ -47,9 +33,18 @@ pub struct Architecture {
     usings: Usings,
     /// Documentation.
     doc: Option<String>,
+    /// The declaration part of the architecture
+    declaration: Vec<ArchitectureDeclaration<'a>>,
+    /// The statement part of the architecture
+    statement: Vec<Statement>,
 }
 
-impl Architecture {
+pub trait ArchitectureDeclare {
+    /// Returns a string for the declaration, pre is useful for tabs/spaces, post is useful for closing characters (','/';')
+    fn declare(&self, pre: &str, post: &str) -> Result<String>;
+}
+
+impl<'a> Architecture<'a> {
     /// Create the architecture based on a component contained within a package, assuming the library (project) is "work" and the architecture's identifier is "Behavioral"
     pub fn new_default(package: &Package, component_id: Name) -> Result<Architecture> {
         Architecture::new(
@@ -79,6 +74,8 @@ impl Architecture {
                 entity: Entity::from(component.clone()),
                 usings: usings,
                 doc: None,
+                declaration: vec![],
+                statement: vec![],
             })
         } else {
             Err(Error::InvalidArgument(format!(
@@ -102,6 +99,46 @@ impl Architecture {
     /// Set the documentation of this architecture.
     pub fn set_doc(&mut self, doc: impl Into<String>) {
         self.doc = Some(doc.into())
+    }
+
+    pub fn add_declaration(&mut self, declaration: &'a ArchitectureDeclaration) -> Result<()> {
+        match declaration {
+            ArchitectureDeclaration::Object(object) => {
+                self.usings.combine(&object.list_usings()?);
+            }
+            ArchitectureDeclaration::Alias(alias) => {
+                self.usings.combine(&alias.object().list_usings()?);
+            }
+            ArchitectureDeclaration::Type(_)
+            | ArchitectureDeclaration::SubType(_)
+            | ArchitectureDeclaration::Procedure(_)
+            | ArchitectureDeclaration::Function(_)
+            | ArchitectureDeclaration::Component(_)
+            | ArchitectureDeclaration::Custom(_) => (),
+        }
+        self.declaration.push(declaration.clone());
+        Ok(())
+    }
+
+    pub fn add_statement(&mut self, statement: &'a Statement) -> Result<()> {
+        match statement {
+            Statement::Assignment(assignment) => self.usings.combine(&assignment.list_usings()?),
+            Statement::PortMapping(pm) => {
+                for (_, object) in pm.ports() {
+                    self.usings.combine(&object.list_usings()?);
+                }
+            }
+        }
+        self.statement.push(statement.clone());
+        Ok(())
+    }
+
+    pub fn statements(&self) -> &Vec<Statement> {
+        &self.statement
+    }
+
+    pub fn declarations(&self) -> &Vec<ArchitectureDeclaration> {
+        &self.declaration
     }
 }
 

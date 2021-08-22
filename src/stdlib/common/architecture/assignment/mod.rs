@@ -19,6 +19,7 @@ pub mod assign;
 pub mod assignment_from;
 pub mod bitvec;
 pub mod declare;
+pub mod impls;
 
 pub trait Assign {
     fn assign(&self, assignment: &(impl Into<Assignment> + Clone)) -> Result<AssignDeclaration>;
@@ -154,13 +155,16 @@ impl AssignmentKind {
         AssignmentKind::Direct(DirectAssignment::FullRecord(fields))
     }
 
-    pub fn declare_for(&self, object_identifier: String) -> Result<String> {
+    pub fn declare_for(&self, object_identifier: impl Into<String>) -> Result<String> {
+        let object_identifier: &str = &object_identifier.into();
         match self {
             AssignmentKind::Object(object) => Ok(object.to_string()),
             AssignmentKind::Direct(direct) => match direct {
                 DirectAssignment::Value(value) => match value {
                     ValueAssignment::Bit(bit) => Ok(format!("'{}'", bit)),
-                    ValueAssignment::BitVec(bitvec) => Ok(bitvec.declare_for(object_identifier)),
+                    ValueAssignment::BitVec(bitvec) => {
+                        Ok(bitvec.declare_for(object_identifier))
+                    }
                 },
                 DirectAssignment::FullRecord(record) => {
                     let mut field_assignments = Vec::new();
@@ -177,8 +181,10 @@ impl AssignmentKind {
                     ArrayAssignment::Direct(direct) => {
                         let mut positionals = Vec::new();
                         for value in direct {
-                            positionals
-                                .push(value.declare_for(format!("{}'element", object_identifier))?);
+                            positionals.push(
+                                value
+                                    .declare_for(format!("{}'element", object_identifier))?,
+                            );
                         }
                         Ok(format!("( {} )", positionals.join(", ")))
                     }
@@ -188,7 +194,8 @@ impl AssignmentKind {
                             field_assignments.push(format!(
                                 "\n##pre## {} => {}",
                                 range.to_string().replace("(", "").replace(")", ""),
-                                value.declare_for(format!("{}'element", object_identifier))?
+                                value
+                                    .declare_for(format!("{}'element", object_identifier))?
                             ));
                         }
                         field_assignments.push(format!(

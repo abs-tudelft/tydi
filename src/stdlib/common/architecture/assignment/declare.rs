@@ -1,13 +1,12 @@
-use crate::{stdlib::common::architecture::declaration::ObjectKind, Document, Result};
+use crate::{
+    Document,
+    Result, stdlib::common::architecture::declaration::ObjectKind,
+};
+use crate::stdlib::common::architecture::ArchitectureDeclare;
 
 use super::AssignDeclaration;
 
-pub trait DeclareAssignment {
-    /// Declare the full assignment, pre is useful for tabs/spaces, post is useful for closing characters (','/';')
-    fn declare(&self, pre: &str, post: &str) -> Result<String>;
-}
-
-impl DeclareAssignment for AssignDeclaration {
+impl ArchitectureDeclare for AssignDeclaration {
     fn declare(&self, pre: &str, post: &str) -> Result<String> {
         let mut result = pre.to_string();
         if let Some(doc) = self.doc() {
@@ -44,15 +43,15 @@ mod tests {
 
     use crate::generator::common::Mode;
     use crate::generator::common::test::records;
-    use crate::stdlib::common::architecture::assignment::{
-        Assign, Assignment, AssignmentKind, StdLogicValue,
-    };
-    use crate::stdlib::common::architecture::declaration::{ObjectDeclaration, ObjectMode};
-    use crate::stdlib::common::architecture::object::ObjectType;
+    use crate::Result;
     use crate::stdlib::common::architecture::{
         assignment::bitvec::BitVecValue, declaration::tests::test_complex_signal,
     };
-    use crate::Result;
+    use crate::stdlib::common::architecture::assignment::{
+        Assign, Assignment, AssignmentKind, StdLogicValue,
+    };
+    use crate::stdlib::common::architecture::declaration::ObjectDeclaration;
+    use crate::stdlib::common::architecture::object::ObjectType;
 
     use super::*;
 
@@ -77,7 +76,6 @@ mod tests {
             "test_component_port".to_string(),
             ObjectType::Bit,
             Mode::In,
-            None,
         ))
     }
 
@@ -233,6 +231,7 @@ mod tests {
                 .assign(&BitVecValue::from_str("10ZWUHLX-")?)?
                 .declare("", ";")?
         );
+
         Ok(())
     }
 }

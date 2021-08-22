@@ -19,6 +19,8 @@ use crate::{
 
 use super::assignment::{Assignment, AssignmentKind, FieldSelection, RangeConstraint};
 
+pub mod object_from;
+
 /// Types of VHDL objects, possibly referring to fields
 #[derive(Debug, Clone)]
 pub enum ObjectType {
@@ -82,6 +84,7 @@ impl ObjectType {
                                 range.high(),
                                 range.low(),
                                 array.typ().clone(),
+                                array.type_name(), // NOTE: This is technically incorrect, as array types also declare the range
                             )?)
                         } else {
                             Err(Error::InvalidArgument(format!(
@@ -114,13 +117,20 @@ impl ObjectType {
     }
 
     /// Create an array of a specific field type
-    pub fn array(high: i32, low: i32, object: ObjectType) -> Result<ObjectType> {
-        Ok(ObjectType::Array(ArrayObject::array(high, low, object)?))
+    pub fn array(
+        high: i32,
+        low: i32,
+        object: ObjectType,
+        type_name: impl Into<String>,
+    ) -> Result<ObjectType> {
+        Ok(ObjectType::Array(ArrayObject::array(
+            high, low, object, type_name,
+        )?))
     }
 
     /// Create a bit vector object
     pub fn bit_vector(high: i32, low: i32) -> Result<ObjectType> {
-        ObjectType::array(high, low, ObjectType::Bit)
+        Ok(ArrayObject::bit_vector(high, low)?.into())
     }
 
     pub fn can_assign_type(&self, typ: &ObjectType) -> Result<()> {
@@ -269,6 +279,14 @@ impl ObjectType {
             },
         }
     }
+
+    pub fn type_name(&self) -> &str {
+        match self {
+            ObjectType::Bit => "std_logic",
+            ObjectType::Array(array) => array.type_name(),
+            ObjectType::Record(record) => record.type_name(),
+        }
+    }
 }
 
 impl TryFrom<Type> for ObjectType {
@@ -330,16 +348,27 @@ pub struct ArrayObject {
     high: i32,
     low: i32,
     typ: Box<ObjectType>,
+    type_name: String,
 }
 
 impl ArrayObject {
     /// Create a bit vector object
     pub fn bit_vector(high: i32, low: i32) -> Result<ArrayObject> {
-        ArrayObject::array(high, low, ObjectType::Bit)
+        ArrayObject::array(
+            high,
+            low,
+            ObjectType::Bit,
+            format!("std_logic_vector({} downto {})", high, low),
+        )
     }
 
     /// Create an array of a specific field type
-    pub fn array(high: i32, low: i32, object: ObjectType) -> Result<ArrayObject> {
+    pub fn array(
+        high: i32,
+        low: i32,
+        object: ObjectType,
+        type_name: impl Into<String>,
+    ) -> Result<ArrayObject> {
         if low > high {
             Err(Error::InvalidArgument(format!(
                 "{} > {}! Low must be lower than high",
@@ -350,6 +379,7 @@ impl ArrayObject {
                 high,
                 low,
                 typ: Box::new(object),
+                type_name: type_name.into(),
             })
         }
     }
@@ -376,6 +406,10 @@ impl ArrayObject {
             _ => false,
         }
     }
+
+    pub fn type_name(&self) -> &str {
+        self.type_name.as_str()
+    }
 }
 
 impl TryFrom<Array> for ArrayObject {
@@ -386,6 +420,7 @@ impl TryFrom<Array> for ArrayObject {
             value.width().try_into().unwrap(),
             0,
             ObjectType::try_from(value.typ().clone())?,
+            value.vhdl_identifier()?,
         )?)
     }
 }

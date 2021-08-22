@@ -107,16 +107,18 @@ impl BitVecValue {
     }
 
     /// Declares the value assigned for the object being assigned to (identifier required in case Range is empty)
-    pub fn declare_for(&self, object_identifier: String) -> String {
+    pub fn declare_for(&self, object_identifier: impl Into<String>) -> String {
         match self {
             BitVecValue::Others(_) | BitVecValue::Full(_) => self.declare().unwrap(),
             BitVecValue::Unsigned(value) => format!(
                 "std_logic_vector(to_unsigned({}, {}'length))",
-                value, object_identifier
+                value,
+                object_identifier.into()
             ),
             BitVecValue::Signed(value) => format!(
                 "std_logic_vector(to_signed({}, {}'length))",
-                value, object_identifier
+                value,
+                object_identifier.into()
             ),
         }
     }

@@ -1,11 +1,14 @@
 use std::convert::TryInto;
 use std::fmt;
 
-use crate::generator::common::{Component, Mode, Type};
 use crate::{Error, Identify, Name, Result};
+use crate::generator::common::{Component, Mode, Port, Type};
 
 use super::assignment::{AssignmentKind, FieldSelection, RangeConstraint};
 use super::object::ObjectType;
+
+pub mod declare;
+pub mod impls;
 
 // Declarations may typically be any of the following: type, subtype, signal, constant, file, alias, component, attribute, function, procedure, configuration specification. (per: https://www.ics.uci.edu/~jmoorkan/vhdlref/architec.html)
 // Per: https://insights.sigasi.com/tech/vhdl2008.ebnf/#block_declarative_item
@@ -149,13 +152,13 @@ impl ObjectDeclaration {
     pub fn constant(
         identifier: impl Into<String>,
         typ: ObjectType,
-        value: AssignmentKind,
+        value: impl Into<AssignmentKind>,
     ) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier: identifier.into(),
             typ,
             mode: ObjectMode::Assigned,
-            default: Some(value),
+            default: Some(value.into()),
             kind: ObjectKind::Constant,
         }
     }
@@ -179,12 +182,10 @@ impl ObjectDeclaration {
         }
     }
 
-    /// Defaults on component ports can be used to express default values, per https://abs-tudelft.github.io/tydi/specification/physical.html#signal-omission
     pub fn component_port(
         identifier: impl Into<String>,
         typ: ObjectType,
         mode: Mode,
-        default: Option<AssignmentKind>,
     ) -> ObjectDeclaration {
         ObjectDeclaration {
             identifier: identifier.into(),
@@ -193,7 +194,7 @@ impl ObjectDeclaration {
                 Mode::In => ObjectMode::Out, // An "in" port requires an object going out of the architecture
                 Mode::Out => ObjectMode::Assigned, // An "out" port is already assigned a value
             },
-            default,
+            default: None,
             kind: ObjectKind::ComponentPort,
         }
     }
@@ -213,8 +214,8 @@ impl ObjectDeclaration {
         }
     }
 
-    pub fn kind(&self) -> &ObjectKind {
-        &self.kind
+    pub fn kind(&self) -> ObjectKind {
+        self.kind
     }
 
     pub fn typ(&self) -> &ObjectType {
@@ -231,6 +232,22 @@ impl ObjectDeclaration {
 
     pub fn mode(&self) -> &ObjectMode {
         &self.mode
+    }
+
+    pub fn from_port(port: &Port, is_entity: bool) -> Result<ObjectDeclaration> {
+        if is_entity {
+            Ok(ObjectDeclaration::entity_port(
+                port.identifier(),
+                port.typ().try_into()?,
+                port.mode(),
+            ))
+        } else {
+            Ok(ObjectDeclaration::component_port(
+                port.identifier(),
+                port.typ().try_into()?,
+                port.mode(),
+            ))
+        }
     }
 }
 
@@ -337,7 +354,7 @@ pub mod tests {
 
     pub(crate) fn test_complex_signal() -> Result<ObjectDeclaration> {
         let mut fields: IndexMap<String, ObjectType> = IndexMap::new();
-        fields.insert("a".to_string(), ObjectType::array(10, -4, ObjectType::Bit)?);
+        fields.insert("a".to_string(), ObjectType::bit_vector(10, -4)?);
         Ok(ObjectDeclaration::signal(
             "test_signal",
             ObjectType::Record(RecordObject::new("record_typ".to_string(), fields)),

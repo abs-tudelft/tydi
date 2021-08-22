@@ -4,22 +4,24 @@ use indexmap::IndexMap;
 
 use crate::{
     generator::common::{Component, Mode},
-    stdlib::common::architecture::{
-        assignment::Assign, declaration::ObjectMode, object::ObjectType,
-    },
+    stdlib::common::architecture::assignment::Assign,
     Error, Identify, Name, Result,
 };
 
 use super::{
-    assignment::{AssignDeclaration, Assignment, AssignmentKind},
+    assignment::{AssignDeclaration, Assignment},
     declaration::ObjectDeclaration,
 };
 
+pub mod declare;
+
+#[derive(Debug, Clone)]
 pub enum Statement {
-    Assignment(AssignmentKind),
+    Assignment(AssignDeclaration),
     PortMapping(PortMapping),
 }
 
+#[derive(Debug, Clone)]
 pub struct PortMapping {
     label: Name,
     component_name: String,
@@ -36,12 +38,7 @@ impl PortMapping {
         for port in component.ports() {
             ports.insert(
                 port.identifier().to_string(),
-                ObjectDeclaration::component_port(
-                    port.identifier().to_string(),
-                    ObjectType::try_from(port.typ().clone())?,
-                    port.mode(),
-                    None, // TODO: Figure out if there might be some way to determine defaults (signal omissions) at this point
-                ),
+                ObjectDeclaration::from_port(port, false)?,
             );
         }
         Ok(PortMapping {
@@ -83,5 +80,13 @@ impl PortMapping {
                 self.ports().len()
             )))
         }
+    }
+
+    pub fn label(&self) -> &str {
+        self.label.to_string().as_str()
+    }
+
+    pub fn component_name(&self) -> &str {
+        self.component_name.as_str()
     }
 }
