@@ -322,7 +322,7 @@ impl fmt::Display for PathName {
         let mut result = String::new();
         let mut names = self.0.iter().map(|x| x.as_ref());
         if let Some(x) = names.next() {
-            result.push_str(&x);
+            result.push_str(x);
             names.for_each(|name| {
                 result.push_str("__");
                 result.push_str(name);

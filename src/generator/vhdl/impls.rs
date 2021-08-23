@@ -60,7 +60,7 @@ impl DeclareType for Record {
             result.push_str("\n\n");
             result.push_str(declare_rec(&suffixed_up)?.as_str());
         } else {
-            result.push_str(declare_rec(&self)?.as_str());
+            result.push_str(declare_rec(self)?.as_str());
         }
         Ok(result)
     }

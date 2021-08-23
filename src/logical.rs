@@ -783,7 +783,7 @@ impl LogicalType {
                             source.len() == sink.len()
                                 && source.iter().zip(sink.iter()).all(
                                     |((name, stream), (name_, stream_))| {
-                                        name == name_ && stream.compatible(&stream_)
+                                        name == name_ && stream.compatible(stream_)
                                     },
                                 )
                         }

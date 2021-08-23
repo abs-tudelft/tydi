@@ -4,6 +4,8 @@ on:
   push:
     branches:
     - master
+    - staging
+    - trying
   pull_request:
     paths:
     - 'book/**'
@@ -15,10 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install mdbook
-      run: |
-        mkdir -p $HOME/mdbook
-        curl -L https://github.com/rust-lang/mdBook/releases/download/v0.4.5/mdbook-v0.4.5-x86_64-unknown-linux-gnu.tar.gz | tar xz -C $HOME/mdbook
-        echo "${HOME}/mdbook/" >> $GITHUB_PATH
+      run: curl -L https://github.com/rust-lang/mdBook/releases/download/v0.4.12/mdbook-v0.4.12-x86_64-unknown-linux-gnu.tar.gz | tar xz -C ~/.cargo/bin
     - name: Build
       run: mdbook build
       working-directory: book
