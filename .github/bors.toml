@@ -3,8 +3,8 @@ status = [
     "Test",
     "Rustfmt",
     "Clippy",
-    "Docs",
-    "Rust"
+    "Build", # docs
+    "Rust" # coverage
 ]
 delete_merged_branches = true
 timeout_sec = 600
