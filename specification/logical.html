@@ -4,36 +4,26 @@
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>Logical streams - Tydi</title>
-        
-        
-
+                
 
         <!-- Custom HTML head -->
         
-
 
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="An open specification for complex data structures over hardware streams">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff" />
 
-        
-        
-        <link rel="shortcut icon" href="../favicon.png">
-        
-        <link rel="stylesheet" href="../css/variables.css">
+                        <link rel="shortcut icon" href="../favicon.png">
+                <link rel="stylesheet" href="../css/variables.css">
         <link rel="stylesheet" href="../css/general.css">
         <link rel="stylesheet" href="../css/chrome.css">
+                <link rel="stylesheet" href="../css/print.css" media="print">
         
-        <link rel="stylesheet" href="../css/print.css" media="print">
-        
-
         <!-- Fonts -->
         <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+                <link rel="stylesheet" href="../fonts/fonts.css">
         
-        <link rel="stylesheet" href="../fonts/fonts.css">
-        
-
         <!-- Highlight.js Stylesheets -->
         <link rel="stylesheet" href="../highlight.css">
         <link rel="stylesheet" href="../tomorrow-night.css">
@@ -41,12 +31,9 @@
 
         <!-- Custom theme stylesheets -->
         
-
-        
-        <!-- MathJax -->
+                <!-- MathJax -->
         <script async type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-        
-    </head>
+            </head>
     <body>
         <!-- Provide site root to javascript -->
         <script type="text/javascript">
@@ -96,8 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../specification/index.html"><strong aria-hidden="true">2.</strong> Tydi specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specification/intro.html"><strong aria-hidden="true">2.1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../specification/notation.html"><strong aria-hidden="true">2.2.</strong> Notation</a></li><li class="chapter-item expanded "><a href="../specification/physical.html"><strong aria-hidden="true">2.3.</strong> Physical streams</a></li><li class="chapter-item expanded "><a href="../specification/logical.html" class="active"><strong aria-hidden="true">2.4.</strong> Logical streams</a></li></ol></li><li class="chapter-item expanded "><a href="../tools/index.html"><strong aria-hidden="true">3.</strong> Tools</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tools/generators.html"><strong aria-hidden="true">3.1.</strong> Generators</a></li><li class="chapter-item expanded "><a href="../tools/compositors.html"><strong aria-hidden="true">3.2.</strong> Compositors</a></li></ol></li><li class="chapter-item expanded "><a href="../faq.html">Frequently Asked Questions</a></li><li class="chapter-item expanded affix "><a href="../references.html">References</a></li></ol>
-            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../specification/index.html"><strong aria-hidden="true">2.</strong> Tydi specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specification/intro.html"><strong aria-hidden="true">2.1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../specification/notation.html"><strong aria-hidden="true">2.2.</strong> Notation</a></li><li class="chapter-item expanded "><a href="../specification/physical.html"><strong aria-hidden="true">2.3.</strong> Physical streams</a></li><li class="chapter-item expanded "><a href="../specification/logical.html" class="active"><strong aria-hidden="true">2.4.</strong> Logical streams</a></li></ol></li><li class="chapter-item expanded "><a href="../tools/index.html"><strong aria-hidden="true">3.</strong> Tools</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../tools/generators.html"><strong aria-hidden="true">3.1.</strong> Generators</a></li><li class="chapter-item expanded "><a href="../tools/compositors.html"><strong aria-hidden="true">3.2.</strong> Compositors</a></li></ol></li><li class="chapter-item expanded "><a href="../faq.html">Frequently Asked Questions</a></li><li class="chapter-item expanded affix "><a href="../references.html">References</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -121,33 +107,27 @@
                             <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                             <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
                         </ul>
-                        
-                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                                <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
                             <i class="fa fa-search"></i>
                         </button>
-                        
-                    </div>
+                                            </div>
 
                     <h1 class="menu-title">Tydi</h1>
 
                     <div class="right-buttons">
-                        
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                                                <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
-                        
-                        
-                        <a href="https://github.com/abs-tudelft/tydi" title="Git repository" aria-label="Git repository">
+                                                                        <a href="https://github.com/abs-tudelft/tydi" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
-                        
+                                                
                     </div>
                 </div>
 
-                
-                <div id="search-wrapper" class="hidden">
+                                <div id="search-wrapper" class="hidden">
                     <form id="searchbar-outer" class="searchbar-outer">
-                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
                     </form>
                     <div id="searchresults-outer" class="searchresults-outer hidden">
                         <div id="searchresults-header" class="searchresults-header"></div>
@@ -156,7 +136,6 @@
                     </div>
                 </div>
                 
-
                 <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
                 <script type="text/javascript">
                     document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
@@ -168,7 +147,7 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#logical-streams" id="logical-streams">Logical streams</a></h1>
+                        <h1 id="logical-streams"><a class="header" href="#logical-streams">Logical streams</a></h1>
 <p>A Tydi logical stream consists of a bundle of physical streams and a group of
 user-defined signals, parameterized by way of a logical stream type. The
 logical stream type, in turn, represents some representation of an abstract
@@ -184,17 +163,17 @@ of this specification consists of the formal definitions of the structures
 needed to describe a Tydi logical stream, and operations thereupon. The
 resulting constraints on the signal lists and behavior of the signals are then
 described based on these.</p>
-<h2><a class="header" href="#logical-stream-type" id="logical-stream-type">Logical stream type</a></h2>
+<h2 id="logical-stream-type"><a class="header" href="#logical-stream-type">Logical stream type</a></h2>
 <p>This structure is at the heart of the logical stream specification. It is used
 both to specify the type of a logical stream and internally for the process of
 lowering the recursive structure down to physical streams and signals.</p>
-<h3><a class="header" href="#structure" id="structure">Structure</a></h3>
+<h3 id="structure"><a class="header" href="#structure">Structure</a></h3>
 <p>The logical stream type is defined recursively by means of a number of node
 types. Two classes of nodes are defined: stream-manipulating nodes, and
 element-manipulating nodes. Only one stream-manipulating node exists
 (\(\textrm{Stream}\)), which is defined in the first subsection. The
 remainder of the subsections describe the element-manipulating nodes.</p>
-<h4><a class="header" href="#stream" id="stream">Stream</a></h4>
+<h4 id="stream"><a class="header" href="#stream">Stream</a></h4>
 <p>The \(\textrm{Stream}\) node is used to define a new physical stream. It is
 defined as \(\textrm{Stream}(T_e, t, d, s, c, r, T_u, x)\), where:</p>
 <ul>
@@ -356,7 +335,7 @@ parent);</li>
 <li>\(t = 1\).</li>
 </ul>
 </blockquote>
-<h4><a class="header" href="#null" id="null">Null</a></h4>
+<h4 id="null"><a class="header" href="#null">Null</a></h4>
 <p>The \(\textrm{Null}\) leaf node indicates the transferrence of one-valued
 data: it is only valid value is \(\varnothing\) (null).</p>
 <blockquote>
@@ -367,7 +346,7 @@ nodes carrying a \(\textrm{Null}\) will always result in a physical stream
 &quot;optimized out&quot;), which may still carry dimensionality information, user
 data, or even just transfer timing information.</p>
 </blockquote>
-<h4><a class="header" href="#bits" id="bits">Bits</a></h4>
+<h4 id="bits"><a class="header" href="#bits">Bits</a></h4>
 <p>The \(\textrm{Bits}\) leaf node, defined as \(\textrm{Bits}(b)\), indicates
 the transferrence of \(2^b\)-valued data carried by means of a group of
 \(b\) bits, where \(b\) is a positive integer.</p>
@@ -375,7 +354,7 @@ the transferrence of \(2^b\)-valued data carried by means of a group of
 <p>Tydi does not specify how the bits should be interpreted: such interpretation
 is explicitly out of scope.</p>
 </blockquote>
-<h4><a class="header" href="#group" id="group">Group</a></h4>
+<h4 id="group"><a class="header" href="#group">Group</a></h4>
 <p>The \(\textrm{Group}\) node acts as a product type (composition). It is
 defined as \(\textrm{Group}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\), where:</p>
 <ul>
@@ -405,7 +384,7 @@ would result in a name conflict: both signals would be named <code>a__b__c</code
 <p>The above requirements on the name mirror the requirements on the field names
 for the physical streams.</p>
 </blockquote>
-<h4><a class="header" href="#union" id="union">Union</a></h4>
+<h4 id="union"><a class="header" href="#union">Union</a></h4>
 <p>The \(\textrm{Union}\) node acts as a sum type (exclusive disjunction). It
 is defined as \(\textrm{Union}(N_1: T_1, N_2: T_2, ..., N_n: T_n)\), where:</p>
 <ul>
@@ -457,11 +436,11 @@ would result in a name conflict: both physical streams would be named <code>a__b
 <p>The above requirements on the name mirror the requirements on the field names
 for the physical streams.</p>
 </blockquote>
-<h3><a class="header" href="#operations-on-logical-stream" id="operations-on-logical-stream">Operations on logical stream</a></h3>
+<h3 id="operations-on-logical-stream"><a class="header" href="#operations-on-logical-stream">Operations on logical stream</a></h3>
 <p>This section defines some operations that may be performed on logical stream
 types, most importantly the \(\textrm{synthesize}()\) function, which returns
 the signals and physical streams for a given type.</p>
-<h4><a class="header" href="#null-detection-function" id="null-detection-function">Null detection function</a></h4>
+<h4 id="null-detection-function"><a class="header" href="#null-detection-function">Null detection function</a></h4>
 <p>This section defines the function
 \(\textrm{isNull}(T_{in}) \rightarrow \textrm{Bool}\), which returns
 true if and only if \(T_{in}\) does not result in any signals.</p>
@@ -489,7 +468,7 @@ its types, because the union tag also carries information in that case.</p>
 </blockquote>
 </li>
 </ul>
-<h4><a class="header" href="#split-function" id="split-function">Split function</a></h4>
+<h4 id="split-function"><a class="header" href="#split-function">Split function</a></h4>
 <p>This section defines the function
 \(\textrm{split}(T_{in}) \rightarrow \textrm{SplitStreams}\),
 where \(T_{in}\) is any logical stream type. The \(\textrm{SplitStreams}\)
@@ -621,7 +600,7 @@ where \(m = |N| = |T|\).</li>
 the same, aside from returning \(\textrm{Group}\) vs \(\textrm{Union}\)
 nodes for \(T_{signals}\).</p>
 </blockquote>
-<h4><a class="header" href="#field-conversion-function" id="field-conversion-function">Field conversion function</a></h4>
+<h4 id="field-conversion-function"><a class="header" href="#field-conversion-function">Field conversion function</a></h4>
 <p>This section defines the function
 \(\textrm{fields}(T_{in}) \rightarrow \textrm{Fields}\),
 where \(T_{in}\) is any logical stream type, and the \(\textrm{Fields}\)
@@ -704,7 +683,7 @@ where \(p = |N_o| = |b_o|\).</li>
 </ul>
 </li>
 </ul>
-<h4><a class="header" href="#synthesis-function" id="synthesis-function">Synthesis function</a></h4>
+<h4 id="synthesis-function"><a class="header" href="#synthesis-function">Synthesis function</a></h4>
 <p>This section defines the function
 \(\textrm{synthesize}(T_{in}) \rightarrow \textrm{LogicalStream}\),
 where \(T_{in}\) is any logical stream type. The \(\textrm{LogicalStream}\)
@@ -750,7 +729,7 @@ representation.</p>
 </li>
 <li>Return \(\textrm{LogicalStream}(F_{signals}, N_1 : P_1, N_2 : P_2, ..., N_n : P_n)\).</li>
 </ul>
-<h4><a class="header" href="#type-compatibility-function" id="type-compatibility-function">Type compatibility function</a></h4>
+<h4 id="type-compatibility-function"><a class="header" href="#type-compatibility-function">Type compatibility function</a></h4>
 <p>This section defines the function
 \(\textrm{compatible}(T_{source}, T_{sink}) \rightarrow \textrm{Bool}\),
 where \(T_{source}\) and \(T_{sink}\) are both logical stream types. The
@@ -787,7 +766,7 @@ the case of one or more of the names differ, this would still not hold for
 case-sensitive languages. Therefore, for two streams to be compatible in all
 cases, the matching must be case sensitive.</p>
 </blockquote>
-<h2><a class="header" href="#union-semantics" id="union-semantics">Union semantics</a></h2>
+<h2 id="union-semantics"><a class="header" href="#union-semantics">Union semantics</a></h2>
 <p>When flattened into fields, a \(\textrm{Union}\) node consists of:</p>
 <ul>
 <li>if there are two or more variants, a <code>&quot;tag&quot;</code> field of size
@@ -888,7 +867,7 @@ they see fit. Usually, a pattern of the form
 would be used, in which case the length of the encoded inner sequence would
 be transferred using the <code>union</code> field of the parent stream.</p>
 </blockquote>
-<h2><a class="header" href="#natural-ordering-and-inter-stream-dependencies" id="natural-ordering-and-inter-stream-dependencies">Natural ordering and inter-stream dependencies</a></h2>
+<h2 id="natural-ordering-and-inter-stream-dependencies"><a class="header" href="#natural-ordering-and-inter-stream-dependencies">Natural ordering and inter-stream dependencies</a></h2>
 <p>The natural ordering of a datum transferred over a logical stream is defined
 as follows:</p>
 <ul>
@@ -959,7 +938,7 @@ another stream <code>y</code> flowing in the opposing direction, <code>x</code> 
 stream and <code>y</code> acts as its response. That is, the source of <code>x</code> may not
 assume that the response will come before it sends the request.</p>
 </blockquote>
-<h2><a class="header" href="#user-defined-signal-constraints" id="user-defined-signal-constraints">User-defined signal constraints</a></h2>
+<h2 id="user-defined-signal-constraints"><a class="header" href="#user-defined-signal-constraints">User-defined signal constraints</a></h2>
 <p>Tydi places the following constraints on the user-defined signals.</p>
 <p>The user-defined signals flow exclusively in the source to sink direction.</p>
 <blockquote>
@@ -1012,67 +991,49 @@ strobe occurs, and the sink detecting the transitions in this signal.</p>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                        
-                            <a rel="prev" href="../specification/physical.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                                    <a rel="prev" href="../specification/physical.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
-
-                        
-                            <a rel="next" href="../tools/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                                    <a rel="next" href="../tools/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
-
                         <div style="clear: both"></div>
                     </nav>
                 </div>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                
-                    <a rel="prev" href="../specification/physical.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                    <a rel="prev" href="../specification/physical.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
-
-                
-                    <a rel="next" href="../tools/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                    <a rel="next" href="../tools/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
-                
-            </nav>
+                            </nav>
 
         </div>
 
         
-
         
-
         
-
-        
-        <script type="text/javascript">
+                <script type="text/javascript">
             window.playground_copyable = true;
         </script>
         
-
         
-
-        
-        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+                <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
         
-
         <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
         <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
         <script src="../book.js" type="text/javascript" charset="utf-8"></script>
 
         <!-- Custom JS scripts -->
         
-
         
-
     </body>
 </html>
