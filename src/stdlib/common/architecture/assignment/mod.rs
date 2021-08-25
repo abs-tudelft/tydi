@@ -155,6 +155,43 @@ impl AssignmentKind {
         AssignmentKind::Direct(DirectAssignment::FullRecord(fields))
     }
 
+    /// Convert a record object assignment to a full record field assignment. Useful when record types have identical fields but different type names.
+    pub fn to_full_record(object: &ObjectAssignment) -> Result<AssignmentKind> {
+        match object.typ()? {
+            ObjectType::Bit | ObjectType::Array(_) => Err(Error::InvalidArgument(format!(
+                "Cannot convert {} to full record assignment, can only convert record types.",
+                object.typ()?
+            ))),
+            ObjectType::Record(rec) => {
+                let mut fields = IndexMap::new();
+                for (field, typ) in rec.fields() {
+                    match typ {
+                        ObjectType::Bit | ObjectType::Array(_) => {
+                            fields.insert(
+                                field.clone(),
+                                object
+                                    .clone()
+                                    .assign_from(vec![FieldSelection::name(field)])?
+                                    .into(),
+                            );
+                        }
+                        ObjectType::Record(_) => {
+                            fields.insert(
+                                field.clone(),
+                                AssignmentKind::to_full_record(
+                                    &object
+                                        .clone()
+                                        .assign_from(vec![FieldSelection::name(field)])?,
+                                )?,
+                            );
+                        }
+                    }
+                }
+                Ok(AssignmentKind::Direct(DirectAssignment::FullRecord(fields)))
+            }
+        }
+    }
+
     pub fn declare_for(
         &self,
         object_identifier: impl Into<String>,

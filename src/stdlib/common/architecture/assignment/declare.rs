@@ -39,7 +39,7 @@ mod tests {
     use crate::generator::common::test::records;
     use crate::generator::common::Mode;
     use crate::stdlib::common::architecture::assignment::{
-        Assign, Assignment, AssignmentKind, StdLogicValue,
+        Assign, Assignment, AssignmentKind, ObjectAssignment, StdLogicValue,
     };
     use crate::stdlib::common::architecture::declaration::ObjectDeclaration;
     use crate::stdlib::common::architecture::object::ObjectType;
@@ -50,7 +50,7 @@ mod tests {
 
     use super::*;
 
-    pub(crate) fn test_bit_signal_object() -> Result<ObjectDeclaration> {
+    pub(crate) fn bit_signal_object() -> Result<ObjectDeclaration> {
         Ok(ObjectDeclaration::signal(
             "test_signal".to_string(),
             ObjectType::Bit,
@@ -58,7 +58,7 @@ mod tests {
         ))
     }
 
-    pub(crate) fn test_bit_variable_object() -> Result<ObjectDeclaration> {
+    pub(crate) fn bit_variable_object() -> Result<ObjectDeclaration> {
         Ok(ObjectDeclaration::variable(
             "test_variable".to_string(),
             ObjectType::Bit,
@@ -66,7 +66,7 @@ mod tests {
         ))
     }
 
-    pub(crate) fn test_bit_component_port_object() -> Result<ObjectDeclaration> {
+    pub(crate) fn bit_component_port_object() -> Result<ObjectDeclaration> {
         Ok(ObjectDeclaration::component_port(
             "test_component_port".to_string(),
             ObjectType::Bit,
@@ -74,11 +74,23 @@ mod tests {
         ))
     }
 
-    pub(crate) fn test_record_signal(
+    pub(crate) fn record_signal(
         typename: impl Into<String>,
         identifier: impl Into<String>,
     ) -> Result<ObjectDeclaration> {
         let rec_type = records::rec(typename);
+        Ok(ObjectDeclaration::signal(
+            identifier,
+            rec_type.try_into()?,
+            None,
+        ))
+    }
+
+    pub(crate) fn nested_record_signal(
+        typename: impl Into<String>,
+        identifier: impl Into<String>,
+    ) -> Result<ObjectDeclaration> {
+        let rec_type = records::rec_nested(typename);
         Ok(ObjectDeclaration::signal(
             identifier,
             rec_type.try_into()?,
@@ -100,9 +112,9 @@ mod tests {
 
     #[test]
     fn test_bit_assign() -> Result<()> {
-        let sig = test_bit_signal_object()?.assign(&StdLogicValue::Logic(false))?;
-        let var = test_bit_variable_object()?.assign(&StdLogicValue::Logic(true))?;
-        let port = test_bit_component_port_object()?
+        let sig = bit_signal_object()?.assign(&StdLogicValue::Logic(false))?;
+        let var = bit_variable_object()?.assign(&StdLogicValue::Logic(true))?;
+        let port = bit_component_port_object()?
             .assign(&StdLogicValue::DontCare)?
             .with_doc("This is\nSome neat documentation");
         assert_eq!(sig.declare("", ";\n")?, "test_signal <= '0';\n");
@@ -189,13 +201,13 @@ mod tests {
         let a_full = AssignmentKind::full_record(multifields);
         assert_eq!(
             "recname.c <= (others => 'H');\n",
-            test_record_signal("rectype", "recname")?
+            record_signal("rectype", "recname")?
                 .assign(&Assignment::from(a_single.clone()).to_named("c"))?
                 .declare("", ";\n")?
         );
         assert_eq!(
             "recname2.c(40 downto 30) <= (others => 'H');\n",
-            test_record_signal("rectype", "recname2")?
+            record_signal("rectype", "recname2")?
                 .assign(
                     &Assignment::from(a_single.clone())
                         .to_named("c")
@@ -209,10 +221,30 @@ mod tests {
     d => std_logic_vector(to_signed(-55, recname3.d'length))
   );
 "#,
-            test_record_signal("rectype", "recname3")?
+            record_signal("rectype", "recname3")?
                 .assign(&a_full)?
                 .declare("  ", ";\n")?
         );
+
+        let a_rec = nested_record_signal("a_rec_type", "a_rec")?;
+        let a_rec_assign = AssignmentKind::to_full_record(&ObjectAssignment::from(a_rec))?;
+        assert_eq!(
+            r#"recname4 <= (
+  a => (
+    c => a_rec.a.c,
+    d => a_rec.a.d
+  ),
+  b => (
+    c => a_rec.b.c,
+    d => a_rec.b.d
+  )
+);
+"#,
+            nested_record_signal("nestedrectype", "recname4")?
+                .assign(&a_rec_assign)?
+                .declare("", ";\n")?
+        );
+
         Ok(())
     }
 
