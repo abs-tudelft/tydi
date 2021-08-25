@@ -32,7 +32,7 @@ impl ArchitectureDeclare for AssignDeclaration {
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryInto;
+    use std::convert::{TryFrom, TryInto};
 
     use indexmap::IndexMap;
 
@@ -98,7 +98,7 @@ mod tests {
         ))
     }
 
-    pub(crate) fn test_bitvec_signal(
+    pub(crate) fn bitvec_signal(
         identifier: impl Into<String>,
         high: i32,
         low: i32,
@@ -106,6 +106,25 @@ mod tests {
         Ok(ObjectDeclaration::signal(
             identifier,
             ObjectType::bit_vector(high, low)?,
+            None,
+        ))
+    }
+
+    pub(crate) fn complex_array_signal(
+        identifier: impl Into<String>,
+        high: i32,
+        low: i32,
+        typename: impl Into<String>,
+        rectypename: impl Into<String>,
+    ) -> Result<ObjectDeclaration> {
+        Ok(ObjectDeclaration::signal(
+            identifier,
+            ObjectType::array(
+                high,
+                low,
+                ObjectType::try_from(records::rec(rectypename))?,
+                typename,
+            )?,
             None,
         ))
     }
@@ -227,7 +246,7 @@ mod tests {
         );
 
         let a_rec = nested_record_signal("a_rec_type", "a_rec")?;
-        let a_rec_assign = AssignmentKind::to_full_record(&ObjectAssignment::from(a_rec))?;
+        let a_rec_assign = AssignmentKind::to_direct(&ObjectAssignment::from(a_rec), true)?;
         assert_eq!(
             r#"recname4 <= (
   a => (
@@ -249,17 +268,67 @@ mod tests {
     }
 
     #[test]
-    fn print_array_assign() -> Result<()> {
-        print!(
-            "{}",
-            test_bitvec_signal("recname", 10, 0)?
+    fn test_array_assign() -> Result<()> {
+        assert_eq!(
+            "arr(4) <= 'U';\n",
+            bitvec_signal("arr", 10, 0)?
                 .assign(&Assignment::from(StdLogicValue::U).to_index(4))?
                 .declare("", ";\n")?
         );
-        print!(
-            "{}",
-            test_bitvec_signal("recname", 8, 0)?
+        assert_eq!(
+            "arr <= \"10ZWUHLX-\";\n",
+            bitvec_signal("arr", 8, 0)?
                 .assign(&BitVecValue::from_str("10ZWUHLX-")?)?
+                .declare("", ";\n")?
+        );
+
+        assert_eq!(
+            "arr <= arr2;\n",
+            complex_array_signal("arr", 7, 0, "arrtype", "rectype")?
+                .assign(&complex_array_signal("arr2", 7, 0, "arrtype", "rectype")?)?
+                .declare("", ";\n")?
+        );
+        assert_eq!(
+            "arr <= ( arr2(0), arr2(1), arr2(2), arr2(3), arr2(4), arr2(5), arr2(6), arr2(7) );\n",
+            complex_array_signal("arr", 7, 0, "arrtype", "rectype")?
+                .assign(&AssignmentKind::to_direct(
+                    &complex_array_signal("arr2", 7, 0, "difftype", "rectype")?,
+                    false
+                )?)?
+                .declare("", ";\n")?
+        );
+        assert_eq!(
+            r#"arr <= ( (
+  c => arr2(0).c,
+  d => arr2(0).d
+), (
+  c => arr2(1).c,
+  d => arr2(1).d
+), (
+  c => arr2(2).c,
+  d => arr2(2).d
+), (
+  c => arr2(3).c,
+  d => arr2(3).d
+), (
+  c => arr2(4).c,
+  d => arr2(4).d
+), (
+  c => arr2(5).c,
+  d => arr2(5).d
+), (
+  c => arr2(6).c,
+  d => arr2(6).d
+), (
+  c => arr2(7).c,
+  d => arr2(7).d
+) );
+"#,
+            complex_array_signal("arr", 7, 0, "arrtype", "rectype")?
+                .assign(&AssignmentKind::to_direct(
+                    &complex_array_signal("arr2", 7, 0, "difftype", "diffrectype")?,
+                    true
+                )?)?
                 .declare("", ";\n")?
         );
 

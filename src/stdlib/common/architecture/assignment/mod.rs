@@ -155,18 +155,43 @@ impl AssignmentKind {
         AssignmentKind::Direct(DirectAssignment::FullRecord(fields))
     }
 
-    /// Convert a record object assignment to a full record field assignment. Useful when record types have identical fields but different type names.
-    pub fn to_full_record(object: &ObjectAssignment) -> Result<AssignmentKind> {
+    /// Converts an object assignment into a direct assignment. Useful when array or record types have identical fields but different type names.
+    ///
+    /// `convert_all` will also unwrap further nested objects
+    pub fn to_direct(
+        object: &(impl Into<ObjectAssignment> + Clone),
+        convert_all: bool,
+    ) -> Result<AssignmentKind> {
+        let object = object.clone().into();
         match object.typ()? {
-            ObjectType::Bit | ObjectType::Array(_) => Err(Error::InvalidArgument(format!(
-                "Cannot convert {} to full record assignment, can only convert record types.",
-                object.typ()?
-            ))),
+            ObjectType::Bit => Ok(object.into()),
             ObjectType::Record(rec) => {
                 let mut fields = IndexMap::new();
                 for (field, typ) in rec.fields() {
                     match typ {
-                        ObjectType::Bit | ObjectType::Array(_) => {
+                        ObjectType::Array(_) if convert_all => {
+                            fields.insert(
+                                field.clone(),
+                                AssignmentKind::to_direct(
+                                    &object
+                                        .clone()
+                                        .assign_from(vec![FieldSelection::name(field)])?,
+                                    true,
+                                )?,
+                            );
+                        }
+                        ObjectType::Record(_) if convert_all => {
+                            fields.insert(
+                                field.clone(),
+                                AssignmentKind::to_direct(
+                                    &object
+                                        .clone()
+                                        .assign_from(vec![FieldSelection::name(field)])?,
+                                    true,
+                                )?,
+                            );
+                        }
+                        _ => {
                             fields.insert(
                                 field.clone(),
                                 object
@@ -175,19 +200,47 @@ impl AssignmentKind {
                                     .into(),
                             );
                         }
-                        ObjectType::Record(_) => {
-                            fields.insert(
-                                field.clone(),
-                                AssignmentKind::to_full_record(
-                                    &object
-                                        .clone()
-                                        .assign_from(vec![FieldSelection::name(field)])?,
-                                )?,
-                            );
-                        }
                     }
                 }
                 Ok(AssignmentKind::Direct(DirectAssignment::FullRecord(fields)))
+            }
+            ObjectType::Array(arr) => {
+                if arr.is_bitvector() {
+                    Ok(object.into())
+                } else {
+                    let mut fields = vec![];
+                    match arr.typ() {
+                        ObjectType::Array(_) if convert_all => {
+                            for i in arr.low()..arr.high() + 1 {
+                                fields.push(AssignmentKind::to_direct(
+                                    &object.clone().assign_from(vec![FieldSelection::index(i)])?,
+                                    true,
+                                )?);
+                            }
+                        }
+                        ObjectType::Record(_) if convert_all => {
+                            for i in arr.low()..arr.high() + 1 {
+                                fields.push(AssignmentKind::to_direct(
+                                    &object.clone().assign_from(vec![FieldSelection::index(i)])?,
+                                    true,
+                                )?);
+                            }
+                        }
+                        _ => {
+                            for i in arr.low()..arr.high() + 1 {
+                                fields.push(
+                                    object
+                                        .clone()
+                                        .assign_from(vec![FieldSelection::index(i)])?
+                                        .into(),
+                                );
+                            }
+                        }
+                    }
+                    Ok(AssignmentKind::Direct(DirectAssignment::FullArray(
+                        ArrayAssignment::Direct(fields),
+                    )))
+                }
             }
         }
     }
