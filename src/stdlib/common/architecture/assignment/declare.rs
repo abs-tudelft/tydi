@@ -1,8 +1,5 @@
-use crate::{
-    Document,
-    Result, stdlib::common::architecture::declaration::ObjectKind,
-};
 use crate::stdlib::common::architecture::ArchitectureDeclare;
+use crate::{stdlib::common::architecture::declaration::ObjectKind, Document, Result};
 
 use super::AssignDeclaration;
 
@@ -26,11 +23,9 @@ impl ArchitectureDeclare for AssignDeclaration {
         result.push_str(
             &self
                 .assignment()
-                .declare_for(self.object_string())?
-                .replace("##pre##", pre),
+                .declare_for(self.object_string(), pre, post)?,
         );
         result.push_str(post);
-        result.push_str("\n");
         Ok(result)
     }
 }
@@ -41,17 +36,17 @@ mod tests {
 
     use indexmap::IndexMap;
 
-    use crate::generator::common::Mode;
     use crate::generator::common::test::records;
-    use crate::Result;
-    use crate::stdlib::common::architecture::{
-        assignment::bitvec::BitVecValue, declaration::tests::test_complex_signal,
-    };
+    use crate::generator::common::Mode;
     use crate::stdlib::common::architecture::assignment::{
         Assign, Assignment, AssignmentKind, StdLogicValue,
     };
     use crate::stdlib::common::architecture::declaration::ObjectDeclaration;
     use crate::stdlib::common::architecture::object::ObjectType;
+    use crate::stdlib::common::architecture::{
+        assignment::bitvec::BitVecValue, declaration::tests::test_complex_signal,
+    };
+    use crate::Result;
 
     use super::*;
 
@@ -110,10 +105,10 @@ mod tests {
         let port = test_bit_component_port_object()?
             .assign(&StdLogicValue::DontCare)?
             .with_doc("This is\nSome neat documentation");
-        assert_eq!(sig.declare("", ";")?, "test_signal <= '0';\n");
-        assert_eq!(var.declare("", ";")?, "test_variable := '1';\n");
+        assert_eq!(sig.declare("", ";\n")?, "test_signal <= '0';\n");
+        assert_eq!(var.declare("", ";\n")?, "test_variable := '1';\n");
         assert_eq!(
-            port.declare("   ", ",")?,
+            port.declare("   ", ",\n")?,
             r#"   --This is
    --Some neat documentation
    test_component_port => '-',
@@ -132,11 +127,11 @@ mod tests {
         let a_str = BitVecValue::from_str("1-XUL0H")?;
         print!(
             "{}",
-            AssignDeclaration::new(test_complex_signal()?, a_others.into()).declare("", ";")?
+            AssignDeclaration::new(test_complex_signal()?, a_others.into()).declare("", ";\n")?
         );
         print!(
             "{}",
-            AssignDeclaration::new(test_complex_signal()?, a_unsigned.into()).declare("", ";")?
+            AssignDeclaration::new(test_complex_signal()?, a_unsigned.into()).declare("", ";\n")?
         );
         print!(
             "{}",
@@ -144,12 +139,12 @@ mod tests {
                 test_complex_signal()?,
                 Assignment::from(a_unsigned_range).to_downto(10, 0)?
             )
-            .declare("", ";")?
+            .declare("", ";\n")?
         );
         print!(
             "{}",
             AssignDeclaration::new(test_complex_signal()?, a_signed.clone().into())
-                .declare("", ";")?
+                .declare("", ";\n")?
         );
         // This won't work, because assign actually checks whether it's possible to assign this :)
         // print!(
@@ -165,7 +160,7 @@ mod tests {
                         .to_named("a")
                         .to_downto(4, -3)?
                 )?
-                .declare("", ";")?
+                .declare("", ";\n")?
         );
         print!(
             "{}",
@@ -173,17 +168,17 @@ mod tests {
                 test_complex_signal()?,
                 Assignment::from(a_signed_range).to_to(0, 10)?
             )
-            .declare("", ";")?
+            .declare("", ";\n")?
         );
         print!(
             "{}",
-            AssignDeclaration::new(test_complex_signal()?, a_str.into()).declare("", ";")?
+            AssignDeclaration::new(test_complex_signal()?, a_str.into()).declare("", ";\n")?
         );
         Ok(())
     }
 
     #[test]
-    fn print_record_assign() -> Result<()> {
+    fn test_record_assign() -> Result<()> {
         let a_single = BitVecValue::Others(StdLogicValue::H);
         let mut multifields = IndexMap::new();
         multifields.insert(
@@ -192,27 +187,31 @@ mod tests {
         );
         multifields.insert("d".to_string(), BitVecValue::Signed(-55).into());
         let a_full = AssignmentKind::full_record(multifields);
-        print!(
-            "{}",
+        assert_eq!(
+            "recname.c <= (others => 'H');\n",
             test_record_signal("rectype", "recname")?
                 .assign(&Assignment::from(a_single.clone()).to_named("c"))?
-                .declare("", ";")?
+                .declare("", ";\n")?
         );
-        print!(
-            "{}",
+        assert_eq!(
+            "recname2.c(40 downto 30) <= (others => 'H');\n",
             test_record_signal("rectype", "recname2")?
                 .assign(
                     &Assignment::from(a_single.clone())
                         .to_named("c")
                         .to_downto(40, 30)?
                 )?
-                .declare("", ";")?
+                .declare("", ";\n")?
         );
-        print!(
-            "{}",
+        assert_eq!(
+            r#"  recname3 <= (
+    c => (others => 'H'),
+    d => std_logic_vector(to_signed(-55, recname3.d'length))
+  );
+"#,
             test_record_signal("rectype", "recname3")?
                 .assign(&a_full)?
-                .declare("  ", ";")?
+                .declare("  ", ";\n")?
         );
         Ok(())
     }
@@ -223,13 +222,13 @@ mod tests {
             "{}",
             test_bitvec_signal("recname", 10, 0)?
                 .assign(&Assignment::from(StdLogicValue::U).to_index(4))?
-                .declare("", ";")?
+                .declare("", ";\n")?
         );
         print!(
             "{}",
             test_bitvec_signal("recname", 8, 0)?
                 .assign(&BitVecValue::from_str("10ZWUHLX-")?)?
-                .declare("", ";")?
+                .declare("", ";\n")?
         );
 
         Ok(())

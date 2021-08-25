@@ -1,7 +1,7 @@
 use crate::Result;
-use crate::stdlib::common::architecture::ArchitectureDeclare;
+use crate::{stdlib::common::architecture::ArchitectureDeclare, Error};
 
-use super::{ArchitectureDeclaration, ObjectDeclaration, ObjectKind};
+use super::{ArchitectureDeclaration, ObjectDeclaration, ObjectKind, ObjectMode};
 
 impl ArchitectureDeclare for ArchitectureDeclaration<'_> {
     fn declare(&self, pre: &str, post: &str) -> crate::Result<String> {
@@ -34,22 +34,24 @@ impl ArchitectureDeclare for ObjectDeclaration {
         });
         result.push_str(&self.identifier());
         result.push_str(" : ");
+        if self.kind() == ObjectKind::ComponentPort {
+            match self.mode() {
+                ObjectMode::Undefined => {
+                    return Err(Error::BackEndError(format!(
+                        "Component port {} has no direction",
+                        self.identifier()
+                    )));
+                }
+                ObjectMode::Assigned => result.push_str("out "),
+                ObjectMode::Out => result.push_str("in "),
+            };
+        }
         result.push_str(self.typ().type_name());
-        result.push_str(match self.mode() {
-            super::ObjectMode::Undefined => "",
-            super::ObjectMode::Assigned => "out ",
-            super::ObjectMode::Out => "in ",
-        });
         if let Some(default) = self.default() {
             result.push_str(" := ");
-            result.push_str(
-                &default
-                    .declare_for(self.identifier())?
-                    .replace("##pre##", pre),
-            );
+            result.push_str(&default.declare_for(self.identifier(), pre, post)?);
         }
         result.push_str(post);
-        result.push_str("\n");
         Ok(result)
     }
 }
@@ -64,11 +66,12 @@ mod tests {
     fn test_declarations() -> Result<()> {
         assert_eq!(
             "signal TestSignal : std_logic;\n",
-            ObjectDeclaration::signal("TestSignal", ObjectType::Bit, None).declare("", ";")?
+            ObjectDeclaration::signal("TestSignal", ObjectType::Bit, None).declare("", ";\n")?
         );
         assert_eq!(
             "variable TestVariable : std_logic;\n",
-            ObjectDeclaration::variable("TestVariable", ObjectType::Bit, None).declare("", ";")?
+            ObjectDeclaration::variable("TestVariable", ObjectType::Bit, None)
+                .declare("", ";\n")?
         );
         assert_eq!(
             "signal SignalWithDefault : std_logic := 'U';\n",
@@ -77,12 +80,12 @@ mod tests {
                 ObjectType::Bit,
                 Some(StdLogicValue::U.into())
             )
-            .declare("", ";")?
+            .declare("", ";\n")?
         );
         assert_eq!(
             "  constant TestConstant : std_logic := 'U';\n",
             ObjectDeclaration::constant("TestConstant", ObjectType::Bit, StdLogicValue::U)
-                .declare("  ", ";")?
+                .declare("  ", ";\n")?
         );
         Ok(())
     }

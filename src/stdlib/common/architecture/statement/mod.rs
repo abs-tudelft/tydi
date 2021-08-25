@@ -21,9 +21,21 @@ pub enum Statement {
     PortMapping(PortMapping),
 }
 
+impl From<AssignDeclaration> for Statement {
+    fn from(assign: AssignDeclaration) -> Self {
+        Statement::Assignment(assign)
+    }
+}
+
+impl From<PortMapping> for Statement {
+    fn from(portmapping: PortMapping) -> Self {
+        Statement::PortMapping(portmapping)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PortMapping {
-    label: Name,
+    label: String,
     component_name: String,
     /// The ports, in the order they were declared on the component
     ports: IndexMap<String, ObjectDeclaration>,
@@ -33,7 +45,7 @@ pub struct PortMapping {
 }
 
 impl PortMapping {
-    pub fn from_component(component: &Component, label: Name) -> Result<PortMapping> {
+    pub fn from_component(component: &Component, label: impl Into<String>) -> Result<PortMapping> {
         let mut ports = IndexMap::new();
         for port in component.ports() {
             ports.insert(
@@ -42,7 +54,7 @@ impl PortMapping {
             );
         }
         Ok(PortMapping {
-            label,
+            label: label.into(),
             component_name: component.identifier().to_string(),
             ports,
             mappings: HashMap::new(),
@@ -57,16 +69,21 @@ impl PortMapping {
         &self.mappings
     }
 
-    pub fn map_port(mut self, identifier: String, assignment: &Assignment) -> Result<Self> {
+    pub fn map_port(
+        mut self,
+        identifier: impl Into<String>,
+        assignment: &(impl Into<Assignment> + Clone),
+    ) -> Result<Self> {
+        let identifier: &str = &identifier.into();
         let port = self
             .ports()
-            .get(&identifier)
+            .get(identifier)
             .ok_or(Error::InvalidArgument(format!(
                 "Port {} does not exist on this component",
                 identifier
             )))?;
         let assigned = port.assign(assignment)?;
-        self.mappings.insert(identifier, assigned);
+        self.mappings.insert(identifier.to_string(), assigned);
         Ok(self)
     }
 
@@ -83,7 +100,7 @@ impl PortMapping {
     }
 
     pub fn label(&self) -> &str {
-        self.label.to_string().as_str()
+        self.label.as_str()
     }
 
     pub fn component_name(&self) -> &str {

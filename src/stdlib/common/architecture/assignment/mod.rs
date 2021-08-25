@@ -129,7 +129,7 @@ impl Assignment {
         &self.kind
     }
 
-    pub fn declare_for(&self, object_identifier: String) -> Result<String> {
+    pub fn declare_for(&self, object_identifier: String, pre: &str, post: &str) -> Result<String> {
         if let AssignmentKind::Direct(DirectAssignment::Value(ValueAssignment::BitVec(bitvec))) =
             self.kind()
         {
@@ -137,7 +137,7 @@ impl Assignment {
                 return bitvec.declare_for_range(range);
             }
         }
-        self.kind().declare_for(object_identifier)
+        self.kind().declare_for(object_identifier, pre, post)
     }
 }
 
@@ -155,58 +155,78 @@ impl AssignmentKind {
         AssignmentKind::Direct(DirectAssignment::FullRecord(fields))
     }
 
-    pub fn declare_for(&self, object_identifier: impl Into<String>) -> Result<String> {
+    pub fn declare_for(
+        &self,
+        object_identifier: impl Into<String>,
+        pre: &str,
+        post: &str,
+    ) -> Result<String> {
         let object_identifier: &str = &object_identifier.into();
         match self {
             AssignmentKind::Object(object) => Ok(object.to_string()),
             AssignmentKind::Direct(direct) => match direct {
                 DirectAssignment::Value(value) => match value {
                     ValueAssignment::Bit(bit) => Ok(format!("'{}'", bit)),
-                    ValueAssignment::BitVec(bitvec) => {
-                        Ok(bitvec.declare_for(object_identifier))
-                    }
+                    ValueAssignment::BitVec(bitvec) => Ok(bitvec.declare_for(object_identifier)),
                 },
                 DirectAssignment::FullRecord(record) => {
                     let mut field_assignments = Vec::new();
+                    let nested_pre = &format!("{}  ", pre);
                     for (field, value) in record {
                         field_assignments.push(format!(
-                            "\n##pre## {} => {}",
+                            "\n{}{} => {}",
+                            nested_pre,
                             field,
-                            value.declare_for(format!("{}.{}", object_identifier, field))?
+                            value.declare_for(
+                                format!("{}.{}", object_identifier, field),
+                                nested_pre,
+                                post
+                            )?
                         ));
                     }
-                    Ok(format!("({}\n##pre##)", field_assignments.join(",")))
+                    Ok(format!("({}\n{})", field_assignments.join(","), pre))
                 }
                 DirectAssignment::FullArray(array) => match array {
                     ArrayAssignment::Direct(direct) => {
                         let mut positionals = Vec::new();
                         for value in direct {
-                            positionals.push(
-                                value
-                                    .declare_for(format!("{}'element", object_identifier))?,
-                            );
+                            positionals.push(value.declare_for(
+                                format!("{}'element", object_identifier),
+                                pre,
+                                post,
+                            )?);
                         }
                         Ok(format!("( {} )", positionals.join(", ")))
                     }
                     ArrayAssignment::Partial { direct, others } => {
                         let mut field_assignments = Vec::new();
+                        let nested_pre = &format!("{}  ", pre);
                         for (range, value) in direct {
                             field_assignments.push(format!(
-                                "\n##pre## {} => {}",
+                                "\n{}{} => {}",
+                                nested_pre,
                                 range.to_string().replace("(", "").replace(")", ""),
-                                value
-                                    .declare_for(format!("{}'element", object_identifier))?
+                                value.declare_for(
+                                    format!("{}'element", object_identifier),
+                                    nested_pre,
+                                    post
+                                )?
                             ));
                         }
                         field_assignments.push(format!(
-                            "\n##pre## others => {}",
-                            others.declare_for(format!("{}'element", object_identifier))?
+                            "\n{}others => {}",
+                            nested_pre,
+                            others.declare_for(
+                                format!("{}'element", object_identifier),
+                                nested_pre,
+                                post
+                            )?
                         ));
-                        Ok(format!("({}\n##pre##)", field_assignments.join(",")))
+                        Ok(format!("({}\n{})", field_assignments.join(","), pre))
                     }
                     ArrayAssignment::Others(value) => Ok(format!(
                         "( others => {} )",
-                        value.declare_for(format!("{}'element", object_identifier))?
+                        value.declare_for(format!("{}'element", object_identifier), pre, post)?
                     )),
                 },
             },

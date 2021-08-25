@@ -7,11 +7,6 @@ use crate::generator::common::*;
 pub mod entity;
 pub mod architecture;
 
-/// Indicates that a component drives default values
-///
-/// [Further details: Signal omission](https://abs-tudelft.github.io/tydi/specification/physical.html#signal-omission)
-pub trait DrivesDefaults {}
-
 #[cfg(test)]
 mod tests {
     // use crate::generator::common::test::{records, test_comp};
