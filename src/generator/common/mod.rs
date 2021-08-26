@@ -9,6 +9,7 @@ use indexmap::IndexMap;
 
 use crate::traits::Identify;
 use crate::{cat, Document};
+use crate::{Error, Result};
 use crate::{NonNegative, Reversed};
 
 pub mod convert;
@@ -481,6 +482,23 @@ pub struct Package {
     pub identifier: String,
     /// The components declared within the library.66
     pub components: Vec<Component>,
+}
+
+impl Package {
+    pub fn get_component(&self, identifier: impl Into<String>) -> Result<Component> {
+        let identifier = identifier.into();
+        match self
+            .components
+            .iter()
+            .find(|x| x.identifier() == &identifier)
+        {
+            Some(component) => Ok(component.clone()),
+            None => Err(Error::LibraryError(format!(
+                "Component with identifier {} does not exist in package.",
+                identifier
+            ))),
+        }
+    }
 }
 
 /// A project with libraries

@@ -46,7 +46,7 @@ pub trait ArchitectureDeclare {
 
 impl<'a> Architecture<'a> {
     /// Create the architecture based on a component contained within a package, assuming the library (project) is "work" and the architecture's identifier is "Behavioral"
-    pub fn new_default(package: &Package, component_id: Name) -> Result<Architecture> {
+    pub fn new_default(package: &Package, component_id: impl Into<String>) -> Result<Architecture> {
         Architecture::new(
             Name::try_new("work")?,
             Name::try_new("Behavioral")?,
@@ -60,29 +60,18 @@ impl<'a> Architecture<'a> {
         library_id: Name,
         identifier: Name,
         package: &Package,
-        component_id: Name,
+        component_id: impl Into<String>,
     ) -> Result<Architecture> {
-        if let Some(component) = package
-            .components
-            .iter()
-            .find(|x| component_id == *x.identifier())
-        {
-            let mut usings = package.list_usings()?;
-            usings.add_using(library_id, format!("{}.all", package.identifier));
-            Ok(Architecture {
-                identifier,
-                entity: Entity::from(component.clone()),
-                usings: usings,
-                doc: None,
-                declaration: vec![],
-                statement: vec![],
-            })
-        } else {
-            Err(Error::InvalidArgument(format!(
-                "Identifier \"{}\" does not exist in this package",
-                component_id
-            )))
-        }
+        let mut usings = package.list_usings()?;
+        usings.add_using(library_id, format!("{}.all", package.identifier));
+        Ok(Architecture {
+            identifier,
+            entity: Entity::from(package.get_component(component_id)?),
+            usings: usings,
+            doc: None,
+            declaration: vec![],
+            statement: vec![],
+        })
     }
 
     /// Add additional usings which weren't already part of the package

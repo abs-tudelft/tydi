@@ -36,11 +36,13 @@ impl ListUsings for AssignmentKind {
                             usings.combine(&ak.list_usings()?);
                         }
                     }
-                    ArrayAssignment::Partial { direct, others } => {
+                    ArrayAssignment::Sliced { direct, others } => {
                         for (_, ak) in direct {
                             usings.combine(&ak.list_usings()?);
                         }
-                        usings.combine(&others.list_usings()?);
+                        if let Some(value) = others {
+                            usings.combine(&value.list_usings()?);
+                        }
                     }
                     ArrayAssignment::Others(ak) => {
                         usings.combine(&ak.list_usings()?);

@@ -5,15 +5,15 @@ use crate::{
     Error, Result,
 };
 
-/// An enum for describing an assignment to an array
+/// An enum for describing complete assignment to an array
 #[derive(Debug, Clone)]
 pub enum ArrayAssignment {
     /// Assigning all of an array directly (may concatenate objects)
     Direct(Vec<AssignmentKind>),
-    /// Assign some fields directly, and assign all other fields a single value (e.g. ( 1 => '1', others => '0' ), or ( 1 downto 0 => '1', others => '0' ))
-    Partial {
+    /// Assign some fields directly, and may assign all other fields a single value (e.g. ( 1 => '1', others => '0' ), or ( 1 downto 0 => '1', others => '0' ))
+    Sliced {
         direct: IndexMap<RangeConstraint, AssignmentKind>,
-        others: Box<AssignmentKind>,
+        others: Option<Box<AssignmentKind>>,
     },
     /// Assigning a single value to all of an array
     Others(Box<AssignmentKind>),
@@ -26,11 +26,14 @@ impl ArrayAssignment {
 
     pub fn partial(
         direct: IndexMap<RangeConstraint, AssignmentKind>,
-        others: AssignmentKind,
+        others: Option<AssignmentKind>,
     ) -> ArrayAssignment {
-        ArrayAssignment::Partial {
+        ArrayAssignment::Sliced {
             direct,
-            others: Box::new(others),
+            others: match others {
+                Some(value) => Some(Box::new(value)),
+                None => None,
+            },
         }
     }
 

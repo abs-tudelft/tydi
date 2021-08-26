@@ -19,6 +19,7 @@ pub mod assign;
 pub mod assignment_from;
 pub mod bitvec;
 pub mod declare;
+pub mod flatten;
 pub mod impls;
 
 pub trait Assign {
@@ -91,6 +92,11 @@ pub struct Assignment {
 impl Assignment {
     pub fn to(mut self, to: FieldSelection) -> Self {
         self.to_field.push(to);
+        self
+    }
+
+    pub fn to_nested(mut self, nested: &Vec<FieldSelection>) -> Self {
+        self.to_field.extend(nested.clone());
         self
     }
 
@@ -175,7 +181,7 @@ impl AssignmentKind {
                                 AssignmentKind::to_direct(
                                     &object
                                         .clone()
-                                        .assign_from(vec![FieldSelection::name(field)])?,
+                                        .assign_from(&vec![FieldSelection::name(field)])?,
                                     true,
                                 )?,
                             );
@@ -186,7 +192,7 @@ impl AssignmentKind {
                                 AssignmentKind::to_direct(
                                     &object
                                         .clone()
-                                        .assign_from(vec![FieldSelection::name(field)])?,
+                                        .assign_from(&vec![FieldSelection::name(field)])?,
                                     true,
                                 )?,
                             );
@@ -196,7 +202,7 @@ impl AssignmentKind {
                                 field.clone(),
                                 object
                                     .clone()
-                                    .assign_from(vec![FieldSelection::name(field)])?
+                                    .assign_from(&vec![FieldSelection::name(field)])?
                                     .into(),
                             );
                         }
@@ -213,7 +219,9 @@ impl AssignmentKind {
                         ObjectType::Array(_) if convert_all => {
                             for i in arr.low()..arr.high() + 1 {
                                 fields.push(AssignmentKind::to_direct(
-                                    &object.clone().assign_from(vec![FieldSelection::index(i)])?,
+                                    &object
+                                        .clone()
+                                        .assign_from(&vec![FieldSelection::index(i)])?,
                                     true,
                                 )?);
                             }
@@ -221,7 +229,9 @@ impl AssignmentKind {
                         ObjectType::Record(_) if convert_all => {
                             for i in arr.low()..arr.high() + 1 {
                                 fields.push(AssignmentKind::to_direct(
-                                    &object.clone().assign_from(vec![FieldSelection::index(i)])?,
+                                    &object
+                                        .clone()
+                                        .assign_from(&vec![FieldSelection::index(i)])?,
                                     true,
                                 )?);
                             }
@@ -231,7 +241,7 @@ impl AssignmentKind {
                                 fields.push(
                                     object
                                         .clone()
-                                        .assign_from(vec![FieldSelection::index(i)])?
+                                        .assign_from(&vec![FieldSelection::index(i)])?
                                         .into(),
                                 );
                             }
@@ -288,7 +298,7 @@ impl AssignmentKind {
                         }
                         Ok(format!("( {} )", positionals.join(", ")))
                     }
-                    ArrayAssignment::Partial { direct, others } => {
+                    ArrayAssignment::Sliced { direct, others } => {
                         let mut field_assignments = Vec::new();
                         let nested_pre = &format!("{}  ", pre);
                         for (range, value) in direct {
@@ -303,15 +313,17 @@ impl AssignmentKind {
                                 )?
                             ));
                         }
-                        field_assignments.push(format!(
-                            "\n{}others => {}",
-                            nested_pre,
-                            others.declare_for(
-                                format!("{}'element", object_identifier),
+                        if let Some(value) = others {
+                            field_assignments.push(format!(
+                                "\n{}others => {}",
                                 nested_pre,
-                                post
-                            )?
-                        ));
+                                value.declare_for(
+                                    format!("{}'element", object_identifier),
+                                    nested_pre,
+                                    post
+                                )?
+                            ));
+                        }
                         Ok(format!("({}\n{})", field_assignments.join(","), pre))
                     }
                     ArrayAssignment::Others(value) => Ok(format!(
@@ -350,15 +362,15 @@ impl ObjectAssignment {
     }
 
     /// Select fields from the object being assigned
-    pub fn assign_from(mut self, fields: Vec<FieldSelection>) -> Result<Self> {
+    pub fn assign_from(mut self, fields: &Vec<FieldSelection>) -> Result<Self> {
         let mut object = self.object().typ().clone();
         // Verify the fields exist
         for field in self.from_field() {
             object = object.get_field(field)?;
         }
         for field in fields {
-            object = object.get_field(&field)?;
-            self.from_field.push(field)
+            object = object.get_field(field)?;
+            self.from_field.push(field.clone())
         }
 
         Ok(self)

@@ -50,7 +50,8 @@ impl fmt::Display for ObjectType {
                 }
                 write!(
                     f,
-                    "Record (type name: {}) with fields: ( {})",
+                    "{} (type name: {}) with fields: ( {})",
+                    if record.is_union() { "Union" } else { "Record" },
                     record.type_name(),
                     fields
                 )
@@ -114,6 +115,14 @@ impl ObjectType {
                     .clone()),
             },
         }
+    }
+
+    pub fn get_nested(&self, nested: &Vec<FieldSelection>) -> Result<ObjectType> {
+        let mut result = self.clone();
+        for field in nested {
+            result = result.get_field(field)?;
+        }
+        Ok(result)
     }
 
     /// Create an array of a specific field type
@@ -242,7 +251,7 @@ impl ObjectType {
                                     Err(Error::InvalidArgument(format!("Attempted full array assignment. Number of fields do not match. Array has {} fields, assignment has {} fields", to_array.width(), direct.len())))
                                 }
                             }
-                            ArrayAssignment::Partial { direct, others } => {
+                            ArrayAssignment::Sliced { direct, others } => {
                                 let mut ranges_assigned: Vec<&RangeConstraint> = vec![];
                                 for (range, value) in direct {
                                     if !range.is_between(to_array.high(), to_array.low())? {
@@ -254,16 +263,30 @@ impl ObjectType {
                                         )));
                                     }
                                     if ranges_assigned.iter().any(|x| x.overlaps(range)) {
-                                        return Err(Error::InvalidArgument(format!("Array assignment: {} overlaps with a range which was already assigned.", range)));
+                                        return Err(Error::InvalidArgument(format!("Sliced array assignment: {} overlaps with a range which was already assigned.", range)));
                                     }
                                     to_array
                                         .typ()
                                         .can_assign(&Assignment::from(value.clone()))?;
                                     ranges_assigned.push(range);
                                 }
-                                to_array
-                                    .typ()
-                                    .can_assign(&Assignment::from(others.as_ref().clone()))
+                                let total_assigned: u32 =
+                                    ranges_assigned.iter().map(|x| x.width_u32()).sum();
+                                if total_assigned == to_array.width() {
+                                    if let Some(_) = others {
+                                        return Err(Error::InvalidArgument("Sliced array assignment contains an 'others' field, but already assigns all fields directly.".to_string()));
+                                    } else {
+                                        Ok(())
+                                    }
+                                } else {
+                                    if let Some(value) = others {
+                                        to_array
+                                            .typ()
+                                            .can_assign(&Assignment::from(value.as_ref().clone()))
+                                    } else {
+                                        Err(Error::InvalidArgument("Sliced array assignment does not assign all values directly, but does not contain an 'others' field.".to_string()))
+                                    }
+                                }
                             }
                             ArrayAssignment::Others(others) => to_array
                                 .typ()
@@ -296,8 +319,19 @@ impl TryFrom<Type> for ObjectType {
             Type::BitVec { width } => {
                 Ok(ObjectType::bit_vector((width - 1).try_into().unwrap(), 0)?)
             }
-            Type::Record(record) | Type::Union(record) => {
-                Ok(ObjectType::Record(RecordObject::try_from(record)?))
+            Type::Record(record) => Ok(ObjectType::Record(RecordObject::try_from(record)?)),
+            Type::Union(record) => {
+                let mut fields = IndexMap::new();
+                for field in record.fields() {
+                    fields.insert(
+                        field.identifier().to_string(),
+                        ObjectType::try_from(field.typ().clone())?,
+                    );
+                }
+                Ok(ObjectType::Record(RecordObject::new_union(
+                    record.vhdl_identifier()?,
+                    fields,
+                )))
             }
             Type::Array(array) => Ok(ObjectType::Array(ArrayObject::try_from(array)?)),
         }
@@ -311,11 +345,26 @@ impl TryFrom<Type> for ObjectType {
 pub struct RecordObject {
     type_name: String,
     fields: IndexMap<String, ObjectType>,
+    /// While Unions are record objects, care needs to be taken to ensure their (non-tag) fields are always assigned from the same signal
+    is_union: bool,
 }
 
 impl RecordObject {
     pub fn new(type_name: String, fields: IndexMap<String, ObjectType>) -> RecordObject {
-        RecordObject { type_name, fields }
+        RecordObject {
+            type_name,
+            fields,
+            is_union: false,
+        }
+    }
+
+    /// While Unions are record objects, care needs to be taken to ensure their (non-tag) fields are always assigned from the same signal
+    pub fn new_union(type_name: String, fields: IndexMap<String, ObjectType>) -> RecordObject {
+        RecordObject {
+            type_name,
+            fields,
+            is_union: true,
+        }
     }
 
     pub fn type_name(&self) -> &str {
@@ -324,6 +373,11 @@ impl RecordObject {
 
     pub fn fields(&self) -> &IndexMap<String, ObjectType> {
         &self.fields
+    }
+
+    /// While Unions are record objects, care needs to be taken to ensure their (non-tag) fields are always assigned from the same signal
+    pub fn is_union(&self) -> bool {
+        self.is_union
     }
 }
 
