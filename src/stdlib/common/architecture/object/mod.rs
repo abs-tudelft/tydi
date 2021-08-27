@@ -1,7 +1,6 @@
 use std::{
     convert::{TryFrom, TryInto},
     fmt,
-    ops::Index,
 };
 
 use indexmap::IndexMap;
@@ -12,9 +11,9 @@ use crate::{
         vhdl::VHDLIdentifier,
     },
     stdlib::common::architecture::assignment::{
-        array_assignment::ArrayAssignment, bitvec::BitVecValue, DirectAssignment, ValueAssignment,
+        array_assignment::ArrayAssignment, DirectAssignment, ValueAssignment,
     },
-    Error, Identify, Name, Result,
+    Error, Identify, Result,
 };
 
 use super::assignment::{Assignment, AssignmentKind, FieldSelection, RangeConstraint};

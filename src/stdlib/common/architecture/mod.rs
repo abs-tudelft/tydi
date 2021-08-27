@@ -5,7 +5,7 @@ use crate::{
     },
     Identify, Name,
 };
-use crate::{Error, Result};
+use crate::{Result};
 
 use super::entity::Entity;
 

@@ -6,8 +6,8 @@ use crate::design::{ComponentKey, IFKey, Interface, Mode, Project, Streamlet};
 use crate::generator::dot::DotStyle;
 use crate::Result;
 
-pub mod impl_graph;
 pub mod impl_backend;
+pub mod impl_graph;
 pub mod misc;
 pub mod parser;
 pub mod patterns;
@@ -62,13 +62,8 @@ pub trait GenericComponent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::convert::TryFrom;
-    use std::fs;
-    use crate::design::implementation::composer::parser::ImplParser;
     use crate::design::*;
-    use crate::generator::chisel::ChiselBackEnd;
-    use crate::generator::dot::DotBackend;
-    use crate::generator::GenerateProject;
+    use std::convert::TryFrom;
 
     use crate::parser::nom::interface;
     use crate::{Name, Result, UniqueKeyBuilder};
@@ -91,7 +86,7 @@ mod tests {
                     ]),
                     None,
                 )
-                    .unwrap(),
+                .unwrap(),
             )
             .unwrap();
 
@@ -105,7 +100,7 @@ mod tests {
                     ]),
                     None,
                 )
-                    .unwrap(),
+                .unwrap(),
             )
             .unwrap();
 
@@ -119,7 +114,7 @@ mod tests {
                     ]),
                     None,
                 )
-                    .unwrap(),
+                .unwrap(),
             )
             .unwrap();
 

@@ -1,11 +1,10 @@
-use std::{collections::HashMap, convert::TryFrom};
+use std::collections::HashMap;
 
 use indexmap::IndexMap;
 
 use crate::{
-    generator::common::{Component, Mode},
-    stdlib::common::architecture::assignment::Assign,
-    Error, Identify, Name, Result,
+    generator::common::Component, stdlib::common::architecture::assignment::Assign, Error,
+    Identify, Result,
 };
 
 use super::{

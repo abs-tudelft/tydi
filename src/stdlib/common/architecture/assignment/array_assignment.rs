@@ -2,7 +2,6 @@ use indexmap::IndexMap;
 
 use crate::{
     stdlib::common::architecture::assignment::{AssignmentKind, RangeConstraint},
-    Error, Result,
 };
 
 /// An enum for describing complete assignment to an array

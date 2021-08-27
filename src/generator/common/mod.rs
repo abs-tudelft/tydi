@@ -3,9 +3,9 @@
 //! The goal of this module is to define some common constructs seen in structural hardware
 //! generation that back-ends may or may not use.
 
-use std::iter::FromIterator;
 
-use indexmap::IndexMap;
+
+
 
 use crate::traits::Identify;
 use crate::{cat, Document};

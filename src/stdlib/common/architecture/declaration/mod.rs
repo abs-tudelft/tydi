@@ -1,10 +1,10 @@
 use std::convert::TryInto;
 use std::fmt;
 
-use crate::{Error, Identify, Name, Result};
 use crate::generator::common::{Component, Mode, Port, Type};
+use crate::{Error, Identify, Result};
 
-use super::assignment::{AssignmentKind, FieldSelection, RangeConstraint};
+use super::assignment::{AssignmentKind, FieldSelection};
 use super::object::ObjectType;
 
 pub mod declare;
@@ -340,7 +340,7 @@ pub mod tests {
 
     use indexmap::IndexMap;
 
-    use crate::stdlib::common::architecture::object::RecordObject;
+    use crate::{stdlib::common::architecture::object::RecordObject, Name};
 
     use super::*;
 

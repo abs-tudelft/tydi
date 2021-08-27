@@ -1,13 +1,13 @@
-use std::convert::{TryFrom, TryInto};
+use std::convert::{TryInto};
 use std::fmt;
 
 use indexmap::map::IndexMap;
 
 use array_assignment::ArrayAssignment;
 
-use crate::generator::common::Type;
+
 use crate::physical::Width;
-use crate::{Document, Error, Name, Result};
+use crate::{Document, Error, Result};
 
 use super::declaration::ObjectDeclaration;
 use super::object::ObjectType;

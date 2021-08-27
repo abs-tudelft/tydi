@@ -1,6 +1,6 @@
 use crate::stdlib::common::architecture::assignment::*;
 use crate::Error;
-use std::convert::TryFrom;
+
 
 /// Quick way to get the minimum number of binary values required for an unsigned integer
 fn min_length_unsigned(value: u32) -> u32 {

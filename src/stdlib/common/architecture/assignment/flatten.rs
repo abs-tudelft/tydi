@@ -1,4 +1,4 @@
-use super::{AssignDeclaration, Assignment, AssignmentKind, FieldSelection};
+use super::{AssignDeclaration, Assignment, FieldSelection};
 use crate::{
     stdlib::common::architecture::{
         assignment::{Assign, ObjectAssignment},
@@ -68,9 +68,9 @@ impl FlatLength for ObjectDeclaration {
 impl FlatAssignment for ObjectDeclaration {
     fn from_flat(
         &self,
-        flat_object: &ObjectDeclaration,
-        to_field: &Vec<FieldSelection>,
-        from_field: &FieldSelection,
+        _flat_object: &ObjectDeclaration,
+        _to_field: &Vec<FieldSelection>,
+        _from_field: &FieldSelection,
     ) -> Result<Vec<AssignDeclaration>> {
         todo!()
     }
@@ -103,7 +103,7 @@ impl FlatAssignment for ObjectDeclaration {
                 ObjectType::Array(arr) if arr.is_bitvector() => {
                     finish;
                 }
-                ObjectType::Array(arr) => {
+                ObjectType::Array(_arr) => {
                     // TODO: WIP: for each element of the array, check its length, then do a to_flat for the range equivalent to that length to a subsection of the flat object
                     // If the length is 1, make it an index field selection,
                 }

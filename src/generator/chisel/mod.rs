@@ -186,19 +186,10 @@ impl GenerateProject for ChiselBackEnd {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::convert::TryFrom;
-    use std::fs;
-    use crate::design::implementation::composer::parser::ImplParser;
-    use crate::design::*;
-    use crate::generator::chisel::ChiselBackEnd;
-    use crate::generator::dot::DotBackend;
-    use crate::generator::GenerateProject;
-
-    use crate::parser::nom::interface;
-    use crate::{Name, Result, UniqueKeyBuilder};
     use crate::design::implementation::composer::parser::tests::impl_parser_test;
-
+    use crate::generator::chisel::ChiselBackEnd;
+    use crate::generator::GenerateProject;
+    use std::fs;
 
     #[test]
     fn chisel_impl() {

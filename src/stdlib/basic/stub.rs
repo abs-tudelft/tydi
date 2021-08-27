@@ -1,16 +1,13 @@
 use std::borrow::Borrow;
 
-use log::Log;
-
 use crate::design::implementation::composer::{
     impl_backend::ImplementationBackend, GenericComponent,
 };
 use crate::design::implementation::Implementation;
-use crate::design::{Interface, Mode, Project, Streamlet, StreamletHandle, StreamletKey};
-use crate::generator::vhdl::VHDLBackEnd;
-use crate::generator::GenerateProject;
-use crate::logical::{LogicalType, Stream};
-use crate::physical::Complexity;
+use crate::design::{Interface, Project, Streamlet, StreamletHandle, StreamletKey};
+
+use crate::logical::LogicalType;
+
 use crate::{Error, Name, Result, UniqueKeyBuilder};
 use std::convert::TryFrom;
 
@@ -39,7 +36,6 @@ impl GenericComponent for Stub {
 impl Stub {
     pub fn try_new(project: &Project, name: Name, op: StreamletHandle) -> Result<Self> {
         let op = project.get_lib(op.lib())?.get_streamlet(op.streamlet())?;
-        op.interfaces();
         let mut is_source: bool = false;
         let mut is_sink: bool = false;
 
@@ -190,6 +186,8 @@ mod tests {
 
     use crate::design::Library;
 
+    use crate::generator::vhdl::VHDLBackEnd;
+    use crate::generator::GenerateProject;
     use crate::Result;
     use crate::{parser, Name};
 
