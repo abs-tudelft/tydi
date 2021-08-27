@@ -85,11 +85,50 @@ impl FlatAssignment for ObjectDeclaration {
         to_field: &Vec<FieldSelection>,
         from_field: &Vec<FieldSelection>,
     ) -> Result<Vec<AssignDeclaration>> {
-        complex_object
-            .to_flat(self, from_field, to_field)?
-            .iter()
-            .map(|x| x.reverse())
-            .collect()
+        let self_typ = self.typ().get_nested(from_field)?;
+        if !self_typ.is_flat() {
+            Err(Error::InvalidArgument(format!(
+                "self must be flat, is a {} instead",
+                self_typ
+            )))
+        } else {
+            let complex_typ = complex_object.typ().get_nested(to_field)?;
+            match &complex_typ {
+                ObjectType::Record(rec) if rec.is_union() => {
+                    let self_typ = self.typ().get_nested(from_field)?;
+                    let tag_length = rec.get_field("tag")?.flat_length()?;
+                    let remainder = complex_typ.flat_length()? - tag_length;
+                    let mut result = vec![];
+                    for (name, field) in rec.fields() {
+                        let mut new_to = to_field.clone();
+                        let mut new_from = from_field.clone();
+                        new_to.push(FieldSelection::name(name));
+                        if name == "tag" {
+                            select_specific_flat_range(
+                                &mut new_from,
+                                remainder,
+                                tag_length,
+                                &self_typ,
+                            )?;
+                        } else {
+                            select_specific_flat_range(
+                                &mut new_from,
+                                0,
+                                field.flat_length()?,
+                                &self_typ,
+                            )?;
+                        }
+                        result.extend(self.to_complex(complex_object, &new_to, &new_from)?);
+                    }
+                    Ok(result)
+                }
+                _ => complex_object
+                    .to_flat(self, from_field, to_field)?
+                    .iter()
+                    .map(|x| x.reverse())
+                    .collect(),
+            }
+        }
     }
 
     fn to_flat(
@@ -164,6 +203,8 @@ impl FlatAssignment for ObjectDeclaration {
                 }
                 ObjectType::Record(rec) => {
                     if rec.is_union() {
+                        // TODO: This is incorrect. Driving the signal from multiple sources doesn't work.
+                        // Ideally, figure out some way to generate an "or" on multiple signals
                         let tag_length = rec.get_field("tag")?.flat_length()?;
                         let remainder = self_typ.flat_length()? - tag_length;
                         for (name, field) in rec.fields() {
