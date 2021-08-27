@@ -79,7 +79,7 @@ impl ObjectType {
                             )))
                         }
                     } else {
-                        if range.high() <= array.high() && range.low() >= array.low() {
+                        if range.is_between(array.high(), array.low())? {
                             Ok(ObjectType::array(
                                 range.high(),
                                 range.low(),
@@ -307,6 +307,15 @@ impl ObjectType {
             ObjectType::Bit => "std_logic",
             ObjectType::Array(array) => array.type_name(),
             ObjectType::Record(record) => record.type_name(),
+        }
+    }
+
+    /// Returns true if the object is a Bit or Bit Vector
+    pub fn is_flat(&self) -> bool {
+        match self {
+            ObjectType::Bit => true,
+            ObjectType::Array(arr) if arr.is_bitvector() => true,
+            _ => false,
         }
     }
 }

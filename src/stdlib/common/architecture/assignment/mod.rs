@@ -1,15 +1,14 @@
-use std::convert::{TryInto};
+use std::convert::TryInto;
 use std::fmt;
 
 use indexmap::map::IndexMap;
 
 use array_assignment::ArrayAssignment;
 
-
 use crate::physical::Width;
 use crate::{Document, Error, Result};
 
-use super::declaration::ObjectDeclaration;
+use super::declaration::{ObjectDeclaration, ObjectKind};
 use super::object::ObjectType;
 
 use self::bitvec::BitVecValue;
@@ -71,6 +70,22 @@ impl AssignDeclaration {
     /// Set the documentation of this assignment declaration.
     pub fn set_doc(&mut self, doc: impl Into<String>) {
         self.doc = Some(doc.into())
+    }
+
+    /// Attempts to reverse the assignment. This is (currently) only possible for object assignments
+    pub fn reverse(&self) -> Result<AssignDeclaration> {
+        match self.assignment().kind() {
+            AssignmentKind::Object(object) => Ok(object.object().assign(
+                &Assignment::from(
+                    ObjectAssignment::from(self.object().clone())
+                        .assign_from(self.assignment().to_field())?,
+                )
+                .to_nested(object.from_field()),
+            )?),
+            AssignmentKind::Direct(_) => Err(Error::InvalidTarget(
+                "Cannot reverse a direct assignment.".to_string(),
+            )),
+        }
     }
 }
 
