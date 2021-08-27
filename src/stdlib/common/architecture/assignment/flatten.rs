@@ -152,38 +152,115 @@ impl FlatAssignment for ObjectDeclaration {
                             new_from.push(FieldSelection::index(index));
                             // Subdivide the range selection on the flat object to match the length of each field of the complex object
                             let mut new_to = to_field.clone();
-                            if let Some(some) = new_to.last_mut() {
-                                if let FieldSelection::Range(range) = some {
-                                    *range = sub_range(range.low(), normalized_index, typ_length)?;
-                                } else {
-                                    unreachable!()
-                                }
-                            } else {
-                                if let ObjectType::Array(flat_arr) = &flat_typ {
-                                    new_to.push(FieldSelection::Range(sub_range(
-                                        flat_arr.low(),
-                                        normalized_index,
-                                        typ_length,
-                                    )?));
-                                } else {
-                                    unreachable!()
-                                }
-                            };
+                            select_flat_range(
+                                &mut new_to,
+                                normalized_index,
+                                typ_length,
+                                &flat_typ,
+                            )?;
                             result.extend(self.to_flat(flat_object, &new_to, &new_from)?);
                         }
                     }
                 }
-                ObjectType::Record(_) => todo!(),
+                ObjectType::Record(rec) => {
+                    if rec.is_union() {
+                        let tag_length = rec.get_field("tag")?.flat_length()?;
+                        let remainder = self_typ.flat_length()? - tag_length;
+                        for (name, field) in rec.fields() {
+                            let mut new_to = to_field.clone();
+                            let mut new_from = from_field.clone();
+                            new_from.push(FieldSelection::name(name));
+                            if name == "tag" {
+                                select_specific_flat_range(
+                                    &mut new_to,
+                                    remainder,
+                                    tag_length,
+                                    &flat_typ,
+                                )?;
+                            } else {
+                                select_specific_flat_range(
+                                    &mut new_to,
+                                    0,
+                                    field.flat_length()?,
+                                    &flat_typ,
+                                )?;
+                            }
+                            result.extend(self.to_flat(flat_object, &new_to, &new_from)?);
+                        }
+                    } else {
+                        let mut preceding_length = 0;
+                        for (name, field) in rec.fields() {
+                            let mut new_to = to_field.clone();
+                            let mut new_from = from_field.clone();
+                            new_from.push(FieldSelection::name(name));
+                            let field_length = field.flat_length()?;
+                            select_specific_flat_range(
+                                &mut new_to,
+                                preceding_length,
+                                field_length,
+                                &flat_typ,
+                            )?;
+                            result.extend(self.to_flat(flat_object, &new_to, &new_from)?);
+                            preceding_length += field_length;
+                        }
+                    }
+                }
             }
             Ok(result)
         }
     }
 }
 
-fn sub_range(min_range: i32, normalized_index: u32, typ_length: u32) -> Result<RangeConstraint> {
+/// Selects a range on a flat object. If a range is already selected, instead replaces that selection with the smaller range.
+///
+/// Assumes current selection is an array
+fn select_flat_range(
+    current_selection: &mut Vec<FieldSelection>,
+    normalized_index: u32,
+    typ_length: u32,
+    flat_typ: &ObjectType,
+) -> Result<()> {
+    select_specific_flat_range(
+        current_selection,
+        normalized_index * typ_length,
+        typ_length,
+        flat_typ,
+    )
+}
+
+/// Selects a range on a flat object. If a range is already selected, instead replaces that selection with the smaller range.
+///
+/// Requires the length of all preceding elements and the length of the current object
+fn select_specific_flat_range(
+    current_selection: &mut Vec<FieldSelection>,
+    preceding_length: u32,
+    curr_length: u32,
+    flat_typ: &ObjectType,
+) -> Result<()> {
+    if let Some(some) = current_selection.last_mut() {
+        if let FieldSelection::Range(range) = some {
+            *range = sub_range(range.low(), preceding_length, curr_length)?;
+        } else {
+            unreachable!()
+        }
+    } else {
+        if let ObjectType::Array(flat_arr) = flat_typ {
+            current_selection.push(FieldSelection::Range(sub_range(
+                flat_arr.low(),
+                preceding_length,
+                curr_length,
+            )?));
+        } else {
+            unreachable!()
+        }
+    };
+    Ok(())
+}
+
+fn sub_range(min_range: i32, preceding_length: u32, curr_length: u32) -> Result<RangeConstraint> {
     RangeConstraint::downto(
-        min_range + i32::try_from((normalized_index + 1) * typ_length).unwrap() - 1,
-        min_range + i32::try_from(normalized_index * typ_length).unwrap(),
+        min_range + i32::try_from(preceding_length + curr_length).unwrap() - 1,
+        min_range + i32::try_from(preceding_length).unwrap(),
     )
 }
 
@@ -210,6 +287,8 @@ fn match_bit_field_selection(
 
 #[cfg(test)]
 mod tests {
+    use crate::generator::common::test::records;
+    use crate::stdlib::common::architecture::assignment::declare::tests::nested_record_signal;
     use crate::stdlib::common::architecture::ArchitectureDeclare;
 
     use super::*;
@@ -268,6 +347,93 @@ complex(2)(-1) <= flat(89 downto 80);
 complex(2)(0) <= flat(99 downto 90);
 "#
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_record_flatten() -> Result<()> {
+        let record = nested_record_signal("rec_type", "rec")?;
+        let flat = ObjectDeclaration::signal("flat", ObjectType::bit_vector(2757, 0)?, None);
+        //print!("{} {}\n", record.flat_length()?, flat.flat_length()?);
+        let to_flat_assignments = record.to_flat(&flat, &vec![], &vec![])?;
+        let mut full_flat = String::new();
+        for a in to_flat_assignments {
+            full_flat.push_str(&a.declare("", ";\n")?)
+        }
+        assert_eq!(
+            r#"flat(41 downto 0) <= rec.a.c;
+flat(1378 downto 42) <= rec.a.d;
+flat(1420 downto 1379) <= rec.b.c;
+flat(2757 downto 1421) <= rec.b.d;
+"#,
+            full_flat
+        );
+        let to_complex_assignments = flat.to_complex(&record, &vec![], &vec![])?;
+        let mut full_complex = String::new();
+        for a in to_complex_assignments {
+            full_complex.push_str(&a.declare("", ";\n")?)
+        }
+        assert_eq!(
+            r#"rec.a.c <= flat(41 downto 0);
+rec.a.d <= flat(1378 downto 42);
+rec.b.c <= flat(1420 downto 1379);
+rec.b.d <= flat(2757 downto 1421);
+"#,
+            full_complex
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_union_flatten() -> Result<()> {
+        let union = ObjectDeclaration::signal("union", records::union("union_t").try_into()?, None);
+        let flat = ObjectDeclaration::signal("flat", ObjectType::bit_vector(1338, 0)?, None);
+        //print!("{} {}\n", union.flat_length()?, flat.flat_length()?);
+        let to_flat_assignments = union.to_flat(&flat, &vec![], &vec![])?;
+        let mut full_flat = String::new();
+        for a in to_flat_assignments {
+            full_flat.push_str(&a.declare("", ";\n")?)
+        }
+        assert_eq!(
+            r#"flat(1338 downto 1337) <= union.tag;
+flat(41 downto 0) <= union.c;
+flat(1336 downto 0) <= union.d;
+"#,
+            full_flat
+        );
+        let to_complex_assignments = flat.to_complex(&union, &vec![], &vec![])?;
+        let mut full_complex = String::new();
+        for a in to_complex_assignments {
+            full_complex.push_str(&a.declare("", ";\n")?)
+        }
+        assert_eq!(
+            r#"union.tag <= flat(1338 downto 1337);
+union.c <= flat(41 downto 0);
+union.d <= flat(1336 downto 0);
+"#,
+            full_complex
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_nested_union_flatten() -> Result<()> {
+        let union =
+            ObjectDeclaration::signal("union", records::union_nested("union_t").try_into()?, None);
+        let flat = ObjectDeclaration::signal("flat", ObjectType::bit_vector(1340, 0)?, None);
+        print!("{} {}\n", union.flat_length()?, flat.flat_length()?);
+        let to_flat_assignments = union.to_flat(&flat, &vec![], &vec![])?;
+        let mut full_flat = String::new();
+        for a in to_flat_assignments {
+            full_flat.push_str(&a.declare("", ";\n")?)
+        }
+        print!("{}", full_flat);
+        let to_complex_assignments = flat.to_complex(&union, &vec![], &vec![])?;
+        let mut full_complex = String::new();
+        for a in to_complex_assignments {
+            full_complex.push_str(&a.declare("", ";\n")?)
+        }
+        print!("{}", full_complex);
         Ok(())
     }
 }

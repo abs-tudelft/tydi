@@ -31,7 +31,7 @@ impl ArchitectureDeclare for AssignDeclaration {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::convert::{TryFrom, TryInto};
 
     use indexmap::IndexMap;

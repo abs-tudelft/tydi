@@ -3,10 +3,6 @@
 //! The goal of this module is to define some common constructs seen in structural hardware
 //! generation that back-ends may or may not use.
 
-
-
-
-
 use crate::traits::Identify;
 use crate::{cat, Document};
 use crate::{Error, Result};
@@ -568,6 +564,29 @@ pub(crate) mod test {
                 vec![
                     Field::new("a", rec(cat!(n, "a")), false, None),
                     Field::new("b", rec(cat!(n, "b")), false, None),
+                ],
+            )
+        }
+
+        pub(crate) fn union(name: impl Into<String>) -> Type {
+            Type::union(
+                name,
+                vec![
+                    Field::new("tag", Type::bitvec(2), false, None),
+                    Field::new("c", Type::bitvec(42), false, None),
+                    Field::new("d", Type::bitvec(1337), false, None),
+                ],
+            )
+        }
+
+        pub(crate) fn union_nested(name: impl Into<String>) -> Type {
+            let n: String = name.into();
+            Type::union(
+                n.clone(),
+                vec![
+                    Field::new("tag", Type::bitvec(2), false, None),
+                    Field::new("a", union(cat!(n, "a")), false, None),
+                    Field::new("b", union(cat!(n, "b")), false, None),
                 ],
             )
         }

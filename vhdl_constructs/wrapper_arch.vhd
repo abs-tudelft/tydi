@@ -32,7 +32,7 @@ architecture wrapper of passthrough_stub_com is
   signal passthrough_stub_in_pass_data_array_wire  : passthrough_stub_in_pass_data_array_type;
   signal passthrough_stub_out_pass_data_array_wire : passthrough_stub_out_pass_data_array_type;
   signal some_std_r : std_logic_vector(3 downto 0);
-  signal some_std_l : std_logic_vector(3 downto 0) := (3 downto 2 => some_std_r(3 downto 2), 1 downto 0 => some_std_r(1 downto 0));
+  signal some_std_l : std_logic_vector(3 downto 0);
 begin
 
   passthrough_stub_in_pass_data_array_wire_map : for i in passthrough_stub_in_pass_data_array_type'range generate
