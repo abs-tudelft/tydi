@@ -69,10 +69,10 @@ impl PortMapping {
     }
 
     pub fn map_port(
-        mut self,
+        &mut self,
         identifier: impl Into<String>,
         assignment: &(impl Into<Assignment> + Clone),
-    ) -> Result<Self> {
+    ) -> Result<&mut Self> {
         let identifier: &str = &identifier.into();
         let port = self
             .ports()

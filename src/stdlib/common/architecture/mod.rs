@@ -1,3 +1,5 @@
+use indexmap::IndexMap;
+
 use crate::{
     generator::{
         common::Package,
@@ -9,7 +11,7 @@ use crate::{Result};
 
 use super::entity::Entity;
 
-use self::declaration::ArchitectureDeclaration;
+use self::declaration::{ArchitectureDeclaration, ObjectDeclaration};
 use self::statement::Statement;
 
 pub mod assignment;
@@ -128,6 +130,14 @@ impl<'a> Architecture<'a> {
 
     pub fn declarations(&self) -> &Vec<ArchitectureDeclaration> {
         &self.declaration
+    }
+
+    pub fn entity_ports(&self) -> Result<IndexMap<String, ObjectDeclaration>> {
+        let mut result = IndexMap::new();
+        for port in self.entity.ports() {
+            result.insert(port.identifier().to_string(), ObjectDeclaration::from_port(port, true)?);
+        }
+        Ok(result)
     }
 }
 

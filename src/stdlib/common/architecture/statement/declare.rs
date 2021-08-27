@@ -58,16 +58,15 @@ mod tests {
     fn test_simple_portmapping_declare() -> Result<()> {
         let a_rec = ObjectDeclaration::signal("a_rec", rec_rev("a").try_into()?, None);
         let b_rec = ObjectDeclaration::signal("b_rec", rec_rev_nested("b").try_into()?, None);
-        let pm = PortMapping::from_component(&test_comp(), "some_label")?
-            .map_port("a", &a_rec)?
-            .map_port("b", &b_rec)?;
+        let mut pm = PortMapping::from_component(&test_comp(), "some_label")?;
+        let mapped = pm.map_port("a", &a_rec)?.map_port("b", &b_rec)?;
         assert_eq!(
             r#"  some_label: test_comp port map(
     a => a_rec,
     b => b_rec
   );
 "#,
-            pm.declare("  ", ";\n")?
+            mapped.declare("  ", ";\n")?
         );
         Ok(())
     }
@@ -92,7 +91,8 @@ mod tests {
             "b".to_string(),
             AssignmentKind::full_record(fields_a.clone()),
         );
-        let pm = PortMapping::from_component(&test_comp(), "some_label")?
+        let mut pm = PortMapping::from_component(&test_comp(), "some_label")?;
+        let mapped = pm
             .map_port("a", &AssignmentKind::full_record(fields_a))?
             .map_port("b", &AssignmentKind::full_record(fields_b))?;
         assert_eq!(
