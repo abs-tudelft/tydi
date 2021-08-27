@@ -387,6 +387,17 @@ impl RecordObject {
     pub fn is_union(&self) -> bool {
         self.is_union
     }
+
+    pub fn get_field(&self, field_name: impl Into<String>) -> Result<&ObjectType> {
+        let field_name = &field_name.into();
+        self.fields()
+            .get(field_name)
+            .ok_or(Error::InvalidArgument(format!(
+                "Field {} does not exist on record with type {}",
+                field_name,
+                self.type_name()
+            )))
+    }
 }
 
 impl TryFrom<Record> for RecordObject {
