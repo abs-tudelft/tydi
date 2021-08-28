@@ -180,7 +180,7 @@ impl ImplementationBackend for PassthroughStubBackend {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use std::convert::TryFrom;
     use std::fs;
 
@@ -194,7 +194,7 @@ mod tests {
     use super::*;
     use crate::design::Project;
 
-    fn parsed_project() -> Result<Project> {
+    pub(crate) fn parsed_stub_project() -> Result<Project> {
         let mut prj = Project::new(Name::try_from("test_project")?);
         let (_, source_stub) = parser::nom::streamlet(
             "Streamlet source_stub (
@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn source_stub_interfaces() -> Result<()> {
         let lib_key = Name::try_from("test_library")?;
-        let prj = parsed_project()?;
+        let prj = parsed_stub_project()?;
         let stub = Stub::try_new(
             &prj,
             Name::try_from("source")?,
@@ -244,7 +244,7 @@ mod tests {
     #[test]
     fn passthrough_stub_interfaces() -> Result<()> {
         let lib_key = Name::try_from("test_library")?;
-        let prj = parsed_project()?;
+        let prj = parsed_stub_project()?;
         let stub = Stub::try_new(
             &prj,
             Name::try_from("passthrough")?,
@@ -262,7 +262,7 @@ mod tests {
     #[test]
     fn sink_stub_interfaces() -> Result<()> {
         let lib_key = Name::try_from("test_library")?;
-        let prj = parsed_project()?;
+        let prj = parsed_stub_project()?;
         let stub = Stub::try_new(
             &prj,
             Name::try_from("sink")?,
@@ -282,7 +282,7 @@ mod tests {
         let lib_key = Name::try_from("test_library")?;
         let expected_err_string = "No input or output Stream defined.";
         let expected_error = Error::ComposerError(expected_err_string.to_string());
-        let prj = parsed_project()?;
+        let prj = parsed_stub_project()?;
         match Stub::try_new(
             &prj,
             Name::try_from("invalid")?,
@@ -301,7 +301,7 @@ mod tests {
     #[test]
     fn vhdl_generation() -> Result<()> {
         let lib_key = Name::try_from("test_library")?;
-        let mut prj = parsed_project()?;
+        let mut prj = parsed_stub_project()?;
         let source_stub = Stub::try_new(
             &prj,
             Name::try_from("source")?,

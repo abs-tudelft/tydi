@@ -1,5 +1,6 @@
 use indexmap::IndexMap;
 
+use crate::Result;
 use crate::{
     generator::{
         common::Package,
@@ -7,7 +8,6 @@ use crate::{
     },
     Identify, Name,
 };
-use crate::{Result};
 
 use super::entity::Entity;
 
@@ -92,8 +92,12 @@ impl<'a> Architecture<'a> {
         self.doc = Some(doc.into())
     }
 
-    pub fn add_declaration(&mut self, declaration: &'a ArchitectureDeclaration) -> Result<()> {
-        match declaration {
+    pub fn add_declaration(
+        &mut self,
+        declaration: impl Into<ArchitectureDeclaration<'a>>,
+    ) -> Result<()> {
+        let declaration = declaration.into();
+        match &declaration {
             ArchitectureDeclaration::Object(object) => {
                 self.usings.combine(&object.list_usings()?);
             }
@@ -107,12 +111,13 @@ impl<'a> Architecture<'a> {
             | ArchitectureDeclaration::Component(_)
             | ArchitectureDeclaration::Custom(_) => (),
         }
-        self.declaration.push(declaration.clone());
+        self.declaration.push(declaration);
         Ok(())
     }
 
-    pub fn add_statement(&mut self, statement: &'a Statement) -> Result<()> {
-        match statement {
+    pub fn add_statement(&mut self, statement: impl Into<Statement>) -> Result<()> {
+        let statement = statement.into();
+        match &statement {
             Statement::Assignment(assignment) => self.usings.combine(&assignment.list_usings()?),
             Statement::PortMapping(pm) => {
                 for (_, object) in pm.ports() {
@@ -120,7 +125,7 @@ impl<'a> Architecture<'a> {
                 }
             }
         }
-        self.statement.push(statement.clone());
+        self.statement.push(statement);
         Ok(())
     }
 
@@ -135,7 +140,10 @@ impl<'a> Architecture<'a> {
     pub fn entity_ports(&self) -> Result<IndexMap<String, ObjectDeclaration>> {
         let mut result = IndexMap::new();
         for port in self.entity.ports() {
-            result.insert(port.identifier().to_string(), ObjectDeclaration::from_port(port, true)?);
+            result.insert(
+                port.identifier().to_string(),
+                ObjectDeclaration::from_port(port, true)?,
+            );
         }
         Ok(result)
     }

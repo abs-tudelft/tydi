@@ -1,4 +1,7 @@
-use crate::{Document, Result, generator::vhdl::{Declare, DeclareUsings, ListUsings}};
+use crate::{
+    generator::vhdl::{Declare, DeclareUsings, ListUsings},
+    Document, Result,
+};
 
 use super::*;
 
@@ -63,12 +66,12 @@ impl<'a> Declare for Architecture<'a> {
         );
         result.push_str("--<architecture_declarative_part>\n");
         for declaration in self.declarations() {
-            result.push_str(&declaration.declare("   ", ";")?);
+            result.push_str(&declaration.declare("   ", ";\n")?);
         }
         result.push_str("begin\n");
         result.push_str("--<architecture_statement_part>\n");
         for statement in self.statements() {
-            result.push_str(&statement.declare("   ", ";")?);
+            result.push_str(&statement.declare("   ", ";\n")?);
         }
         result.push_str(format!("end {};\n", self.identifier()).as_str());
         Ok(result)

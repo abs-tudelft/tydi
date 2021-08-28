@@ -9,6 +9,7 @@ use super::object::ObjectType;
 
 pub mod declare;
 pub mod impls;
+pub mod architecturedeclaration_from;
 
 // Declarations may typically be any of the following: type, subtype, signal, constant, file, alias, component, attribute, function, procedure, configuration specification. (per: https://www.ics.uci.edu/~jmoorkan/vhdlref/architec.html)
 // Per: https://insights.sigasi.com/tech/vhdl2008.ebnf/#block_declarative_item
