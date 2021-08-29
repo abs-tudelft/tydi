@@ -47,10 +47,10 @@ impl PortMapping {
     pub fn from_component(component: &Component, label: impl Into<String>) -> Result<PortMapping> {
         let mut ports = IndexMap::new();
         for port in component.ports() {
-            ports.insert(
-                port.identifier().to_string(),
-                ObjectDeclaration::from_port(port, false)?,
-            );
+            let objs = ObjectDeclaration::from_port(port, false)?;
+            for obj in objs {
+                ports.insert(obj.identifier().to_string(), obj);
+            }
         }
         Ok(PortMapping {
             label: label.into(),

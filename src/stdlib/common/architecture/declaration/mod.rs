@@ -2,14 +2,15 @@ use std::convert::TryInto;
 use std::fmt;
 
 use crate::generator::common::{Component, Mode, Port, Type};
+use crate::generator::vhdl::Split;
 use crate::{Error, Identify, Result};
 
 use super::assignment::{AssignmentKind, FieldSelection};
 use super::object::ObjectType;
 
+pub mod architecturedeclaration_from;
 pub mod declare;
 pub mod impls;
-pub mod architecturedeclaration_from;
 
 // Declarations may typically be any of the following: type, subtype, signal, constant, file, alias, component, attribute, function, procedure, configuration specification. (per: https://www.ics.uci.edu/~jmoorkan/vhdlref/architec.html)
 // Per: https://insights.sigasi.com/tech/vhdl2008.ebnf/#block_declarative_item
@@ -235,19 +236,40 @@ impl ObjectDeclaration {
         &self.mode
     }
 
-    pub fn from_port(port: &Port, is_entity: bool) -> Result<ObjectDeclaration> {
-        if is_entity {
+    pub fn from_port(port: &Port, is_entity: bool) -> Result<Vec<ObjectDeclaration>> {
+        let ent_obj = |p: &Port| -> Result<ObjectDeclaration> {
             Ok(ObjectDeclaration::entity_port(
-                port.identifier(),
-                port.typ().try_into()?,
-                port.mode(),
+                p.identifier(),
+                p.typ().try_into()?,
+                p.mode(),
             ))
-        } else {
+        };
+        let comp_obj = |p: &Port| -> Result<ObjectDeclaration> {
             Ok(ObjectDeclaration::component_port(
-                port.identifier(),
-                port.typ().try_into()?,
-                port.mode(),
+                p.identifier(),
+                p.typ().try_into()?,
+                p.mode(),
             ))
+        };
+        let sel_obj = |p: &Port| -> Result<ObjectDeclaration> {
+            if is_entity {
+                ent_obj(p)
+            } else {
+                comp_obj(p)
+            }
+        };
+        if port.has_reversed() {
+            let (dn, up) = port.split();
+            let mut results = vec![];
+            if let Some(p) = dn {
+                results.push(sel_obj(&p)?);
+            }
+            if let Some(p) = up {
+                results.push(sel_obj(&p)?);
+            }
+            Ok(results)
+        } else {
+            Ok(vec![sel_obj(port)?])
         }
     }
 }

@@ -88,7 +88,9 @@ impl FlatAssignment for ObjectDeclaration {
         let self_typ = self.typ().get_nested(from_field)?;
         if !self_typ.is_flat() {
             Err(Error::InvalidArgument(format!(
-                "self must be flat, is a {} instead",
+                "self ({}{}) must be flat, is a {} instead",
+                self.identifier(),
+                print_fields(from_field),
                 self_typ
             )))
         } else {
@@ -140,10 +142,14 @@ impl FlatAssignment for ObjectDeclaration {
         let self_typ = self.typ().get_nested(from_field)?;
         let flat_typ = flat_object.typ().get_nested(to_field)?;
         if self_typ.flat_length() != flat_typ.flat_length() {
-            Err(Error::InvalidArgument(format!("Can't assign objects to one another, mismatched length (self: {}, flat object: {})", self.flat_length_for(from_field)?, flat_object.flat_length_for(to_field)?)))
+            Err(Error::InvalidArgument(format!("Can't assign objects to one another, mismatched length (self ({}{}): {}, flat object ({}{}): {})",
+             self.identifier(), print_fields(from_field), self.flat_length_for(from_field)?,
+             flat_object.identifier(), print_fields(to_field), flat_object.flat_length_for(to_field)?)))
         } else if !flat_typ.is_flat() {
             Err(Error::InvalidArgument(format!(
-                "flat_object must be flat, is a {} instead",
+                "flat_object ({}{}) must be flat, is a {} instead",
+                flat_object.identifier(),
+                print_fields(to_field),
                 flat_typ
             )))
         } else {
@@ -249,6 +255,15 @@ impl FlatAssignment for ObjectDeclaration {
             }
             Ok(result)
         }
+    }
+}
+
+fn print_fields(fields: &Vec<FieldSelection>) -> String {
+    if fields.len() > 0 {
+        let field_strings: Vec<String> = fields.iter().map(|x| x.to_string()).collect();
+        field_strings.join("")
+    } else {
+        "".to_string()
     }
 }
 

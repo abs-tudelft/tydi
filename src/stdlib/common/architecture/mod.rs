@@ -140,10 +140,10 @@ impl<'a> Architecture<'a> {
     pub fn entity_ports(&self) -> Result<IndexMap<String, ObjectDeclaration>> {
         let mut result = IndexMap::new();
         for port in self.entity.ports() {
-            result.insert(
-                port.identifier().to_string(),
-                ObjectDeclaration::from_port(port, true)?,
-            );
+            let objs = ObjectDeclaration::from_port(port, true)?;
+            for obj in objs {
+                result.insert(obj.identifier().to_string(), obj);
+            }
         }
         Ok(result)
     }

@@ -1,127 +1,4 @@
-use indexmap::IndexMap;
-
-use crate::{
-    cat,
-    design::{implementation::composer::GenericComponent, Library, Streamlet, StreamletKey},
-    generator::common::{
-        convert::{Componentify, CANON_SUFFIX},
-        Package,
-    },
-    stdlib::common::{
-        architecture::{
-            assignment::{flatten::FlatAssignment, Assign, FieldSelection},
-            declaration::{ObjectDeclaration, ObjectMode},
-            statement::PortMapping,
-            Architecture,
-        },
-        entity::Entity,
-    },
-    Error, Result,
-};
-
-fn generate_fancy_wrapper<'a>(
-    library: &Library,
-    package: &'a Package,
-    streamlet_key: &StreamletKey,
-) -> Result<Architecture<'a>> {
-    let streamlet = library.get_streamlet(streamlet_key.clone())?;
-    let mut architecture =
-        Architecture::new_default(package, cat!(streamlet_key, CANON_SUFFIX.unwrap()))?;
-    let mut portmap =
-        PortMapping::from_component(&package.get_component(streamlet_key.clone())?, "fancy")?;
-    let mut fancy_wires = IndexMap::new();
-    let mut fancy_assigns = vec![];
-    let mut fixed_assign = |signal: &ObjectDeclaration, port_name: &str| -> Result<()> {
-        fancy_assigns.push(
-            signal.assign(architecture.entity_ports()?.get(port_name).ok_or(
-                Error::BackEndError(format!("Entity does not have a {} signal", port_name)),
-            )?)?,
-        );
-        Ok(())
-    };
-    for (port_name, object) in portmap.ports() {
-        let signal = ObjectDeclaration::signal(cat!(port_name, "wire"), object.typ().clone(), None);
-        if port_name == "clk" || port_name == "rst" {
-            fixed_assign(&signal, port_name)?;
-        }
-        fancy_wires.insert(port_name.to_string(), signal);
-    }
-    let mut field_assign = |signal: &ObjectDeclaration,
-                            port: &ObjectDeclaration,
-                            field_name: &str,
-                            to_complex: bool|
-     -> Result<()> {
-        fancy_assigns.extend(if to_complex {
-            port.to_complex(signal, &vec![FieldSelection::name(field_name)], &vec![])?
-        } else {
-            signal.to_flat(port, &vec![], &vec![FieldSelection::name(field_name)])?
-        });
-        Ok(())
-    };
-    for (port_name, wire) in &fancy_wires {
-        let base_name = port_name.replace("_dn", "").replace("_up", "");
-        for (canon_name, entity_port) in architecture.entity_ports()? {
-            if canon_name.starts_with(&base_name) {
-                let field_name = canon_name.trim_start_matches(&format!("{}_", base_name));
-                match wire.typ().get_field(&FieldSelection::name(field_name)) {
-                    Ok(_) => field_assign(
-                        wire,
-                        &entity_port,
-                        field_name,
-                        entity_port.mode().clone() == ObjectMode::Assigned,
-                    )?,
-                    Err(_) => (),
-                }
-            }
-        }
-    }
-    for (port_name, wire) in fancy_wires {
-        // TODO: Figure out how to relate the "fancy" ports back to the "canonical" ports and vice versa.
-        portmap.map_port(port_name, &wire)?;
-        architecture.add_declaration(wire)?;
-    }
-    for assign in fancy_assigns {
-        architecture.add_statement(assign)?;
-    }
-    architecture.add_statement(portmap)?;
-
-    Ok(architecture)
-}
-
-#[cfg(test)]
-mod tests {
-    use std::convert::TryFrom;
-
-    use crate::{
-        generator::{common::convert::Packify, vhdl::Declare},
-        stdlib::basic::stub::tests::parsed_stub_project,
-        Name,
-    };
-
-    use super::*;
-
-    // Play around here
-    #[test]
-    fn print_fancy_wrapper() -> Result<()> {
-        let lib_key = Name::try_from("test_library")?;
-        let prj = parsed_stub_project()?;
-        let lib = prj.get_lib(lib_key.clone())?;
-        let pak = lib.fancy();
-        print!("{}\n\n", pak.declare()?);
-        let arch = generate_fancy_wrapper(lib, &pak, &StreamletKey::try_from("passthrough_stub")?)?;
-        print!("{}", arch.declare()?);
-        Ok(())
-    }
-
-    #[test]
-    fn test_fancy_wrapper() -> Result<()> {
-        let lib_key = Name::try_from("test_library")?;
-        let prj = parsed_stub_project()?;
-        let lib = prj.get_lib(lib_key.clone())?;
-        let pak = lib.fancy();
-        let arch = generate_fancy_wrapper(lib, &pak, &StreamletKey::try_from("passthrough_stub")?)?;
-        assert_eq!(
-            r#"library ieee;
+library ieee;
 use ieee.std_logic_1164.all;
 
 library work;
@@ -151,6 +28,7 @@ entity passthrough_stub_com is
 end passthrough_stub_com;
 
 architecture Behavioral of passthrough_stub_com is
+--<architecture_declarative_part>
    signal clk_wire : std_logic;
    signal rst_wire : std_logic;
    signal in_pass_dn_wire : passthrough_stub_in_pass_dn_type;
@@ -160,6 +38,7 @@ architecture Behavioral of passthrough_stub_com is
    signal out_pass_dn_wire : passthrough_stub_out_pass_dn_type;
    signal out_pass_up_wire : passthrough_stub_out_pass_up_type;
 begin
+--<architecture_statement_part>
    clk_wire <= clk;
    rst_wire <= rst;
    in_pass_dn_wire.valid <= in_pass_valid;
@@ -236,9 +115,3 @@ begin
      out_pass_up => out_pass_up_wire
    );
 end Behavioral;
-"#,
-            arch.declare()?
-        );
-        Ok(())
-    }
-}

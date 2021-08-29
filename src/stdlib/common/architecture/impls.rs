@@ -64,12 +64,10 @@ impl<'a> Declare for Architecture<'a> {
             )
             .as_str(),
         );
-        result.push_str("--<architecture_declarative_part>\n");
         for declaration in self.declarations() {
             result.push_str(&declaration.declare("   ", ";\n")?);
         }
         result.push_str("begin\n");
-        result.push_str("--<architecture_statement_part>\n");
         for statement in self.statements() {
             result.push_str(&statement.declare("   ", ";\n")?);
         }
@@ -141,9 +139,7 @@ entity test is
 end test;
 
 architecture Behavioral of test is
---<architecture_declarative_part>
 begin
---<architecture_statement_part>
 end Behavioral;
 "
         );

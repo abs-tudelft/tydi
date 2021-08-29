@@ -358,18 +358,21 @@ pub struct RecordObject {
 }
 
 impl RecordObject {
-    pub fn new(type_name: String, fields: IndexMap<String, ObjectType>) -> RecordObject {
+    pub fn new(type_name: impl Into<String>, fields: IndexMap<String, ObjectType>) -> RecordObject {
         RecordObject {
-            type_name,
+            type_name: type_name.into(),
             fields,
             is_union: false,
         }
     }
 
     /// While Unions are record objects, care needs to be taken to ensure their (non-tag) fields are always assigned from the same signal
-    pub fn new_union(type_name: String, fields: IndexMap<String, ObjectType>) -> RecordObject {
+    pub fn new_union(
+        type_name: impl Into<String>,
+        fields: IndexMap<String, ObjectType>,
+    ) -> RecordObject {
         RecordObject {
-            type_name,
+            type_name: type_name.into(),
             fields,
             is_union: true,
         }
@@ -490,7 +493,7 @@ impl TryFrom<Array> for ArrayObject {
 
     fn try_from(value: Array) -> Result<Self> {
         Ok(ArrayObject::array(
-            value.width().try_into().unwrap(),
+            (value.width() - 1).try_into().unwrap(),
             0,
             ObjectType::try_from(value.typ().clone())?,
             value.vhdl_identifier()?,

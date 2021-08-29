@@ -44,9 +44,12 @@ mod tests {
 
     use super::*;
     use crate::{
-        generator::common::test::{
-            records::{rec_rev, rec_rev_nested},
-            test_comp,
+        generator::{
+            common::test::{
+                records::{rec_rev, rec_rev_nested},
+                test_comp,
+            },
+            vhdl::Split,
         },
         stdlib::common::architecture::{
             assignment::{bitvec::BitVecValue, AssignmentKind, StdLogicValue},
@@ -56,14 +59,24 @@ mod tests {
 
     #[test]
     fn test_simple_portmapping_declare() -> Result<()> {
-        let a_rec = ObjectDeclaration::signal("a_rec", rec_rev("a").try_into()?, None);
-        let b_rec = ObjectDeclaration::signal("b_rec", rec_rev_nested("b").try_into()?, None);
+        let (a_dn, a_up) = rec_rev("a").split();
+        let a_dn_rec = ObjectDeclaration::signal("a_dn_rec", a_dn.unwrap().try_into()?, None);
+        let a_up_rec = ObjectDeclaration::signal("a_up_rec", a_up.unwrap().try_into()?, None);
+        let (b_dn, b_up) = rec_rev_nested("b").split();
+        let b_dn_rec = ObjectDeclaration::signal("b_dn_rec", b_dn.unwrap().try_into()?, None);
+        let b_up_rec = ObjectDeclaration::signal("b_up_rec", b_up.unwrap().try_into()?, None);
         let mut pm = PortMapping::from_component(&test_comp(), "some_label")?;
-        let mapped = pm.map_port("a", &a_rec)?.map_port("b", &b_rec)?;
+        let mapped = pm
+            .map_port("a_dn", &a_dn_rec)?
+            .map_port("a_up", &a_up_rec)?
+            .map_port("b_dn", &b_dn_rec)?
+            .map_port("b_up", &b_up_rec)?;
         assert_eq!(
             r#"  some_label: test_comp port map(
-    a => a_rec,
-    b => b_rec
+    a_dn => a_dn_rec,
+    a_up => a_up_rec,
+    b_dn => b_dn_rec,
+    b_up => b_up_rec
   );
 "#,
             mapped.declare("  ", ";\n")?
