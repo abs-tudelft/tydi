@@ -13,10 +13,12 @@ use log::debug;
 use structopt::StructOpt;
 
 use crate::cat;
+use crate::design::implementation::composer::GenericComponent;
 use crate::design::Project;
 use crate::generator::common::convert::Packify;
 use crate::generator::common::*;
 use crate::generator::GenerateProject;
+use crate::stdlib::utils::fancy_wrapper::generate_fancy_wrapper;
 use crate::traits::Identify;
 use crate::Name;
 use crate::{Error, Result, Reversed};
@@ -202,15 +204,24 @@ impl GenerateProject for VHDLBackEnd {
                 None => "vhd".to_string(),
                 Some(s) => format!("{}.vhd", s),
             });
-            std::fs::write(
-                pkg.as_path(),
-                match self.config().abstraction() {
-                    AbstractionLevel::Canonical => lib.canonical(),
-                    AbstractionLevel::Fancy => lib.fancy(),
-                }
-                .declare()?,
-            )?;
+            let pak = match self.config().abstraction() {
+                AbstractionLevel::Canonical => lib.canonical(),
+                AbstractionLevel::Fancy => lib.fancy(),
+            };
+            std::fs::write(pkg.as_path(), pak.declare()?)?;
             debug!("Wrote {}.", pkg.as_path().to_str().unwrap_or(""));
+            if let AbstractionLevel::Fancy = self.config().abstraction() {
+                for streamlet in lib.streamlets() {
+                    let mut wrapper = dir.clone();
+                    wrapper.push(format!("{}_wrapper", streamlet.identifier()));
+                    wrapper.set_extension(match self.config.suffix.clone() {
+                        None => "vhd".to_string(),
+                        Some(s) => format!("{}.vhd", s),
+                    });
+                    let arch = generate_fancy_wrapper(&pak, &streamlet.key())?;
+                    std::fs::write(wrapper.as_path(), arch.declare()?)?;
+                }
+            }
         }
         Ok(())
     }

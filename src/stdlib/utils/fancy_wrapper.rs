@@ -19,12 +19,10 @@ use crate::{
     Error, Result,
 };
 
-fn generate_fancy_wrapper<'a>(
-    library: &Library,
+pub fn generate_fancy_wrapper<'a>(
     package: &'a Package,
     streamlet_key: &StreamletKey,
 ) -> Result<Architecture<'a>> {
-    let streamlet = library.get_streamlet(streamlet_key.clone())?;
     let mut architecture =
         Architecture::new_default(package, cat!(streamlet_key, CANON_SUFFIX.unwrap()))?;
     let mut portmap =
@@ -108,13 +106,11 @@ mod tests {
         let lib = prj.get_lib(lib_key.clone())?;
         let pak = lib.fancy();
         print!("{}\n\n", pak.declare()?);
-        let arch_pass =
-            generate_fancy_wrapper(lib, &pak, &StreamletKey::try_from("passthrough_stub")?)?;
+        let arch_pass = generate_fancy_wrapper(&pak, &StreamletKey::try_from("passthrough_stub")?)?;
         print!("{}\n\n", arch_pass.declare()?);
-        let arch_source =
-            generate_fancy_wrapper(lib, &pak, &StreamletKey::try_from("source_stub")?)?;
+        let arch_source = generate_fancy_wrapper(&pak, &StreamletKey::try_from("source_stub")?)?;
         print!("{}\n\n", arch_source.declare()?);
-        let arch_sink = generate_fancy_wrapper(lib, &pak, &StreamletKey::try_from("sink_stub")?)?;
+        let arch_sink = generate_fancy_wrapper(&pak, &StreamletKey::try_from("sink_stub")?)?;
         print!("{}\n\n", arch_sink.declare()?);
         Ok(())
     }
@@ -125,7 +121,7 @@ mod tests {
         let prj = parsed_stub_project()?;
         let lib = prj.get_lib(lib_key.clone())?;
         let pak = lib.fancy();
-        let arch = generate_fancy_wrapper(lib, &pak, &StreamletKey::try_from("passthrough_stub")?)?;
+        let arch = generate_fancy_wrapper(&pak, &StreamletKey::try_from("passthrough_stub")?)?;
         assert_eq!(
             r#"library ieee;
 use ieee.std_logic_1164.all;
