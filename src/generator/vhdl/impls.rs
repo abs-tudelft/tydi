@@ -27,12 +27,16 @@ fn declare_rec(rec: &Record) -> Result<String> {
 
     for field in rec.fields() {
         // Declare all nested record types first.
-        if let Type::Record(nested) = field.typ() {
-            children.push_str(nested.declare(false)?.clone().as_str());
-            children.push_str("\n\n");
-        } else if let Type::Array(nested) = field.typ() {
-            children.push_str(nested.declare(false)?.clone().as_str());
-            children.push_str("\n\n");
+        match field.typ() {
+            Type::Record(nested) | Type::Union(nested) => {
+                children.push_str(nested.declare(false)?.clone().as_str());
+                children.push_str("\n\n");
+            }
+            Type::Array(nested) => {
+                children.push_str(nested.declare(false)?.clone().as_str());
+                children.push_str("\n\n");
+            }
+            _ => (),
         }
 
         if let Some(doc) = field.doc() {
@@ -170,7 +174,7 @@ impl Analyze for Type {
     fn list_nested_types(&self) -> Vec<Type> {
         match self {
             // Only record can have multiple nested records.
-            Type::Record(rec) => {
+            Type::Record(rec) | Type::Union(rec) => {
                 let mut result: Vec<Type> = vec![self.clone()];
                 for f in rec.fields().into_iter() {
                     let children = f.typ().list_nested_types();
@@ -276,8 +280,9 @@ impl Analyze for Component {
     fn list_nested_types(&self) -> Vec<Type> {
         let mut result: Vec<Type> = vec![];
         for p in self.ports().iter() {
-            if let Type::Record(_) = p.typ() {
-                result.push(p.typ())
+            match p.typ() {
+                Type::Record(_) | Type::Union(_) | Type::Array(_) => result.push(p.typ()),
+                _ => (),
             }
         }
         result

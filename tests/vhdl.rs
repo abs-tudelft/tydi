@@ -332,6 +332,7 @@ type test_c_type is record
 end record;
 
 type test_f_type is record
+  -- Variants: g, h
   tag : std_logic_vector(0 downto 0);
   h : std_logic_vector(2 downto 0);
 end record;
@@ -342,6 +343,7 @@ type test_i_s_type is record
 end record;
 
 type test_i_v_type is record
+  -- Variants: g, w
   tag : std_logic_vector(0 downto 0);
   w : std_logic_vector(2 downto 0);
 end record;
