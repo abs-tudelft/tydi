@@ -108,8 +108,14 @@ mod tests {
         let lib = prj.get_lib(lib_key.clone())?;
         let pak = lib.fancy();
         print!("{}\n\n", pak.declare()?);
-        let arch = generate_fancy_wrapper(lib, &pak, &StreamletKey::try_from("passthrough_stub")?)?;
-        print!("{}", arch.declare()?);
+        let arch_pass =
+            generate_fancy_wrapper(lib, &pak, &StreamletKey::try_from("passthrough_stub")?)?;
+        print!("{}\n\n", arch_pass.declare()?);
+        let arch_source =
+            generate_fancy_wrapper(lib, &pak, &StreamletKey::try_from("source_stub")?)?;
+        print!("{}\n\n", arch_source.declare()?);
+        let arch_sink = generate_fancy_wrapper(lib, &pak, &StreamletKey::try_from("sink_stub")?)?;
+        print!("{}\n\n", arch_sink.declare()?);
         Ok(())
     }
 

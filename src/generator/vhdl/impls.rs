@@ -63,6 +63,42 @@ fn declare_rec(rec: &Record) -> Result<String> {
     }
 }
 
+fn declare_arr(arr: &Array) -> Result<String> {
+    let mut children = String::new();
+    let mut this = format!(
+        "type {} is array ({} to {}) of ",
+        arr.vhdl_identifier()?,
+        0,
+        arr.width() - 1
+    );
+
+    fn rec_declare_children(children: &mut String, rec: Record, this: &mut String) -> Result<()> {
+        children.push_str(declare_rec(&rec)?.as_str());
+        children.push_str("\n\n");
+        this.push_str(rec.vhdl_identifier()?.as_str());
+        Ok(())
+    }
+
+    match arr.typ() {
+        Type::Bit => return Err(BackEndError("Unexpected, Bit in Array".to_string())),
+        Type::BitVec { width: _ } => this.push_str(arr.typ().declare(false)?.clone().as_str()),
+        Type::Record(rec) => rec_declare_children(&mut children, rec.clone(), &mut this)?,
+        Type::Union(rec) => rec_declare_children(&mut children, rec.clone(), &mut this)?,
+        Type::Array(arr) => {
+            children.push_str(arr.declare(false)?.clone().as_str());
+            children.push_str("\n\n");
+            this.push_str(arr.vhdl_identifier()?.as_str());
+        }
+    }
+
+    this.push_str(";");
+    if !children.is_empty() {
+        Ok(format!("{}{}", children, this))
+    } else {
+        Ok(this)
+    }
+}
+
 impl DeclareType for Record {
     fn declare(&self, is_root_type: bool) -> Result<String> {
         let mut result = String::new();
@@ -85,44 +121,23 @@ impl DeclareType for Record {
 }
 
 impl DeclareType for Array {
-    fn declare(&self, _is_root_type: bool) -> Result<String> {
-        let mut children = String::new();
-        let mut this = format!(
-            "type {} is array ({} to {}) of ",
-            self.vhdl_identifier()?,
-            0,
-            self.width() - 1
-        );
-
-        fn rec_declare_children(
-            children: &mut String,
-            rec: Record,
-            this: &mut String,
-        ) -> Result<()> {
-            children.push_str(declare_rec(&rec)?.as_str());
-            children.push_str("\n\n");
-            this.push_str(rec.vhdl_identifier()?.as_str());
-            Ok(())
-        }
-
-        match self.typ() {
-            Type::Bit => return Err(BackEndError("Unexpected, Bit in Array".to_string())),
-            Type::BitVec { width: _ } => this.push_str(self.typ().declare(false)?.clone().as_str()),
-            Type::Record(rec) => rec_declare_children(&mut children, rec, &mut this)?,
-            Type::Union(rec) => rec_declare_children(&mut children, rec, &mut this)?,
-            Type::Array(arr) => {
-                children.push_str(arr.declare(false)?.clone().as_str());
-                children.push_str("\n\n");
-                this.push_str(arr.vhdl_identifier()?.as_str());
-            }
-        }
-
-        this.push_str(";");
-        if !children.is_empty() {
-            Ok(format!("{}{}", children, this))
+    fn declare(&self, is_root_type: bool) -> Result<String> {
+        let mut result = String::new();
+        if self.typ().has_reversed() {
+            let (dn, up) = self.split();
+            let suffixed_dn = dn
+                .unwrap()
+                .append_name_nested(if is_root_type { "dn" } else { "" });
+            let suffixed_up = up
+                .unwrap()
+                .append_name_nested(if is_root_type { "up" } else { "" });
+            result.push_str(declare_arr(&suffixed_dn)?.as_str());
+            result.push_str("\n\n");
+            result.push_str(declare_arr(&suffixed_up)?.as_str());
         } else {
-            Ok(this)
+            result.push_str(declare_arr(&self)?.as_str());
         }
+        Ok(result)
     }
 }
 
@@ -342,7 +357,7 @@ impl ListUsings for Package {
                 Type::BitVec { width: _ } => true,
                 Type::Record(rec) => rec.fields().any(|field| uses_std_logic(field.typ())),
                 Type::Union(rec) => rec.fields().any(|field| uses_std_logic(field.typ())),
-                Type::Array(arr) => uses_std_logic(&arr.typ()),
+                Type::Array(arr) => uses_std_logic(arr.typ()),
             }
         }
 

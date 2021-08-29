@@ -54,17 +54,18 @@ mod tests {
         stdlib::common::architecture::{
             assignment::{bitvec::BitVecValue, AssignmentKind, StdLogicValue},
             declaration::ObjectDeclaration,
+            object::ObjectType,
         },
     };
 
     #[test]
     fn test_simple_portmapping_declare() -> Result<()> {
-        let (a_dn, a_up) = rec_rev("a").split();
-        let a_dn_rec = ObjectDeclaration::signal("a_dn_rec", a_dn.unwrap().try_into()?, None);
-        let a_up_rec = ObjectDeclaration::signal("a_up_rec", a_up.unwrap().try_into()?, None);
-        let (b_dn, b_up) = rec_rev_nested("b").split();
-        let b_dn_rec = ObjectDeclaration::signal("b_dn_rec", b_dn.unwrap().try_into()?, None);
-        let b_up_rec = ObjectDeclaration::signal("b_up_rec", b_up.unwrap().try_into()?, None);
+        let (a_dn, a_up) = ObjectType::try_from_splittable(rec_rev("a"))?;
+        let a_dn_rec = ObjectDeclaration::signal("a_dn_rec", a_dn.unwrap(), None);
+        let a_up_rec = ObjectDeclaration::signal("a_up_rec", a_up.unwrap(), None);
+        let (b_dn, b_up) = ObjectType::try_from_splittable(rec_rev_nested("b"))?;
+        let b_dn_rec = ObjectDeclaration::signal("b_dn_rec", b_dn.unwrap(), None);
+        let b_up_rec = ObjectDeclaration::signal("b_up_rec", b_up.unwrap(), None);
         let mut pm = PortMapping::from_component(&test_comp(), "some_label")?;
         let mapped = pm
             .map_port("a_dn", &a_dn_rec)?
@@ -86,47 +87,43 @@ mod tests {
 
     #[test]
     fn test_complex_portmapping_declare() -> Result<()> {
-        let mut fields_a = IndexMap::new();
-        fields_a.insert(
-            "c".to_string(),
-            BitVecValue::Others(StdLogicValue::Logic(true)).into(),
-        );
-        fields_a.insert(
-            "d".to_string(),
-            BitVecValue::Others(StdLogicValue::Logic(false)).into(),
-        );
-        let mut fields_b = IndexMap::new();
-        fields_b.insert(
-            "a".to_string(),
-            AssignmentKind::full_record(fields_a.clone()),
-        );
-        fields_b.insert(
-            "b".to_string(),
-            AssignmentKind::full_record(fields_a.clone()),
-        );
+        let (a_dn, a_up) = ObjectType::try_from_splittable(rec_rev("a_other"))?;
+        let a_dn_rec = ObjectDeclaration::signal("a_other_dn_rec", a_dn.unwrap(), None);
+        let a_up_rec = ObjectDeclaration::signal("a_other_up_rec", a_up.unwrap(), None);
+        let (b_dn, b_up) = ObjectType::try_from_splittable(rec_rev_nested("b_other"))?;
+        let b_dn_rec = ObjectDeclaration::signal("b_other_dn_rec", b_dn.unwrap(), None);
+        let b_up_rec = ObjectDeclaration::signal("b_other_up_rec", b_up.unwrap(), None);
         let mut pm = PortMapping::from_component(&test_comp(), "some_label")?;
         let mapped = pm
-            .map_port("a", &AssignmentKind::full_record(fields_a))?
-            .map_port("b", &AssignmentKind::full_record(fields_b))?;
+            .map_port("a_dn", &AssignmentKind::to_direct(&a_dn_rec, true)?)?
+            .map_port("a_up", &AssignmentKind::to_direct(&a_up_rec, true)?)?
+            .map_port("b_dn", &AssignmentKind::to_direct(&b_dn_rec, true)?)?
+            .map_port("b_up", &AssignmentKind::to_direct(&b_up_rec, true)?)?;
         assert_eq!(
             r#"some_label: test_comp port map(
-  a => (
-    c => (others => '1'),
-    d => (others => '0')
+  a_dn => (
+    c => a_other_dn_rec.c
   ),
-  b => (
+  a_up => (
+    d => a_other_up_rec.d
+  ),
+  b_dn => (
     a => (
-      c => (others => '1'),
-      d => (others => '0')
+      c => b_other_dn_rec.a.c,
+      d => b_other_dn_rec.a.d
     ),
     b => (
-      c => (others => '1'),
-      d => (others => '0')
+      c => b_other_dn_rec.b.c
+    )
+  ),
+  b_up => (
+    b => (
+      d => b_other_up_rec.b.d
     )
   )
 );
 "#,
-            pm.declare("", ";\n")?
+            mapped.declare("", ";\n")?
         );
         Ok(())
     }

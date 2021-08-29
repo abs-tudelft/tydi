@@ -194,6 +194,12 @@ impl Record {
                     f.reversed,
                     None,
                 ),
+                Type::Array(arr) => Field::new(
+                    f.identifier(),
+                    Type::Array(arr.append_name_nested(p.clone())),
+                    f.reversed,
+                    None,
+                ),
                 _ => f.clone(),
             });
         }
@@ -210,12 +216,46 @@ pub struct Array {
 }
 
 impl Array {
-    pub fn typ(&self) -> Type {
-        *self.typ.clone()
+    pub fn new(identifier: impl Into<String>, typ: Type, width: NonNegative) -> Array {
+        Array {
+            identifier: identifier.into(),
+            typ: Box::new(typ),
+            width,
+        }
+    }
+
+    pub fn typ(&self) -> &Type {
+        &self.typ
     }
 
     pub fn width(&self) -> NonNegative {
         self.width
+    }
+
+    /// Append a string to the name of this array, and any nested records, arrays or unions.
+    pub fn append_name_nested(&self, with: impl Into<String>) -> Self {
+        let p: String = with.into();
+        let new_name = cat!(self.identifier(), p);
+        match self.typ() {
+            Type::Bit | Type::BitVec { width: _ } => {
+                Array::new(new_name, self.typ().clone(), self.width())
+            }
+            Type::Record(rec) => Array::new(
+                new_name,
+                Type::Record(rec.append_name_nested(p.clone())),
+                self.width(),
+            ),
+            Type::Union(rec) => Array::new(
+                new_name,
+                Type::Union(rec.append_name_nested(p.clone())),
+                self.width(),
+            ),
+            Type::Array(arr) => Array::new(
+                new_name,
+                Type::Array(arr.append_name_nested(p.clone())),
+                self.width(),
+            ),
+        }
     }
 }
 

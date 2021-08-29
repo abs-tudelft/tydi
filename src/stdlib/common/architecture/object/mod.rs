@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 use crate::{
     generator::{
         common::{Array, Record, Type},
-        vhdl::VHDLIdentifier,
+        vhdl::{Split, VHDLIdentifier},
     },
     stdlib::common::architecture::assignment::{
         array_assignment::ArrayAssignment, DirectAssignment, ValueAssignment,
@@ -316,6 +316,37 @@ impl ObjectType {
             ObjectType::Bit => true,
             ObjectType::Array(arr) if arr.is_bitvector() => true,
             _ => false,
+        }
+    }
+
+    pub fn try_from_splittable(typ: Type) -> Result<(Option<ObjectType>, Option<ObjectType>)> {
+        if typ.has_reversed() {
+            let (dn, up) = typ.split();
+            let dn_obj = if let Some(dn_t) = dn {
+                Some(match dn_t {
+                    Type::Bit | Type::BitVec { width: _ } => unreachable!(),
+                    Type::Record(rec) => Type::Record(rec.append_name_nested("dn")).try_into()?,
+                    Type::Union(rec) => Type::Union(rec.append_name_nested("dn")).try_into()?,
+                    Type::Array(arr) => Type::Array(arr.append_name_nested("dn")).try_into()?,
+                })
+            } else {
+                None
+            };
+
+            let up_obj = if let Some(up_t) = up {
+                Some(match up_t {
+                    Type::Bit | Type::BitVec { width: _ } => unreachable!(),
+                    Type::Record(rec) => Type::Record(rec.append_name_nested("up")).try_into()?,
+                    Type::Union(rec) => Type::Union(rec.append_name_nested("up")).try_into()?,
+                    Type::Array(arr) => Type::Array(arr.append_name_nested("up")).try_into()?,
+                })
+            } else {
+                None
+            };
+
+            Ok((dn_obj, up_obj))
+        } else {
+            Ok((Some(typ.try_into()?), None))
         }
     }
 }

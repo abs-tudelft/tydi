@@ -232,6 +232,10 @@ impl Split for Type {
                 let (down_rec, up_rec) = rec.split();
                 (down_rec.map(Type::Record), up_rec.map(Type::Record))
             }
+            Type::Union(rec) => {
+                let (down_rec, up_rec) = rec.split();
+                (down_rec.map(Type::Union), up_rec.map(Type::Union))
+            }
             _ => (Some(self.clone()), None),
         }
     }
@@ -277,6 +281,24 @@ impl Split for Record {
     }
 }
 
+impl Split for Array {
+    fn split(&self) -> (Option<Self>, Option<Self>) {
+        let (dn, up) = self.typ().split();
+        let down_arr = if let Some(df) = dn {
+            Some(Array::new(self.identifier(), df, self.width()))
+        } else {
+            None
+        };
+        let up_arr = if let Some(uf) = up {
+            Some(Array::new(self.identifier(), uf, self.width()))
+        } else {
+            None
+        };
+
+        (down_arr, up_arr)
+    }
+}
+
 impl Split for Port {
     fn split(&self) -> (Option<Self>, Option<Self>) {
         let (type_down, type_up) = self.typ().split();
@@ -287,6 +309,7 @@ impl Split for Port {
                     self.mode(),
                     match t {
                         Type::Record(r) => Type::Record(r.append_name_nested("dn")),
+                        Type::Union(r) => Type::Union(r.append_name_nested("dn")),
                         _ => t,
                     },
                 )
@@ -297,6 +320,7 @@ impl Split for Port {
                     self.mode().reversed(),
                     match t {
                         Type::Record(r) => Type::Record(r.append_name_nested("up")),
+                        Type::Union(r) => Type::Union(r.append_name_nested("up")),
                         _ => t,
                     },
                 )
