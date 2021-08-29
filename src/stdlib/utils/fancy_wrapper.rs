@@ -27,25 +27,6 @@ fn generate_fancy_wrapper<'a>(
         Architecture::new_default(package, cat!(streamlet_key, CANON_SUFFIX.unwrap()))?;
     let mut portmap =
         PortMapping::from_component(&package.get_component(streamlet_key.clone())?, "fancy")?;
-    portmap
-        .map_port(
-            "clk",
-            architecture
-                .entity_ports()?
-                .get("clk")
-                .ok_or(Error::BackEndError(
-                    "Entity does not have a clk signal".to_string(),
-                ))?,
-        )?
-        .map_port(
-            "rst",
-            architecture
-                .entity_ports()?
-                .get("rst")
-                .ok_or(Error::BackEndError(
-                    "Entity does not have a rst signal".to_string(),
-                ))?,
-        )?;
     let mut fancy_wires = IndexMap::new();
     let mut fancy_assigns = vec![];
     let mut fixed_assign = |signal: &ObjectDeclaration, port_name: &str| -> Result<()> {
