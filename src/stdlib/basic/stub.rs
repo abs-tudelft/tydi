@@ -332,9 +332,24 @@ pub mod tests {
         lib.add_streamlet(sink_stub.streamlet().clone())?;
         lib.add_streamlet(passthrough_stub.streamlet().clone())?;
 
-        let _folder = fs::create_dir_all("output")?;
+        let tmpdir = tempfile::tempdir()?;
+        let path = tmpdir.path().join("__test");
         let vhdl = VHDLBackEnd::default();
-        vhdl.generate(&prj, "output")?;
+        assert!(vhdl.generate(&prj, &path).is_ok());
+
+        // Assert files are generated
+        assert!(fs::metadata(&path).is_ok());
+        assert!(fs::metadata(&path.join("test_project")).is_ok());
+        assert!(fs::metadata(&path.join("test_project/test_library_pkg.gen.vhd")).is_ok());
+        // Interface/stream files
+        assert!(fs::metadata(&path.join("test_project/invalid_stub_wrapper.gen.vhd")).is_ok());
+        assert!(fs::metadata(&path.join("test_project/passthrough_stub_wrapper.gen.vhd")).is_ok());
+        assert!(fs::metadata(&path.join("test_project/sink_stub_wrapper.gen.vhd")).is_ok());
+        assert!(fs::metadata(&path.join("test_project/source_stub_wrapper.gen.vhd")).is_ok());
+        // Implementation files
+        assert!(fs::metadata(&path.join("test_project/passthrough_wrapper.gen.vhd")).is_ok());
+        assert!(fs::metadata(&path.join("test_project/sink_wrapper.gen.vhd")).is_ok());
+        assert!(fs::metadata(&path.join("test_project/source_wrapper.gen.vhd")).is_ok());
 
         Ok(())
     }
