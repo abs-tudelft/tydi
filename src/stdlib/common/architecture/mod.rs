@@ -170,12 +170,34 @@ mod tests {
     }
 
     #[test]
-    fn new_architecture() {
+    fn test_architecture() {
         let package = test_package();
         let architecture =
             Architecture::new_default(&package, Name::try_new("test").unwrap()).unwrap();
 
-        print!("{}\n\n", package.declare().unwrap());
-        print!("{}\n\n", architecture.declare().unwrap());
+        assert_eq!(
+            r#"library ieee;
+use ieee.std_logic_1164.all;
+
+library work;
+use work.test.all;
+
+entity test is
+  port(
+    clk : in std_logic;
+    rst : in std_logic;
+    a_dn : in test_a_dn_type;
+    a_up : out test_a_up_type;
+    b_dn : out test_b_dn_type;
+    b_up : in test_b_up_type
+  );
+end test;
+
+architecture Behavioral of test is
+begin
+end Behavioral;
+"#,
+            architecture.declare().unwrap()
+        );
     }
 }

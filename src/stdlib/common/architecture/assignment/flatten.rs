@@ -90,7 +90,7 @@ impl FlatAssignment for ObjectDeclaration {
             Err(Error::InvalidArgument(format!(
                 "self ({}{}) must be flat, is a {} instead",
                 self.identifier(),
-                print_fields(from_field),
+                write_fields(from_field),
                 self_typ
             )))
         } else {
@@ -143,13 +143,13 @@ impl FlatAssignment for ObjectDeclaration {
         let flat_typ = flat_object.typ().get_nested(to_field)?;
         if self_typ.flat_length() != flat_typ.flat_length() {
             Err(Error::InvalidArgument(format!("Can't assign objects to one another, mismatched length (self ({}{}): {}, flat object ({}{}): {})",
-             self.identifier(), print_fields(from_field), self.flat_length_for(from_field)?,
-             flat_object.identifier(), print_fields(to_field), flat_object.flat_length_for(to_field)?)))
+             self.identifier(), write_fields(from_field), self.flat_length_for(from_field)?,
+             flat_object.identifier(), write_fields(to_field), flat_object.flat_length_for(to_field)?)))
         } else if !flat_typ.is_flat() {
             Err(Error::InvalidArgument(format!(
                 "flat_object ({}{}) must be flat, is a {} instead",
                 flat_object.identifier(),
-                print_fields(to_field),
+                write_fields(to_field),
                 flat_typ
             )))
         } else {
@@ -258,7 +258,7 @@ impl FlatAssignment for ObjectDeclaration {
     }
 }
 
-fn print_fields(fields: &Vec<FieldSelection>) -> String {
+fn write_fields(fields: &Vec<FieldSelection>) -> String {
     if fields.len() > 0 {
         let field_strings: Vec<String> = fields.iter().map(|x| x.to_string()).collect();
         field_strings.join("")
@@ -412,7 +412,6 @@ complex(2)(0) <= flat(99 downto 90);
     fn test_record_flatten() -> Result<()> {
         let record = nested_record_signal("rec_type", "rec")?;
         let flat = ObjectDeclaration::signal("flat", ObjectType::bit_vector(2757, 0)?, None);
-        //print!("{} {}\n", record.flat_length()?, flat.flat_length()?);
         let to_flat_assignments = record.to_flat(&flat, &vec![], &vec![])?;
         let mut full_flat = String::new();
         for a in to_flat_assignments {
@@ -446,7 +445,6 @@ rec.b.d <= flat(2757 downto 1421);
     fn test_union_flatten() -> Result<()> {
         let union = ObjectDeclaration::signal("union", records::union("union_t").try_into()?, None);
         let flat = ObjectDeclaration::signal("flat", ObjectType::bit_vector(1338, 0)?, None);
-        //print!("{} {}\n", union.flat_length()?, flat.flat_length()?);
         let to_flat_assignments = union.to_flat(&flat, &vec![], &vec![])?;
         let mut full_flat = String::new();
         for a in to_flat_assignments {
@@ -479,19 +477,38 @@ union.d <= flat(1336 downto 0);
         let union =
             ObjectDeclaration::signal("union", records::union_nested("union_t").try_into()?, None);
         let flat = ObjectDeclaration::signal("flat", ObjectType::bit_vector(1340, 0)?, None);
-        print!("{} {}\n", union.flat_length()?, flat.flat_length()?);
         let to_flat_assignments = union.to_flat(&flat, &vec![], &vec![])?;
         let mut full_flat = String::new();
         for a in to_flat_assignments {
             full_flat.push_str(&a.declare("", ";\n")?)
         }
-        print!("{}", full_flat);
+        assert_eq!(
+            r#"flat(1340 downto 1339) <= union.tag;
+flat(1338 downto 1337) <= union.a.tag;
+flat(41 downto 0) <= union.a.c;
+flat(1336 downto 0) <= union.a.d;
+flat(1338 downto 1337) <= union.b.tag;
+flat(41 downto 0) <= union.b.c;
+flat(1336 downto 0) <= union.b.d;
+"#,
+            full_flat
+        );
         let to_complex_assignments = flat.to_complex(&union, &vec![], &vec![])?;
         let mut full_complex = String::new();
         for a in to_complex_assignments {
             full_complex.push_str(&a.declare("", ";\n")?)
         }
-        print!("{}", full_complex);
+        assert_eq!(
+            r#"union.tag <= flat(1340 downto 1339);
+union.a.tag <= flat(1338 downto 1337);
+union.a.c <= flat(41 downto 0);
+union.a.d <= flat(1336 downto 0);
+union.b.tag <= flat(1338 downto 1337);
+union.b.c <= flat(41 downto 0);
+union.b.d <= flat(1336 downto 0);
+"#,
+            full_complex
+        );
         Ok(())
     }
 }

@@ -149,42 +149,36 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn print_bitvec_assign() -> Result<()> {
+    fn test_bitvec_assign() -> Result<()> {
         let a_others = BitVecValue::Others(StdLogicValue::Logic(true));
         let a_unsigned = BitVecValue::Unsigned(32);
         let a_unsigned_range = BitVecValue::Unsigned(32);
         let a_signed = BitVecValue::Signed(-32);
         let a_signed_range = BitVecValue::Signed(-32);
         let a_str = BitVecValue::from_str("1-XUL0H")?;
-        print!(
-            "{}",
+        assert_eq!(
+            "test_signal <= (others => '1');\n",
             AssignDeclaration::new(test_complex_signal()?, a_others.into()).declare("", ";\n")?
         );
-        print!(
-            "{}",
+        assert_eq!(
+            "test_signal <= std_logic_vector(to_unsigned(32, test_signal'length));\n",
             AssignDeclaration::new(test_complex_signal()?, a_unsigned.into()).declare("", ";\n")?
         );
-        print!(
-            "{}",
+        assert_eq!(
+            "test_signal(10 downto 0) <= std_logic_vector(to_unsigned(32, 11));\n",
             AssignDeclaration::new(
                 test_complex_signal()?,
                 Assignment::from(a_unsigned_range).to_downto(10, 0)?
             )
             .declare("", ";\n")?
         );
-        print!(
-            "{}",
+        assert_eq!(
+            "test_signal <= std_logic_vector(to_signed(-32, test_signal'length));\n",
             AssignDeclaration::new(test_complex_signal()?, a_signed.clone().into())
                 .declare("", ";\n")?
         );
-        // This won't work, because assign actually checks whether it's possible to assign this :)
-        // print!(
-        //     "{}",
-        //     test_complex_signal()?.assign(&a_signed.clone().into())?.declare("", ";")?
-        // );
-        // But this will
-        print!(
-            "{}",
+        assert_eq!(
+            "test_signal.a(4 downto -3) <= std_logic_vector(to_signed(-32, 8));\n",
             test_complex_signal()?
                 .assign(
                     &Assignment::from(a_signed.clone())
@@ -193,16 +187,16 @@ pub(crate) mod tests {
                 )?
                 .declare("", ";\n")?
         );
-        print!(
-            "{}",
+        assert_eq!(
+            "test_signal(0 to 10) <= std_logic_vector(to_signed(-32, 11));\n",
             AssignDeclaration::new(
                 test_complex_signal()?,
                 Assignment::from(a_signed_range).to_to(0, 10)?
             )
             .declare("", ";\n")?
         );
-        print!(
-            "{}",
+        assert_eq!(
+            "test_signal <= \"1-XUL0H\";\n",
             AssignDeclaration::new(test_complex_signal()?, a_str.into()).declare("", ";\n")?
         );
         Ok(())

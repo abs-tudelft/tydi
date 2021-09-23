@@ -92,23 +92,6 @@ mod tests {
 
     use super::*;
 
-    // Play around here
-    #[test]
-    fn print_fancy_wrapper() -> Result<()> {
-        let lib_key = Name::try_from("test_library")?;
-        let prj = parsed_stub_project()?;
-        let lib = prj.get_lib(lib_key.clone())?;
-        let pak = lib.fancy();
-        print!("{}\n\n", pak.declare()?);
-        let arch_pass = generate_fancy_wrapper(&pak, &StreamletKey::try_from("passthrough_stub")?)?;
-        print!("{}\n\n", arch_pass.declare()?);
-        let arch_source = generate_fancy_wrapper(&pak, &StreamletKey::try_from("source_stub")?)?;
-        print!("{}\n\n", arch_source.declare()?);
-        let arch_sink = generate_fancy_wrapper(&pak, &StreamletKey::try_from("sink_stub")?)?;
-        print!("{}\n\n", arch_sink.declare()?);
-        Ok(())
-    }
-
     #[test]
     fn test_fancy_wrapper() -> Result<()> {
         let lib_key = Name::try_from("test_library")?;
