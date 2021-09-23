@@ -27,9 +27,6 @@ colored = "2"
 indexmap = "1"
 structopt = { version = "0.3", optional = true, default-features = false }
 nom = { version = "7", optional = true }
-failure = "0.1.5"
-failure_derive = "0.1.5"
-traitcast = "0.5.0"
 
 [dev-dependencies]
 tempfile = "3"
