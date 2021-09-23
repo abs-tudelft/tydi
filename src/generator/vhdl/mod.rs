@@ -347,7 +347,6 @@ mod test {
     use crate::Reversed;
 
     use super::*;
-    use crate::design::implementation::composer::parser::tests::impl_parser_test;
 
     #[test]
     fn split_primitive() {
@@ -513,19 +512,5 @@ mod test {
         assert!(fs::metadata(&path.join("proj/lib_pkg.gen.vhd")).is_ok());
 
         Ok(())
-    }
-
-    #[test]
-    fn prj_impl() {
-        let _tmpdir = tempfile::tempdir().unwrap();
-
-        //let prj = impl_parser_test().unwrap();
-        let prj = impl_parser_test().unwrap();
-        let vhdl = VHDLBackEnd::default();
-        // TODO: implement actual test.
-
-        let _folder = fs::create_dir_all("output").unwrap();
-
-        assert!(vhdl.generate(&prj, "output").is_ok());
     }
 }

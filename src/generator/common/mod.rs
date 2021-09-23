@@ -23,8 +23,8 @@ pub mod convert;
 /// let port = Port::new("example",
 ///     Mode::In,
 ///     Type::record("rec", vec![              // Shortcut to Type::Record(Record::new(...
-///         Field::new("a", Type::Bit, false), // This field will have a port Mode::In
-///         Field::new("b", Type::Bit, true)   // This field will have a port Mode::Out
+///         Field::new("a", Type::Bit, false, None), // This field will have a port Mode::In
+///         Field::new("b", Type::Bit, true, None)   // This field will have a port Mode::Out
 ///     ])
 /// );
 /// ```

@@ -72,10 +72,6 @@
 #![doc(html_favicon_url = "https://abs-tudelft.github.io/tydi/tydi_logo.svg")]
 #![doc(html_logo_url = "https://abs-tudelft.github.io/tydi/tydi_logo.svg")]
 
-extern crate pest;
-#[macro_use]
-extern crate pest_derive;
-
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::fmt;

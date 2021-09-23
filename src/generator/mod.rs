@@ -5,7 +5,6 @@ use crate::Result;
 
 pub mod chisel;
 pub mod common;
-pub mod dot;
 pub mod vhdl;
 
 /// Concatenate stuff using format with an underscore in between.

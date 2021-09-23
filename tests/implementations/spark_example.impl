@@ -1,9 +1,0 @@
-impl compositions.Top_level structural {
-    matcher: primitives.RegexMatcher[regex := "Blue Ribbon Taxi Association Inc."];
-    matcher.in <= this.chars;
-    filter_stage: FilterStream(matcher.out);
-    reduce_stage: ReduceStream(reduce_op: primitives.Sum);
-    filter_stage.in <= this.numbers;
-    filter_stage <=> reduce_stage;
-    this.out <= reduce_stage.out;
-}

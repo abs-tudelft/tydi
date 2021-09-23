@@ -3,29 +3,14 @@ use std::rc::Rc;
 
 use crate::design::implementation::Implementation;
 use crate::design::{ComponentKey, IFKey, Interface, Mode, Project, Streamlet};
-use crate::generator::dot::DotStyle;
 use crate::Result;
 
 pub mod impl_backend;
-pub mod impl_graph;
-pub mod misc;
-pub mod parser;
 pub mod patterns;
 
 /// Traits for components in the implementation graph
 pub trait GenHDL {
     fn gen_hdl(&self) -> Result<String>;
-}
-
-pub trait GenDot {
-    fn gen_dot(
-        &self,
-        style: &DotStyle,
-        project: &Project,
-        l: usize,
-        prefix: &str,
-        label: &str,
-    ) -> String;
 }
 
 pub trait GenericComponent {
