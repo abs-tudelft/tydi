@@ -1,8 +1,6 @@
 use indexmap::IndexMap;
 
-use crate::{
-    stdlib::common::architecture::assignment::{AssignmentKind, RangeConstraint},
-};
+use crate::stdlib::common::architecture::assignment::{AssignmentKind, RangeConstraint};
 
 /// An enum for describing complete assignment to an array
 #[derive(Debug, Clone)]

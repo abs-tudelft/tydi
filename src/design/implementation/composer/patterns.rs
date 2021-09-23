@@ -1,13 +1,13 @@
 use std::borrow::Borrow;
 use std::convert::TryFrom;
 
+use crate::design::implementation::composer::impl_backend::ImplementationBackend;
 use crate::design::implementation::composer::GenericComponent;
 use crate::design::implementation::Implementation;
 use crate::design::{IFKey, Interface, Mode, Project, Streamlet, StreamletHandle, StreamletKey};
 use crate::logical::{Direction, LogicalType, Stream, Synchronicity};
 use crate::physical::Complexity;
 use crate::{Error, Name, NonZeroReal, Result, UniqueKeyBuilder};
-use crate::design::implementation::composer::impl_backend::ImplementationBackend;
 
 ///! MapStream construct
 #[derive(Clone, Debug)]
@@ -348,10 +348,10 @@ impl ImplementationBackend for FilterStreamBackend {
 mod tests {
     use std::convert::TryFrom;
 
-    use crate::design::StreamletHandle;
-    use crate::{Name, Result};
     use super::*;
     use crate::design::implementation::composer::tests::composition_test_proj;
+    use crate::design::StreamletHandle;
+    use crate::{Name, Result};
 
     #[test]
     fn test_map() -> Result<()> {

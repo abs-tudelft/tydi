@@ -1,4 +1,4 @@
-use std::convert::{TryInto};
+use std::convert::TryInto;
 
 use super::{Assign, AssignDeclaration, Assignment};
 use crate::{stdlib::common::architecture::declaration::ObjectDeclaration, Error, Result};

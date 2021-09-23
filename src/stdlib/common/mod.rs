@@ -4,8 +4,8 @@
 
 use crate::generator::common::*;
 
-pub mod entity;
 pub mod architecture;
+pub mod entity;
 
 #[cfg(test)]
 mod tests {
@@ -13,7 +13,7 @@ mod tests {
 
     // use super::*;
 
-// pub fn test_entity() -> Entity {
+    // pub fn test_entity() -> Entity {
     //     Entity::from(test_comp())
     // }
 }

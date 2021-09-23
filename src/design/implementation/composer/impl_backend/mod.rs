@@ -1,7 +1,7 @@
-use core::fmt::{Debug, Formatter};
 use crate::design::StreamletHandle;
 use crate::error::Result;
 use crate::Name;
+use core::fmt::{Debug, Formatter};
 
 ///Trait for general implementation backends
 pub trait ImplementationBackend {
