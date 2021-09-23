@@ -47,6 +47,7 @@ pub struct LineErr {
 }
 
 impl LineErr {
+    #[allow(dead_code)]
     pub(crate) fn new(l: usize, s: String) -> Self {
         LineErr { line: l, err: s }
     }

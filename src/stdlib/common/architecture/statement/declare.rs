@@ -38,23 +38,15 @@ impl ArchitectureDeclare for Statement {
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryInto;
-
-    use indexmap::IndexMap;
 
     use super::*;
     use crate::{
-        generator::{
-            common::test::{
-                records::{rec_rev, rec_rev_nested},
-                test_comp,
-            },
-            vhdl::Split,
+        generator::common::test::{
+            records::{rec_rev, rec_rev_nested},
+            test_comp,
         },
         stdlib::common::architecture::{
-            assignment::{bitvec::BitVecValue, AssignmentKind, StdLogicValue},
-            declaration::ObjectDeclaration,
-            object::ObjectType,
+            assignment::AssignmentKind, declaration::ObjectDeclaration, object::ObjectType,
         },
     };
 

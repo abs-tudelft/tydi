@@ -1,4 +1,4 @@
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 
 use super::{AssignDeclaration, Assignment, FieldSelection};
 use crate::{
@@ -343,6 +343,8 @@ fn match_bit_field_selection(
 
 #[cfg(test)]
 mod tests {
+    use std::convert::TryInto;
+
     use crate::generator::common::test::records;
     use crate::stdlib::common::architecture::assignment::declare::tests::nested_record_signal;
     use crate::stdlib::common::architecture::ArchitectureDeclare;

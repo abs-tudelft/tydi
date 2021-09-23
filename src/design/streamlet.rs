@@ -274,6 +274,7 @@ impl Streamlet {
         })
     }
 
+    #[allow(dead_code)]
     pub(crate) fn set_key(&mut self, key: ComponentKey) {
         self.key = key;
     }

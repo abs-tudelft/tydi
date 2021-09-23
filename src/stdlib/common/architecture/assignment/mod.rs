@@ -8,7 +8,7 @@ use array_assignment::ArrayAssignment;
 use crate::physical::Width;
 use crate::{Document, Error, Result};
 
-use super::declaration::{ObjectDeclaration, ObjectKind};
+use super::declaration::{ObjectDeclaration};
 use super::object::ObjectType;
 
 use self::bitvec::BitVecValue;
