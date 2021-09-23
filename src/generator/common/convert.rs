@@ -2,12 +2,17 @@
 //!
 //! The generator module is enabled by the `generator` feature flag.
 
+use std::borrow::Borrow;
+use std::cell::Ref;
+
+use crate::design::implementation::composer::GenericComponent;
 use crate::design::{Interface, Streamlet};
+pub use crate::error::{Error, Result};
 use crate::generator::common::{Component, Mode, Package, Port, Project, Record, Type};
 use crate::logical::{Group, LogicalType, Stream, Union};
 use crate::physical::{Origin, Signal, Width};
 use crate::traits::Identify;
-use crate::{cat, Document};
+use crate::{cat, Document, NonZeroReal};
 
 // Generator-global constants:
 
@@ -59,6 +64,14 @@ pub trait Projectify {
     fn fancy(&self) -> Project;
 }
 
+pub trait Multilane {
+    fn with_throughput(
+        &self,
+        identity: impl Into<String>,
+        throughput: NonZeroReal<f64>,
+    ) -> Result<Type>;
+}
+
 impl Typify for LogicalType {
     fn canonical(&self, prefix: impl Into<String>) -> Vec<Signal> {
         // This implementation for LogicalType assumes the LogicalType has already been
@@ -101,7 +114,7 @@ impl Typify for Group {
         let mut rec = Record::new_empty(n.clone());
         for (field_name, field_logical) in self.iter() {
             if let Some(field_common_type) = field_logical.fancy(cat!(n.clone(), field_name)) {
-                rec.insert_new_field(field_name.to_string(), field_common_type, false)
+                rec.insert_new_field(field_name.to_string(), field_common_type, false, None)
             }
         }
         Some(Type::Record(rec))
@@ -126,14 +139,23 @@ impl Typify for Union {
         let n: String = prefix.into();
         let mut rec = Record::new_empty(n.clone());
         if let Some((tag_name, tag_bc)) = self.tag() {
-            rec.insert_new_field(tag_name, Type::bitvec(tag_bc.get()), false);
+            let mut variants_doc = vec![];
+            for (field_name, _) in self.iter() {
+                variants_doc.push(field_name.to_string());
+            }
+            rec.insert_new_field(
+                tag_name,
+                Type::bitvec(tag_bc.get()),
+                false,
+                Some(format!(" Variants: {}", variants_doc.join(", "))),
+            );
         }
         for (field_name, field_logical) in self.iter() {
             if let Some(field_common_type) = field_logical.fancy(cat!(n.clone(), field_name)) {
-                rec.insert_new_field(field_name, field_common_type, false);
+                rec.insert_new_field(field_name, field_common_type, false, None);
             }
         }
-        Some(Type::Record(rec))
+        Some(Type::Union(rec))
     }
 }
 
@@ -187,25 +209,29 @@ impl Typify for Stream {
                 _ => cat!(pre, name),
             });
 
+            let prefix = cat!(pre, name, "data");
+            let data = self.data().fancy(&prefix).unwrap();
             // Insert data record. There must be something there since it is not null.
+            // TODO: The fancy version doesn't account for throughput.
             rec.insert_new_field(
                 "data",
-                self.data().fancy(cat!(pre, name, "data")).unwrap(),
+                data.with_throughput(&prefix, self.throughput()).unwrap(),
                 false,
+                None,
             );
 
             // Check signals related to dimensionality, complexity, etc.
             if let Some(sig) = signals.last() {
-                rec.insert_new_field("last", sig.width().into(), sig.reversed());
+                rec.insert_new_field("last", sig.width().into(), sig.reversed(), None);
             }
             if let Some(sig) = signals.stai() {
-                rec.insert_new_field("stai", sig.width().into(), sig.reversed());
+                rec.insert_new_field("stai", sig.width().into(), sig.reversed(), None);
             }
             if let Some(sig) = signals.endi() {
-                rec.insert_new_field("endi", sig.width().into(), sig.reversed());
+                rec.insert_new_field("endi", sig.width().into(), sig.reversed(), None);
             }
             if let Some(sig) = signals.strb() {
-                rec.insert_new_field("strb", sig.width().into(), sig.reversed());
+                rec.insert_new_field("strb", sig.width().into(), sig.reversed(), None);
             }
 
             Some(Type::Record(rec))
@@ -323,8 +349,11 @@ impl Componentify for Streamlet {
                     Port::new_documented("clk", Mode::In, Type::Bit, None),
                     Port::new_documented("rst", Mode::In, Type::Bit, None),
                 ];
-                self.interfaces().for_each(|interface| {
-                    all_ports.extend(interface.canonical(interface.identifier()));
+                self.inputs().for_each(|interface| {
+                    all_ports.extend(interface.borrow().canonical(interface.identifier()));
+                });
+                self.outputs().for_each(|interface| {
+                    all_ports.extend(interface.borrow().canonical(interface.identifier()));
                 });
                 all_ports
             },
@@ -337,20 +366,24 @@ impl Componentify for Streamlet {
             cat!(self.identifier().to_string(), suffix.unwrap_or("")),
             vec![],
             {
+                let collect_ports =
+                    |interfaces: Box<(dyn Iterator<Item = Ref<Interface>>)>| -> Vec<Port> {
+                        interfaces
+                            .flat_map(|interface| {
+                                interface.borrow().fancy(
+                                    interface.identifier(),
+                                    cat!(self.identifier().to_string(), interface.identifier()),
+                                )
+                            })
+                            .collect::<Vec<Port>>()
+                    };
+
                 let mut all_ports: Vec<Port> = vec![
                     Port::new_documented("clk", Mode::In, Type::Bit, None),
                     Port::new_documented("rst", Mode::In, Type::Bit, None),
                 ];
-                all_ports.extend(
-                    self.interfaces()
-                        .flat_map(|interface| {
-                            interface.fancy(
-                                interface.identifier(),
-                                cat!(self.identifier().to_string(), interface.identifier()),
-                            )
-                        })
-                        .collect::<Vec<Port>>(),
-                );
+                all_ports.extend(collect_ports(self.inputs()));
+                all_ports.extend(collect_ports(self.outputs()));
                 all_ports
             },
             self.doc(),
@@ -404,14 +437,47 @@ impl Projectify for crate::design::Project {
     }
 }
 
+impl Multilane for Type {
+    fn with_throughput(
+        &self,
+        identity: impl Into<String>,
+        throughput: NonZeroReal<f64>,
+    ) -> Result<Type> {
+        if throughput.0 > u32::MAX as f64 {
+            return Err(Error::InvalidArgument(format!(
+                "Throughput exceeds {}",
+                u32::MAX
+            )));
+        }
+        let element_lanes = throughput.0.ceil() as u32;
+        if element_lanes > 1 {
+            match self {
+                Type::Bit => Ok(Type::BitVec {
+                    width: element_lanes,
+                }),
+                Type::BitVec { width: _ } | Type::Record(_) | Type::Union(_) | Type::Array(_) => {
+                    Ok(Type::array(
+                        format!("{}_array", identity.into()),
+                        self.clone(),
+                        element_lanes,
+                    ))
+                }
+            }
+        } else {
+            return Ok(self.clone());
+        }
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::*;
     use crate::design::{Interface, Streamlet};
     use crate::generator::common::test::records;
     use crate::generator::vhdl::Declare;
     use crate::logical::tests::{elements, streams};
-    use crate::{Name, Positive, Result, UniquelyNamedBuilder};
+    use crate::{Name, Positive, Result, UniqueKeyBuilder};
+
+    use super::*;
 
     #[test]
     fn test_cat() {
@@ -517,8 +583,9 @@ pub(crate) mod tests {
     }
 
     mod fancy {
-        use super::*;
         use crate::generator::common::Field;
+
+        use super::*;
 
         #[test]
         fn logical_to_common_prim() {
@@ -546,9 +613,9 @@ pub(crate) mod tests {
                 Type::record(
                     "test",
                     vec![
-                        Field::new("valid", Type::Bit, false),
-                        Field::new("ready", Type::Bit, true),
-                        Field::new("data", Type::bitvec(8), false)
+                        Field::new("valid", Type::Bit, false, None),
+                        Field::new("ready", Type::Bit, true, None),
+                        Field::new("data", Type::bitvec(8), false, None)
                     ]
                 )
             );
@@ -564,24 +631,26 @@ pub(crate) mod tests {
                             Type::record(
                                 "test_a",
                                 vec![
-                                    Field::new("valid", Type::Bit, false),
-                                    Field::new("ready", Type::Bit, true),
-                                    Field::new("data", Type::bitvec(42), false)
+                                    Field::new("valid", Type::Bit, false, None),
+                                    Field::new("ready", Type::Bit, true, None),
+                                    Field::new("data", Type::bitvec(42), false, None)
                                 ]
                             ),
-                            false
+                            false,
+                            None,
                         ),
                         Field::new(
                             "b",
                             Type::record(
                                 "test_b",
                                 vec![
-                                    Field::new("valid", Type::Bit, false),
-                                    Field::new("ready", Type::Bit, true),
-                                    Field::new("data", Type::bitvec(1337), false)
+                                    Field::new("valid", Type::Bit, false, None),
+                                    Field::new("ready", Type::Bit, true, None),
+                                    Field::new("data", Type::bitvec(1337), false, None)
                                 ]
                             ),
-                            false
+                            false,
+                            None,
                         )
                     ]
                 )
@@ -604,7 +673,7 @@ pub(crate) mod tests {
     pub(crate) fn simple_streamlet() -> Result<()> {
         let streamlet = Streamlet::from_builder(
             Name::try_new("test")?,
-            UniquelyNamedBuilder::new().with_items(vec![
+            UniqueKeyBuilder::new().with_items(vec![
                 Interface::try_new("x", crate::design::Mode::In, streams::prim(8), None)?,
                 Interface::try_new("y", crate::design::Mode::Out, streams::group(), None)?,
             ]),
@@ -624,7 +693,7 @@ pub(crate) mod tests {
     pub(crate) fn nested_streams_streamlet() -> Result<()> {
         let streamlet = Streamlet::from_builder(
             Name::try_new("test")?,
-            UniquelyNamedBuilder::new().with_items(vec![
+            UniqueKeyBuilder::new().with_items(vec![
                 Interface::try_new("x", crate::design::Mode::In, streams::prim(8), None)?,
                 Interface::try_new("y", crate::design::Mode::Out, streams::nested(), None)?,
             ]),

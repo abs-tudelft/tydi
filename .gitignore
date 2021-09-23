@@ -1,5 +1,6 @@
-# Clion
+# IDEs
 .idea
+.vscode
 
 # Book
 book/book
@@ -8,3 +9,7 @@ book/book
 /target
 **/*.rs.bk
 tarpaulin-report.html
+
+# Output
+/output
+*.cf

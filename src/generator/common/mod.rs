@@ -5,6 +5,7 @@
 
 use crate::traits::Identify;
 use crate::{cat, Document};
+use crate::{Error, Result};
 use crate::{NonNegative, Reversed};
 
 pub mod convert;
@@ -22,8 +23,8 @@ pub mod convert;
 /// let port = Port::new("example",
 ///     Mode::In,
 ///     Type::record("rec", vec![              // Shortcut to Type::Record(Record::new(...
-///         Field::new("a", Type::Bit, false), // This field will have a port Mode::In
-///         Field::new("b", Type::Bit, true)   // This field will have a port Mode::Out
+///         Field::new("a", Type::Bit, false, None), // This field will have a port Mode::In
+///         Field::new("b", Type::Bit, true, None)   // This field will have a port Mode::Out
 ///     ])
 /// );
 /// ```
@@ -36,6 +37,8 @@ pub struct Field {
     /// Whether the direction of this field should be reversed
     /// w.r.t. the other fields in the record for bulk connections.
     reversed: bool,
+    /// Documentation
+    doc: Option<String>,
 }
 
 impl Identify for Field {
@@ -46,11 +49,12 @@ impl Identify for Field {
 
 impl Field {
     /// Construct a new record field.
-    pub fn new(name: impl Into<String>, typ: Type, reversed: bool) -> Field {
+    pub fn new(name: impl Into<String>, typ: Type, reversed: bool, doc: Option<String>) -> Field {
         Field {
             name: name.into(),
             typ,
             reversed,
+            doc,
         }
     }
 
@@ -63,11 +67,28 @@ impl Field {
     pub fn is_reversed(&self) -> bool {
         self.reversed
     }
+
+    /// Return this field with documentation added.
+    pub fn with_doc(mut self, doc: impl Into<String>) -> Self {
+        self.doc = Some(doc.into());
+        self
+    }
 }
 
 impl Reversed for Field {
     fn reversed(&self) -> Self {
-        Field::new(self.name.clone(), self.typ.clone(), !self.reversed)
+        Field::new(
+            self.name.clone(),
+            self.typ.clone(),
+            !self.reversed,
+            self.doc.clone(),
+        )
+    }
+}
+
+impl Document for Field {
+    fn doc(&self) -> Option<String> {
+        self.doc.clone()
     }
 }
 
@@ -109,15 +130,21 @@ impl Record {
         Record {
             identifier: name.into(),
             fields: vec![
-                Field::new("valid", Type::Bit, false),
-                Field::new("ready", Type::Bit, true),
+                Field::new("valid", Type::Bit, false, None),
+                Field::new("ready", Type::Bit, true, None),
             ],
         }
     }
 
     /// Create a new field and add it to the record.
-    pub fn insert_new_field(&mut self, name: impl Into<String>, typ: Type, reversed: bool) {
-        self.fields.push(Field::new(name, typ, reversed));
+    pub fn insert_new_field(
+        &mut self,
+        name: impl Into<String>,
+        typ: Type,
+        reversed: bool,
+        doc: Option<String>,
+    ) {
+        self.fields.push(Field::new(name, typ, reversed, doc));
     }
 
     /// Add a field to the record.
@@ -126,13 +153,13 @@ impl Record {
     }
 
     /// Returns true if the record contains a field that is reversed.
-    /// Does not include nested records.
+    /// Does not include nested records or unions.
     pub fn has_reversed_field(&self) -> bool {
         self.fields.iter().any(|i| i.reversed)
     }
 
     /// Returns true if the record contains a field that is reversed,
-    /// including any nested records.
+    /// including any nested records or unions.
     pub fn has_reversed(&self) -> bool {
         self.fields
             .iter()
@@ -149,7 +176,7 @@ impl Record {
         self.fields.is_empty()
     }
 
-    /// Append a string to the name of this record, and any nested records.
+    /// Append a string to the name of this record, and any nested records or unions.
     pub fn append_name_nested(&self, with: impl Into<String>) -> Self {
         let p: String = with.into();
         let mut result = Record::new_empty(cat!(self.identifier, p));
@@ -159,11 +186,82 @@ impl Record {
                     f.identifier(),
                     Type::Record(r.append_name_nested(p.clone())),
                     f.reversed,
+                    None,
+                ),
+                Type::Union(u) => Field::new(
+                    f.identifier(),
+                    Type::Union(u.append_name_nested(p.clone())),
+                    f.reversed,
+                    None,
+                ),
+                Type::Array(arr) => Field::new(
+                    f.identifier(),
+                    Type::Array(arr.append_name_nested(p.clone())),
+                    f.reversed,
+                    None,
                 ),
                 _ => f.clone(),
             });
         }
         result
+    }
+}
+
+/// Inner struct for `Type::Array`
+#[derive(Debug, Clone, PartialEq)]
+pub struct Array {
+    identifier: String,
+    typ: Box<Type>,
+    width: NonNegative,
+}
+
+impl Array {
+    pub fn new(identifier: impl Into<String>, typ: Type, width: NonNegative) -> Array {
+        Array {
+            identifier: identifier.into(),
+            typ: Box::new(typ),
+            width,
+        }
+    }
+
+    pub fn typ(&self) -> &Type {
+        &self.typ
+    }
+
+    pub fn width(&self) -> NonNegative {
+        self.width
+    }
+
+    /// Append a string to the name of this array, and any nested records, arrays or unions.
+    pub fn append_name_nested(&self, with: impl Into<String>) -> Self {
+        let p: String = with.into();
+        let new_name = cat!(self.identifier(), p);
+        match self.typ() {
+            Type::Bit | Type::BitVec { width: _ } => {
+                Array::new(new_name, self.typ().clone(), self.width())
+            }
+            Type::Record(rec) => Array::new(
+                new_name,
+                Type::Record(rec.append_name_nested(p.clone())),
+                self.width(),
+            ),
+            Type::Union(rec) => Array::new(
+                new_name,
+                Type::Union(rec.append_name_nested(p.clone())),
+                self.width(),
+            ),
+            Type::Array(arr) => Array::new(
+                new_name,
+                Type::Array(arr.append_name_nested(p.clone())),
+                self.width(),
+            ),
+        }
+    }
+}
+
+impl Identify for Array {
+    fn identifier(&self) -> &str {
+        self.identifier.as_str()
     }
 }
 
@@ -179,7 +277,13 @@ pub enum Type {
     },
     /// A record.
     Record(Record),
-    // TODO: Arrays, unions, etc...
+    /// Unions are implemented as records when using a "fancy" representation.
+    ///
+    /// Care needs to be taken to ensure the variant fields are assigned
+    /// from the same signal.
+    Union(Record),
+    /// An array of any type, used to represent multiple element lanes.
+    Array(Array),
 }
 
 /// Bundle of names and types. Useful to represent flattened types.
@@ -196,15 +300,35 @@ impl Type {
         Type::Record(Record::new(name.into(), fields))
     }
 
+    /// Construct a union type.
+    pub fn union(name: impl Into<String>, fields: Vec<Field>) -> Type {
+        Type::Union(Record::new(name.into(), fields))
+    }
+
+    /// Construct an array type.
+    pub fn array(name: impl Into<String>, typ: Type, width: u32) -> Type {
+        Type::Array(Array {
+            identifier: name.into(),
+            typ: Box::new(typ),
+            width,
+        })
+    }
+
     /// Flatten a type to a non-nested type bundle.
     pub fn flatten(&self, prefix: Vec<String>, reversed: bool) -> TypeBundle {
         let mut result: TypeBundle = vec![];
-        match self {
-            Type::Record(rec) => rec.fields.iter().for_each(|field| {
+
+        let mut flatten_rec = |rec: &Record| {
+            rec.fields.iter().for_each(|field| {
                 let mut new_prefix = prefix.clone();
                 new_prefix.push(field.name.clone());
                 result.extend(field.typ.flatten(new_prefix, field.reversed))
-            }),
+            })
+        };
+        match self {
+            Type::Record(rec) => flatten_rec(rec),
+            Type::Union(rec) => flatten_rec(rec),
+            Type::Array(arr) => result.extend(arr.typ().flatten(prefix, reversed)),
             _ => result.push((prefix, self.clone(), reversed)),
         }
         result
@@ -214,6 +338,8 @@ impl Type {
     pub fn has_reversed(&self) -> bool {
         match self {
             Type::Record(rec) => rec.has_reversed(),
+            Type::Union(rec) => rec.has_reversed(),
+            Type::Array(arr) => arr.typ().has_reversed(),
             _ => false,
         }
     }
@@ -394,6 +520,23 @@ pub struct Package {
     pub components: Vec<Component>,
 }
 
+impl Package {
+    pub fn get_component(&self, identifier: impl Into<String>) -> Result<Component> {
+        let identifier = identifier.into();
+        match self
+            .components
+            .iter()
+            .find(|x| x.identifier() == &identifier)
+        {
+            Some(component) => Ok(component.clone()),
+            None => Err(Error::LibraryError(format!(
+                "Component with identifier {} does not exist in package.",
+                identifier
+            ))),
+        }
+    }
+}
+
 /// A project with libraries
 #[derive(Debug)]
 pub struct Project {
@@ -405,12 +548,11 @@ pub struct Project {
 
 #[cfg(test)]
 pub(crate) mod test {
-
-    use super::*;
     use crate::cat;
 
-    pub(crate) mod records {
+    use super::*;
 
+    pub(crate) mod records {
         use super::*;
 
         pub(crate) fn prim(bits: u32) -> Type {
@@ -421,8 +563,8 @@ pub(crate) mod test {
             Type::record(
                 name.into(),
                 vec![
-                    Field::new("c", Type::bitvec(42), false),
-                    Field::new("d", Type::bitvec(1337), false),
+                    Field::new("c", Type::bitvec(42), false, None),
+                    Field::new("d", Type::bitvec(1337), false, None),
                 ],
             )
         }
@@ -431,14 +573,17 @@ pub(crate) mod test {
             Type::record(
                 name.into(),
                 vec![
-                    Field::new("c", Type::bitvec(42), false),
-                    Field::new("d", Type::bitvec(1337), true),
+                    Field::new("c", Type::bitvec(42), false, None),
+                    Field::new("d", Type::bitvec(1337), true, None),
                 ],
             )
         }
 
         pub(crate) fn rec_of_single(name: impl Into<String>) -> Type {
-            Type::record(name.into(), vec![Field::new("a", Type::bitvec(42), false)])
+            Type::record(
+                name.into(),
+                vec![Field::new("a", Type::bitvec(42), false, None)],
+            )
         }
 
         pub(crate) fn rec_rev_nested(name: impl Into<String>) -> Type {
@@ -446,8 +591,8 @@ pub(crate) mod test {
             Type::record(
                 n.clone(),
                 vec![
-                    Field::new("a", rec(cat!(n, "a")), false),
-                    Field::new("b", rec_rev(cat!(n, "b")), false),
+                    Field::new("a", rec(cat!(n, "a")), false, None),
+                    Field::new("b", rec_rev(cat!(n, "b")), false, None),
                 ],
             )
         }
@@ -457,8 +602,31 @@ pub(crate) mod test {
             Type::record(
                 n.clone(),
                 vec![
-                    Field::new("a", rec(cat!(n, "a")), false),
-                    Field::new("b", rec(cat!(n, "b")), false),
+                    Field::new("a", rec(cat!(n, "a")), false, None),
+                    Field::new("b", rec(cat!(n, "b")), false, None),
+                ],
+            )
+        }
+
+        pub(crate) fn union(name: impl Into<String>) -> Type {
+            Type::union(
+                name,
+                vec![
+                    Field::new("tag", Type::bitvec(2), false, None),
+                    Field::new("c", Type::bitvec(42), false, None),
+                    Field::new("d", Type::bitvec(1337), false, None),
+                ],
+            )
+        }
+
+        pub(crate) fn union_nested(name: impl Into<String>) -> Type {
+            let n: String = name.into();
+            Type::union(
+                n.clone(),
+                vec![
+                    Field::new("tag", Type::bitvec(2), false, None),
+                    Field::new("a", union(cat!(n, "a")), false, None),
+                    Field::new("b", union(cat!(n, "b")), false, None),
                 ],
             )
         }
@@ -516,8 +684,8 @@ pub(crate) mod test {
         assert!(!Type::record(
             "test",
             vec![
-                Field::new("a", Type::Bit, false),
-                Field::new("b", Type::Bit, false),
+                Field::new("a", Type::Bit, false, None),
+                Field::new("b", Type::Bit, false, None),
             ],
         )
         .has_reversed());

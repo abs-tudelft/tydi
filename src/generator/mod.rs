@@ -1,6 +1,7 @@
+use std::path::Path;
+
 use crate::design::Project;
 use crate::Result;
-use std::path::Path;
 
 pub mod chisel;
 pub mod common;

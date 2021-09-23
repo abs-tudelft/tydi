@@ -6,7 +6,6 @@ mod tests {
     use tydi::generator::common::convert::{Componentify, Packify};
     use tydi::generator::vhdl::Declare;
     use tydi::Name;
-    use tydi::UniquelyNamedBuilder;
 
     #[test]
     fn streamlet_async() {
@@ -43,15 +42,19 @@ end component;"
             "Streamlet test (a : in Group<b: Bits<1>, c: Bits<2>>, d : out Bits<1>)",
         )
         .unwrap();
-        let lib = tydi::design::library::Library::from_builder(
+        let lib = tydi::design::library::Library::try_new(
             Name::try_new("test").unwrap(),
-            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+            vec![],
+            vec![streamlet],
         );
 
         let lib: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             lib.declare().unwrap(),
-            "package test is
+            "library ieee;
+use ieee.std_logic_1164.all;
+
+package test is
 
 component test_com
   port(
@@ -63,7 +66,7 @@ component test_com
   );
 end component;
 
-record test_a_type
+type test_a_type is record
   b : std_logic_vector(0 downto 0);
   c : std_logic_vector(1 downto 0);
 end record;
@@ -87,15 +90,19 @@ end test;"
             "Streamlet test (a : in Stream<Bits<1>>, b : out Stream<Bits<2>, d=2>)",
         )
         .unwrap();
-        let lib = tydi::design::library::Library::from_builder(
+        let lib = tydi::design::library::Library::try_new(
             Name::try_new("test").unwrap(),
-            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+            vec![],
+            vec![streamlet],
         );
 
         let lib: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             lib.declare().unwrap(),
-            "package test is
+            "library ieee;
+use ieee.std_logic_1164.all;
+
+package test is
 
 component test_com
   port(
@@ -112,23 +119,23 @@ component test_com
   );
 end component;
 
-record test_a_dn_type
+type test_a_dn_type is record
   valid : std_logic;
   data : std_logic_vector(0 downto 0);
 end record;
 
-record test_a_up_type
+type test_a_up_type is record
   ready : std_logic;
 end record;
 
-record test_b_dn_type
+type test_b_dn_type is record
   valid : std_logic;
   data : std_logic_vector(1 downto 0);
   last : std_logic_vector(1 downto 0);
   strb : std_logic_vector(0 downto 0);
 end record;
 
-record test_b_up_type
+type test_b_up_type is record
   ready : std_logic;
 end record;
 
@@ -153,15 +160,19 @@ end test;"
             "Streamlet test (a : in Stream<Group<b:Bits<1>, c:Bits<2>>>)",
         )
         .unwrap();
-        let lib = tydi::design::library::Library::from_builder(
+        let lib = tydi::design::library::Library::try_new(
             Name::try_new("test").unwrap(),
-            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+            vec![],
+            vec![streamlet],
         );
 
         let lib: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             lib.declare().unwrap(),
-            "package test is
+            "library ieee;
+use ieee.std_logic_1164.all;
+
+package test is
 
 component test_com
   port(
@@ -173,17 +184,17 @@ component test_com
   );
 end component;
 
-record test_a_data_dn_type
+type test_a_data_dn_type is record
   b : std_logic_vector(0 downto 0);
   c : std_logic_vector(1 downto 0);
 end record;
 
-record test_a_dn_type
+type test_a_dn_type is record
   valid : std_logic;
   data : test_a_data_dn_type;
 end record;
 
-record test_a_up_type
+type test_a_up_type is record
   ready : std_logic;
 end record;
 
@@ -206,15 +217,19 @@ end test;"
             "Streamlet test (a : in Group<b:Bits<2>, c:Stream<Bits<1>>>, d : out Stream<Bits<1>>)",
         )
         .unwrap();
-        let lib = tydi::design::library::Library::from_builder(
+        let lib = tydi::design::library::Library::try_new(
             Name::try_new("test").unwrap(),
-            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+            vec![],
+            vec![streamlet],
         );
 
         let pkg: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             pkg.declare().unwrap(),
-            "package test is
+            "library ieee;
+use ieee.std_logic_1164.all;
+
+package test is
 
 component test_com
   port(
@@ -230,25 +245,25 @@ component test_com
   );
 end component;
 
-record test_a_type
+type test_a_type is record
   b : std_logic_vector(1 downto 0);
 end record;
 
-record test_a_c_dn_type
+type test_a_c_dn_type is record
   valid : std_logic;
   data : std_logic_vector(0 downto 0);
 end record;
 
-record test_a_c_up_type
+type test_a_c_up_type is record
   ready : std_logic;
 end record;
 
-record test_d_dn_type
+type test_d_dn_type is record
   valid : std_logic;
   data : std_logic_vector(0 downto 0);
 end record;
 
-record test_d_up_type
+type test_d_up_type is record
   ready : std_logic;
 end record;
 
@@ -280,15 +295,19 @@ end test;"
         )",
         )
             .unwrap();
-        let lib = tydi::design::library::Library::from_builder(
+        let lib = tydi::design::library::Library::try_new(
             Name::try_new("test").unwrap(),
-            UniquelyNamedBuilder::new().with_items(vec![streamlet]),
+            vec![],
+            vec![streamlet],
         );
 
         let pkg: tydi::generator::common::Package = lib.unwrap().fancy();
         assert_eq!(
             pkg.declare().unwrap(),
-            "package test is
+            "library ieee;
+use ieee.std_logic_1164.all;
+
+package test is
 
 component test_com
   port(
@@ -307,27 +326,29 @@ component test_com
   );
 end component;
 
-record test_c_type
+type test_c_type is record
   d : std_logic_vector(0 downto 0);
   e : std_logic_vector(1 downto 0);
 end record;
 
-record test_f_type
+type test_f_type is record
+  -- Variants: g, h
   tag : std_logic_vector(0 downto 0);
   h : std_logic_vector(2 downto 0);
 end record;
 
-record test_i_s_type
+type test_i_s_type is record
   t : std_logic_vector(0 downto 0);
   u : std_logic_vector(1 downto 0);
 end record;
 
-record test_i_v_type
+type test_i_v_type is record
+  -- Variants: g, w
   tag : std_logic_vector(0 downto 0);
   w : std_logic_vector(2 downto 0);
 end record;
 
-record test_i_type
+type test_i_type is record
   r : std_logic_vector(0 downto 0);
   s : test_i_s_type;
   v : test_i_v_type;
