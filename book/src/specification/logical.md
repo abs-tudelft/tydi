@@ -188,7 +188,7 @@ defined as \\(\textrm{Stream}(T_e, t, d, s, c, r, T_u, x)\\), where:
 #### Null
 
 The \\(\textrm{Null}\\) leaf node indicates the transferrence of one-valued
-data: it is only valid value is \\(\varnothing\\) (null).
+data: the only valid value is \\(\varnothing\\) (null).
 
 > This is useful primarily when used within a \\(\textrm{Union}\\), where the
 > data type itself carries information. Furthermore, \\(\textrm{Stream}\\)
