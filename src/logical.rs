@@ -666,7 +666,7 @@ impl LogicalType {
                     },
                     streams: fields
                         .into_iter()
-                        .map(|(name, stream)| {
+                        .flat_map(|(name, stream)| {
                             stream.split_streams().streams.into_iter().map(
                                 move |(mut path_name, stream_)| {
                                     path_name.push(name.clone());
@@ -674,7 +674,6 @@ impl LogicalType {
                                 },
                             )
                         })
-                        .flatten()
                         .collect(),
                 }
             }
@@ -1145,8 +1144,7 @@ pub(crate) mod tests {
             logical_stream
                 .streams
                 .values()
-                .map(|physical_stream| physical_stream.element_fields().iter())
-                .flatten()
+                .flat_map(|physical_stream| physical_stream.element_fields().iter())
                 .collect::<Vec<_>>(),
             vec![
                 (&PathName::try_new(vec!["tag"])?, &Positive::new(2).unwrap()),

@@ -106,7 +106,7 @@ impl Analyze for Type {
             // Only record can have nested records.
             Type::Record(rec) => {
                 let mut result: Vec<Type> = vec![self.clone()];
-                for f in rec.fields().into_iter() {
+                for f in rec.fields() {
                     let children = f.typ().list_record_types();
                     result.extend(children.into_iter());
                 }
@@ -122,7 +122,7 @@ impl Declare for Port {
         let mut result = String::new();
         if let Some(doc) = self.doc() {
             result.push_str("--");
-            result.push_str(doc.replace("\n", "\n    --").as_str());
+            result.push_str(doc.replace('\n', "\n    --").as_str());
             result.push_str("\n    ");
         }
         result.push_str(
@@ -149,7 +149,7 @@ impl Declare for Component {
         let mut result = String::new();
         if let Some(doc) = self.doc() {
             result.push_str("--");
-            result.push_str(doc.replace("\n", "\n--").as_str());
+            result.push_str(doc.replace('\n', "\n--").as_str());
             result.push('\n');
         }
         result.push_str(format!("component {}\n", self.identifier()).as_str());

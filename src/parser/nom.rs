@@ -238,19 +238,19 @@ pub fn stream(input: &str) -> Result<&str, LogicalType> {
                         .map(|x| synchronicity(x).ok().map(|(_, x)| x))
                 })
                 .flatten()
-                .unwrap_or_else(Synchronicity::default);
+                .unwrap_or_default();
 
             let complexity = opt
                 .as_ref()
                 .and_then(|opts| opts.get(&'c').map(|x| complexity(x).ok().map(|(_, x)| x)))
                 .flatten()
-                .unwrap_or_else(Complexity::default);
+                .unwrap_or_default();
 
             let direction = opt
                 .as_ref()
                 .and_then(|opts| opts.get(&'r').map(|x| direction(x).ok().map(|(_, x)| x)))
                 .flatten()
-                .unwrap_or_else(Direction::default);
+                .unwrap_or_default();
 
             let user = opt
                 .as_ref()

@@ -201,7 +201,7 @@ impl Split for Record {
         let mut down_rec = Record::new_empty(self.identifier());
         let mut up_rec = Record::new_empty(self.identifier());
 
-        for f in self.fields().into_iter() {
+        for f in self.fields() {
             let (down_field, up_field) = f.split();
             if let Some(df) = down_field {
                 down_rec.insert(df)
