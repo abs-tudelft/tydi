@@ -23,9 +23,10 @@ The significance of these parameters is defined in the following subsections.
 ### Element content (E) and user/transfer content (U)
 
 \\(E\\) and \\(U\\) are of the form
-\\(\textrm{Fields}(N_1 : b_1, N_2 : b_2, ..., N_n : b_n)\\), where \\(N\\) are
-names, \\(b\\) are positive integers representing bit counts, and \\(n\\) is a
-nonnegative integer, describing a list of \\(n\\) named bit vector signals.
+\\(\textrm{Fields}(P_1 : b_1, P_2 : b_2, ..., P_n : b_n)\\), where \\(P\\) are
+name paths, \\(b\\) are positive integers representing bit counts, and \\(n\\)
+is a nonnegative integer, describing a list of \\(n\\) named bit vector
+signals.
 
 > The element type can be given zero fields to make a "null" stream. Such
 > streams can still be useful, as physical streams also carry metadata. The
@@ -42,26 +43,12 @@ encodes one instance of the user/transfer content.
 > network-on-chip-like structure by attaching routing information such as
 > source and destination addresses through this method.
 
-The name of each field is a string consisting of letters, numbers, and/or
-underscores. It may be empty, represented in this specification as
-\\(\varnothing\\).
+The name paths are tuples of strings, each string consisting of letters,
+numbers, and/or underscores. The tuple may be empty.
 
-The name cannot start or end with an underscore.
+The name paths must be unique within the set of named fields.
 
-The name cannot start with a digit.
-
-> It is illegal to start or end with an underscore or start with a number to
-> prevent confusion when the name is prefixed to form the signal name, and
-> for compatibility with VHDL.
-
-The name must be case-insensitively unique within the set of named fields.
-
-> The identifier is case-insensitive because compatibility with VHDL is
-> desired.
-
-\\(|\textrm{Fields}(N_1 : b_1, N_2 : b_2, ..., N_n : b_n)|\\) is a shorthand
-defined to equal \\(\sum_{i=1}^{n} b_i\\); that is, the sum of the field bit
-count over all fields in the element.
+The name path components cannot be empty.
 
 ### Number of element lanes (N)
 
@@ -72,10 +59,14 @@ lane.
 
 ### Dimensionality (D)
 
-\\(D\\) must be an integer greater than or equal to zero. It specifies the
-number of `last` bits needed to represent the data.
+\\(D\\) must be an tuple of booleans. Each boolean represents a dimension of
+the represented data; it can be empty if the data is scalar. The boolean
+signifies whether that dimension consists of zero or more elements (true) or
+one or more elements (false). \\(\|D\|\\) (the number of elements in \\(D\\))
+represents the number of `last` bits needed to represent the data.
 
-> Intuitively, each sequence nesting level adds one to this number. For
+> Intuitively, each sequence nesting level adds a dimension, whith the boolean
+> corresponding to the dimension set to whether the sequence is emptyable. For
 > instance, to stream two-dimensional sequences, two `last` bits are needed:
 > one to mark the boundaries of the inner sequence, and one to mark the
 > boundary of each two-dimensional sequence.
@@ -139,7 +130,7 @@ A physical stream is comprised of the following signals.
 | `valid` | Source | Stalling the data stream due to the source not being ready.                            |
 | `ready` | Sink   | Stalling the data stream due to the sink not being ready.                              |
 | `data`  | Source | Data transfer of \\(N\\) \\(\|E\|\\)-bit elements.                                     |
-| `last`  | Source | Indicating the last transfer for \\(D\\) levels of nested sequences.                   |
+| `last`  | Source | Indicating the last transfer for \\(\|D\|\\) levels of nested sequences.               |
 | `stai`  | Source | Start index; encodes the index of the first valid lane.                                |
 | `endi`  | Source | End index; encodes the index of the last valid lane.                                   |
 | `strb`  | Source | Strobe; encodes individual lane validity for \\(C \ge 8\\), empty sequences otherwise. |
@@ -153,7 +144,7 @@ bit vectors with the following widths.
 | `valid` | *scalar*                      |
 | `ready` | *scalar*                      |
 | `data`  | \\(N \times \|E\|\\)          |
-| `last`  | \\(N \times D\\)              |
+| `last`  | \\(N \times \|D\|\\)          |
 | `stai`  | \\(\lceil \log_2{N} \rceil\\) |
 | `endi`  | \\(\lceil \log_2{N} \rceil\\) |
 | `strb`  | \\(N\\)                       |
@@ -283,16 +274,16 @@ transfer.
 The `last` signal consists of `N` concatenated lanes, each carrying a
 termination bit for each nested sequence represented by the physical stream.
 The `last` bit for lane \\(i\\) and dimension \\(j\\) (i.e., bit
-\\(i \cdot D + j\\)) being asserted indicates completion of a sequence with
-nesting level \\(D - j - 1\\), containing all elements streamed between the
+\\(i \cdot \|D\| + j\\)) being asserted indicates completion of a sequence with
+nesting level \\(\|D\| - j - 1\\), containing all elements streamed between the
 previous lane/transfer this occured for dimension \\(j' \ge j\\) (or system
 reset, if never) exclusively and this point inclusively, where nesting level
 is defined to be 0 for the outermost sequence, 1 for its inner sequence, up to
-\\(D - 1\\) for the innermost sequence. It is active-high.
+\\(\|D\| - 1\\) for the innermost sequence. It is active-high.
 
 > For example, one way to represent the value
 > `["Hello", "World"], ["Tydi", "is", "nice"], [""], []` with
-> \\(N = 6, C \ge 8\\) is as follows. Note that \\(D = 2\\) follows
+> \\(N = 6, C \ge 8\\) is as follows. Note that \\(\|D\| = 2\\) follows
 > from the data type, \\(|E|\\) depends on the character encoding, and the
 > example does not depend on \\(U\\).
 > ```text
@@ -501,16 +492,16 @@ on the interface. When two interfaces with differing but compatible
 complexities are connected together, the default value specified in the table
 below must be driven for the omitted signals.
 
-| Name    | Condition                                   | Default   |
-|---------|---------------------------------------------|-----------|
-| `valid` | *see below*                                 | `'1'`     |
-| `ready` | *see below*                                 | `'1'`     |
-| `data`  | \\(\|E\| > 0\\)                             | all `'0'` |
-| `last`  | \\(D \ge 1\\)                               | all `'1'` |
-| `stai`  | \\(C \ge 6 \wedge N > 1\\)                  | 0         |
-| `endi`  | \\((C \ge 5 \vee D \ge 1) \wedge N > 1\\)   | \\(N-1\\) |
-| `strb`  | \\(C \ge 7 \vee D \ge 1\\)                  | all `'1'` |
-| `user`  | \\(\|U\| > 0\\)                             | all `'0'` |
+| Name    | Condition                                       | Default   |
+|---------|-------------------------------------------------|-----------|
+| `valid` | *see below*                                     | `'1'`     |
+| `ready` | *see below*                                     | `'1'`     |
+| `data`  | \\(\|E\| > 0\\)                                 | all `'0'` |
+| `last`  | \\(\|D\| \ge 1\\)                               | all `'1'` |
+| `stai`  | \\(C \ge 6 \wedge N > 1\\)                      | 0         |
+| `endi`  | \\((C \ge 5 \vee \|D\| \ge 1) \wedge N > 1\\)   | \\(N-1\\) |
+| `strb`  | \\(C \ge 7 \vee (\|D\| \ge 1 \wedge \sum{D})\\) | all `'1'` |
+| `user`  | \\(\|U\| > 0\\)                                 | all `'0'` |
 
 `valid` may be omitted for sources that are always valid.
 
@@ -526,20 +517,15 @@ below must be driven for the omitted signals.
 
 Streams may be named, in order to prevent name conflicts due to multiple
 streams existing within the same namespace. Such a name is to be prefixed to
-the signal names using a double underscore.
-
-> Double underscores are used as a form of unambiguous hierarchy separation to
-> allow user-specified field names in the logical stream types (defined later)
-> to contain (non-consecutive) underscores without risk of name conflicts.
+the signal names using an underscore.
 
 The canonical representation for the `data` and `user` signals is the LSB-first
 concatenation of the contained fields. For \\(N > 1\\), the lanes are
 concatenated LSB first, such that the lane index is major and the field index
 is minor.
 
-Where applicable, the signals must be listed in the following order: `dn`,
-`up`, `valid`, `ready`, `data`, `last`, `stai`, `endi`, `strb`, `user` (`dn`
-and `up` are part of the alternative representation defined below).
+Where applicable, the signals must be listed in the following order: `valid`,
+`ready`, `data`, `last`, `stai`, `endi`, `strb`, `user`.
 
 > This is mostly just a consistency thing, primarily because it helps to get
 > used to a single ordering when interpreting simulation waveforms. It may also
@@ -550,55 +536,8 @@ The signal names must be lowercase.
 > This is for interoperability between languages that differ in case
 > sensitivity.
 
-#### Alternative representation
-
-To improve code readability in hardware definition languages supporting array
-and aggregate constructs (record, struct, ...), the following changes are
-permissible. However, it is recommended to fall back to the conventions above
-for interoperability with other streamlets on the "outer" interfaces of an IP
-block.
-
- - `valid`, `data`, `last`, `stai`, `endi`, `strb`, and `user` may be bundled
-   in an aggregate type named `<stream-name>__dn__type` with signal name
-   `<stream-name>__dn` (`dn` is short for "downstream").
-
- - `ready` may be "bundled" in an aggregate type named
-   `<stream-name>__up__type` with signal name `<stream-name>__up` for symmetry
-   (`up` is short for "upstream").
-
- - If the language allows for signal direction reversal within a bundle, all
-   stream signals may also be bundled into a single type named
-   `<stream-name>__type`, with `ready` in the reverse direction.
-
- - The data and user fields may be bundled in aggregate types named
-   `<stream-name>__data__type` and `<stream-name>__user__type` respectively.
-   The `data` signal becomes an array of `<stream-name>__data__type`s from 0 to
-   \\(N - 1\\) if \\(N > 1\\) or when otherwise desirable.
-
- - Data and user fields consisting of a single bit may be interpreted as either
-   a bit vector of size one or a scalar bit depending on context.
-
- - Fields with a common double-underscore-delimited prefix may be aggregated
-   recursively using `<stream-name>__data__<common-prefix>__type`, in such a
-   way that the double underscores in the canonical signal name are essentially
-   replaced with the hierarchy separator of the hardware definition language.
-
-#### Arrays, vectors, and concatenations
-
-Where applicable, the bitrange for bit vector signals is always `n-1 downto 0`,
-where `n` is the number of bits in the signal.
-
-Concatenations of bit vector signals are done LSB-first.
-
-> That is, lower indexed entries use lower bit indices and thus occur on the
-> right-hand side when the bit vector is written as a binary number. Note that
-> this results in the inverse order when using the concatenation operator in
-> VHDL (and possibly other languages). LSB-first order is chosen because it is
-> more intuitive when indexing the vector. Ultimately this is just a
-> convention.
-
-Where applicable, the range for arrays is always `0 to n-1`, where `n` is the
-number of entries in the array.
-
-> This is the more natural order for array-like structures, actually putting
-> the first entry on the left-hand side.
+Whenever interoperability is not a concern, users may choose to use a more
+ergonomic representation, making use of whatever abstractions the target
+hardware definition language supports, as long as this representation
+synthesizes to the same raw bits as the canonical representation, and can thus
+be converted at zero cost.
